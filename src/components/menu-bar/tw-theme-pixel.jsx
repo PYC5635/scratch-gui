@@ -798,7 +798,7 @@ const PixelEditorApp = injectIntl(props => {
 
                         const exportData = {
                             version: '2.0',
-                            platform: 'Bilup',
+                            platform: 'PineEditor',
                             timestamp: Date.now(),
                             themes: [themeData]
                         };

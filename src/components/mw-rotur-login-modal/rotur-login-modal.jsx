@@ -15,7 +15,7 @@ const FEATURES = [
         titleId: 'mw.roturLogin.feature.editTitle',
         titleDefault: 'Show what you\'re editing',
         descId: 'mw.roturLogin.feature.editDesc',
-        descDefault: 'Share Bilup activity on your Bilup Accounts profile.'
+        descDefault: 'Share PineEditor activity on your PineEditor Accounts profile.'
     },
     {
         icon: Cloud,
@@ -27,7 +27,7 @@ const FEATURES = [
     {
         icon: GitBranch,
         titleId: 'mw.roturLogin.feature.gitTitle',
-        titleDefault: 'Bilup Git in the Git window',
+        titleDefault: 'PineEditor Git in the Git window',
         descId: 'mw.roturLogin.feature.gitDesc',
         descDefault: 'Create repos on git.bilup.org, push your project, and clone others.'
     }
@@ -39,15 +39,15 @@ const COMING_SOON = [
         titleId: 'mw.roturLogin.feature.friendsTitle',
         titleDefault: 'Friends and collab invites',
         descId: 'mw.roturLogin.feature.friendsDesc',
-        descDefault: 'See online friends on Bilup and invite them to collab.'
+        descDefault: 'See online friends on PineEditor and invite them to collab.'
     }
 ];
 
 const messages = defineMessages({
-    contentLabel: {id: 'mw.roturLogin.contentLabel', defaultMessage: 'Sign in with Bilup Accounts'},
-    loggedInContentLabel: {id: 'mw.roturLogin.loggedInContentLabel', defaultMessage: 'Bilup Accounts in Bilup'},
-    loggedInTitle: {id: 'mw.roturLogin.loggedInTitle', defaultMessage: 'Bilup Accounts in Bilup'},
-    connectTitle: {id: 'mw.roturLogin.connectTitle', defaultMessage: 'Connect Bilup to Bilup Accounts'},
+    contentLabel: {id: 'mw.roturLogin.contentLabel', defaultMessage: 'Sign in with PineEditor Accounts'},
+    loggedInContentLabel: {id: 'mw.roturLogin.loggedInContentLabel', defaultMessage: 'PineEditor Accounts in PineEditor'},
+    loggedInTitle: {id: 'mw.roturLogin.loggedInTitle', defaultMessage: 'PineEditor Accounts in PineEditor'},
+    connectTitle: {id: 'mw.roturLogin.connectTitle', defaultMessage: 'Connect PineEditor to PineEditor Accounts'},
     subtitle: {
         id: 'mw.roturLogin.subtitle',
         defaultMessage: 'Sign in for presence, your profile picture, and cloud sync of themes and settings.'
@@ -59,13 +59,13 @@ const messages = defineMessages({
     unlockTitle: {id: 'mw.roturLogin.unlockTitle', defaultMessage: 'What you unlock'},
     comingSoonTitle: {id: 'mw.roturLogin.comingSoonTitle', defaultMessage: 'Coming soon'},
     notNow: {id: 'mw.roturLogin.notNow', defaultMessage: 'Not now'},
-    continue: {id: 'mw.roturLogin.continue', defaultMessage: 'Continue with Bilup Accounts'},
-    busyContinue: {id: 'mw.roturLogin.busyContinue', defaultMessage: 'Opening Bilup Accounts...'},
+    continue: {id: 'mw.roturLogin.continue', defaultMessage: 'Continue with PineEditor Accounts'},
+    busyContinue: {id: 'mw.roturLogin.busyContinue', defaultMessage: 'Opening PineEditor Accounts...'},
     close: {id: 'mw.roturLogin.close', defaultMessage: 'Close'},
-    sessionNotReady: {id: 'mw.roturLogin.sessionNotReady', defaultMessage: 'Bilup Accounts session is not ready yet. Try again in a moment.'},
+    sessionNotReady: {id: 'mw.roturLogin.sessionNotReady', defaultMessage: 'PineEditor Accounts session is not ready yet. Try again in a moment.'},
     footnote: {
         id: 'mw.roturLogin.footnote',
-        defaultMessage: 'Secure sign-in on accounts.bilup.org. Your account powers presence, cloud sync, and Bilup Git.'
+        defaultMessage: 'Secure sign-in on accounts.bilup.org. Your account powers presence, cloud sync, and PineEditor Git.'
     }
 });
 
@@ -107,19 +107,10 @@ class RoturLoginModal extends React.Component {
 
     async handleLogin () {
         if (this.state.busy) return;
-        this.setState({busy: true, localError: null});
-        try {
-            const api = getRoturSessionApi();
-            if (!api || typeof api.login !== 'function') {
-                throw new Error(this.props.intl.formatMessage(messages.sessionNotReady));
-            }
-            await api.login();
-        } catch (error) {
-            const message = error && error.message ? error.message : String(error);
-            this.setState({localError: message});
-        } finally {
-            this.setState({busy: false});
-        }
+        // PineEditor 登录功能尚未开放：拦截跳转，仅显示提示
+        this.setState({busy: true, localError: '开发中……（登录功能尚未开放）'});
+        await new Promise(resolve => setTimeout(resolve, 600));
+        this.setState({busy: false});
     }
 
     render () {

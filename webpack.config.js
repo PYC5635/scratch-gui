@@ -59,6 +59,15 @@ const base = {
     resolve: {
         symlinks: false,
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
+        // scratch-* are file: symlinks into D:\PineEditor\_sdeps. With
+        // symlinks:false webpack resolves them at their REAL path (_sdeps),
+        // where their deps (@bilup/..., @turbowarp/...) are NOT installed in
+        // the adjacent node_modules. Fall back to _sdeps/node_modules so those
+        // deps resolve from the pnpm store that already holds them.
+        modules: [
+            path.resolve(__dirname, 'node_modules'),
+            path.resolve(__dirname, '..', '_sdeps', 'node_modules')
+        ],
         alias: {
             'react': require.resolve('react'),
             'react-dom': require.resolve('react-dom'),
@@ -74,12 +83,32 @@ const base = {
             // Pin it to the hoisted CJS minimatch@3 (already used by glob/babel/eslint),
             // whose API is a superset of what just-bash needs (minimatch()).
             'minimatch': require.resolve('minimatch'),
-            '@remixwarp/scratch-l10n': path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n')
+            '@remixwarp/scratch-l10n': path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n'),
+            // scratch-* deps that live only in the _sdeps store
+            '@bilup/scratch-svg-renderer': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@bilup', 'scratch-svg-renderer'),
+            '@bilup/scratch-render-fonts': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@bilup', 'scratch-render-fonts'),
+            '@turbowarp/sb3fix': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'sb3fix'),
+            '@turbowarp/json': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'json'),
+            '@turbowarp/paper': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'paper'),
+            // scratch-vm requires htmlparser2@3 (CJS, parseDOM); the hoisted top-level
+            // copy is v10 (ESM) which webpack 4 cannot parse. Pin the scoped consumer
+            // to scratch-vm's own installed v3 + its CJS friends.
+            'htmlparser2': path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'node_modules', 'htmlparser2'),
+            'entities': path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'node_modules', 'entities'),
+            'domhandler': path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'node_modules', 'domhandler'),
+            'domutils': path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'node_modules', 'domutils'),
+            'domelementtype': path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'node_modules', 'domelementtype')
         }
     },
     node: {
         __dirname: false,
         __filename: false
+    },
+    resolveLoader: {
+        modules: [
+            path.resolve(__dirname, 'node_modules'),
+            path.resolve(__dirname, '..', '_sdeps', 'node_modules')
+        ]
     },
     module: {
         // peerjs bundles its own parcel module system; webpack's static analysis
@@ -356,10 +385,12 @@ module.exports = [
                 ...htmlWebpackPluginCommon
             }),
             new HtmlWebpackPlugin({
-                chunks: ['player'],
+                chunks: ['editor'],
                 template: 'src/playground/index.ejs',
                 filename: 'index.html',
-                title: `${APP_NAME} - Refactoring freedom`,
+                title: `${APP_NAME} - Editor`,
+                description: `Create, edit, and share projects with ${APP_NAME}'s powerful Scratch editor. Build games, animations, and interactive stories with advanced features and optimizations.`,
+                isEditor: true,
                 ...htmlWebpackPluginCommon
             }),
             new HtmlWebpackPlugin({

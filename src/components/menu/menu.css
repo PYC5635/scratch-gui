@@ -153,6 +153,15 @@
     transform: scale(1);
 }
 
+/* 子菜单内层的 ul.menu 基础样式为 opacity:0（与顶层面板共用 .menu 类）。
+   被子菜单包裹时从不接收 isOpen/.menuOpen，会造成内容恒为透明。
+   这里在子菜单打开/悬停时同时显隐内层 ul，才能真正渲染出子菜单内容。 */
+.menu-item.expanded>.submenu>.menu,
+.menu:not(.mobileModeMenu) .menu-item:not(.expanded):hover>.submenu>.menu {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
 .menu.mobileModeMenu .menu-item:not(.expanded):hover>.submenu {
     display: none !important;
 }

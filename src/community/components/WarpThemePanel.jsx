@@ -311,13 +311,13 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             <div className={styles.gate}>
                 <User size={26} />
                 <h3>{t('mw.community.biluptheme.signInTitle', 'Sign in to BilupTheme')}</h3>
-                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your Bilup Accounts account for uploads, reports, and ownership.')}</p>
+                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your PineEditor Accounts account for uploads, reports, and ownership.')}</p>
                 <button
                     className={styles.primaryButton}
                     onClick={login}
                     type="button"
                 >
-                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with Bilup Accounts')}
+                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with PineEditor Accounts')}
                 </button>
             </div>
         );
@@ -329,7 +329,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 <Shield size={26} />
                 <h3>{t('mw.community.biluptheme.permissionTitle', 'BilupTheme needs one more permission')}</h3>
                 <p>
-                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in Bilup Accounts Token Manager and enable')}
+                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in PineEditor Accounts Token Manager and enable')}
                     {' '}<strong>validators:generate</strong>. {t('mw.community.biluptheme.permissionBody2', 'Then return here and retry.')}
                 </p>
                 <div className={styles.gateActions}>
@@ -536,7 +536,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                     onChange={e => setPlatform(e.target.value)}
                 >
                     <option value="all">{t('mw.community.biluptheme.allPlatforms', 'All platforms')}</option>
-                    <option value="bilup">Bilup</option>
+                    <option value="bilup">PineEditor</option>
                 </select>
             </div>
             {visibleThemes.length === 0 ? (

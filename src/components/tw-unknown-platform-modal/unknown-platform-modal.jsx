@@ -28,7 +28,7 @@ const platformToString = platform => {
 };
 
 const UnknownPlatformModal = props => {
-    const knownCompatiblePlatforms = ['Scratch', 'TurboWarp', '02Engine', 'AstraEditor', 'Bilup', 'Gandi'];
+    const knownCompatiblePlatforms = ['Scratch', 'TurboWarp', '02Engine', 'AstraEditor', 'PineEditor', 'Gandi'];
     const isKnownPlatform = props.platform && knownCompatiblePlatforms.includes(props.platform.name);
 
     return (

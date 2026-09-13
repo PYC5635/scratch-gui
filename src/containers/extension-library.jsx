@@ -274,35 +274,35 @@ const fetchLibrary = async () => {
     // 为 bilup 扩展补充中文翻译（名称/描述），按 extensionId 匹配
     const bilupZhTranslations = {
         bilupAccounts: {
-            name: 'Bilup 账户',
-            description: '登录 Bilup 并访问你的账户信息、权限与社交功能。'
+            name: 'PineEditor 账户',
+            description: '登录 PineEditor 并访问你的账户信息、权限与社交功能。'
         },
         bilupEconomy: {
-            name: 'Bilup 经济',
+            name: 'PineEditor 经济',
             description: '管理积分、货币与交易等经济相关功能。'
         },
         bilupKeys: {
-            name: 'Bilup 密钥',
+            name: 'PineEditor 密钥',
             description: '创建和管理 API 密钥，用于安全地访问服务。'
         },
         bilupStatus: {
-            name: 'Bilup 状态',
+            name: 'PineEditor 状态',
             description: '获取在线状态、活动与用户状态信息。'
         },
         bilupSocial: {
-            name: 'Bilup 社交',
+            name: 'PineEditor 社交',
             description: '发送消息、关注用户并参与社区互动。'
         },
         bilupShop: {
-            name: 'Bilup 商店',
+            name: 'PineEditor 商店',
             description: '浏览商品、下单并管理你的订单。'
         },
         bilupGroups: {
-            name: 'Bilup 群组',
+            name: 'PineEditor 群组',
             description: '创建和管理群组，与成员协作。'
         },
         bilupFiles: {
-            name: 'Bilup 文件',
+            name: 'PineEditor 文件',
             description: '上传、下载并管理你的文件资源。'
         }
     };
@@ -452,7 +452,7 @@ const fetchLibrary = async () => {
             try {
                 const remixwarpRes = await fetch('https://rw-extensions.pages.dev/remixwarp/extensions-index.json');
                 if (!remixwarpRes.ok) {
-                    console.warn(`RemixWarp extensions: HTTP status ${remixwarpRes.status}`);
+                    console.warn(`PineEditor extensions: HTTP status ${remixwarpRes.status}`);
                     return [];
                 }
                 const remixwarpData = await remixwarpRes.json();
@@ -493,7 +493,7 @@ const fetchLibrary = async () => {
                     featured: extension.featured || true
                 }));
             } catch (error) {
-                console.warn('Failed to load RemixWarp extensions:', error);
+                console.warn('Failed to load PineEditor extensions:', error);
                 return [];
             }
         }),
@@ -1203,7 +1203,7 @@ class ExtensionLibrary extends React.PureComponent {
             ['scratch', 'Scratch'],
             ['tw', 'TurboWarp'],
             ['mistium', 'Mistium'],
-            ['rotur', 'Bilup Accounts'],
+            ['rotur', 'PineEditor Accounts'],
             ...this.state.customSources.map(source => [source.id, source.name])
         ];
         // 可删除（自定义）的标签 id 集合，用于侧边栏渲染删除按钮

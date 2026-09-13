@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import PropTypes from 'prop-types';
 import {defineMessages, FormattedMessage, injectIntl, intlShape} from 'react-intl';
 import classNames from 'classnames';
@@ -10,19 +10,19 @@ import styles from './bilup-login-modal.css';
 
 const messages = defineMessages({
     title: {
-        defaultMessage: 'Login Bilup Accounts',
+        defaultMessage: 'Login PineEditor Accounts',
         id: 'bilup.loginModal.title',
-        description: 'Title of the Bilup Accounts login modal'
+        description: 'Title of the PineEditor Accounts login modal'
     },
     heading: {
-        defaultMessage: 'Connect Bilup to Bilup Accounts',
+        defaultMessage: 'Connect PineEditor to PineEditor Accounts',
         id: 'bilup.loginModal.heading',
-        description: 'Heading of the Bilup Accounts login modal'
+        description: 'Heading of the PineEditor Accounts login modal'
     },
     description: {
-        defaultMessage: 'Sign in to your Bilup Accounts to access cloud sync, activity feeds, and more.',
+        defaultMessage: 'Sign in to your PineEditor Accounts to access cloud sync, activity feeds, and more.',
         id: 'bilup.loginModal.description',
-        description: 'Description text in the Bilup Accounts login modal'
+        description: 'Description text in the PineEditor Accounts login modal'
     },
     afterLoginLabel: {
         defaultMessage: 'After logging in to BILUP ACCOUNTS, you can:',
@@ -35,7 +35,7 @@ const messages = defineMessages({
         description: 'Title of the share editing status feature card'
     },
     featureShareDesc: {
-        defaultMessage: 'Show your Bilup activity on your Bilup Accounts profile.',
+        defaultMessage: 'Show your PineEditor activity on your PineEditor Accounts profile.',
         id: 'bilup.loginModal.featureShareDesc',
         description: 'Description of the share editing status feature'
     },
@@ -50,14 +50,14 @@ const messages = defineMessages({
         description: 'Description of the cloud themes and settings feature'
     },
     featureGitTitle: {
-        defaultMessage: 'Bilup Git in the Git window',
+        defaultMessage: 'PineEditor Git in the Git window',
         id: 'bilup.loginModal.featureGitTitle',
-        description: 'Title of the Bilup Git feature card'
+        description: 'Title of the PineEditor Git feature card'
     },
     featureGitDesc: {
         defaultMessage: 'Create repositories, push projects, and clone others on git.bilup.org.',
         id: 'bilup.loginModal.featureGitDesc',
-        description: 'Description of the Bilup Git feature'
+        description: 'Description of the PineEditor Git feature'
     },
     comingSoonLabel: {
         defaultMessage: 'Coming soon',
@@ -70,7 +70,7 @@ const messages = defineMessages({
         description: 'Title of the friends and collaboration feature card'
     },
     featureFriendsDesc: {
-        defaultMessage: 'See online friends on Bilup and send them collaboration invites.',
+        defaultMessage: 'See online friends on PineEditor and send them collaboration invites.',
         id: 'bilup.loginModal.featureFriendsDesc',
         description: 'Description of the friends and collaboration feature'
     },
@@ -80,14 +80,14 @@ const messages = defineMessages({
         description: 'Button to dismiss the login modal without logging in'
     },
     continueButton: {
-        defaultMessage: 'Continue to Bilup Accounts',
+        defaultMessage: 'Continue to PineEditor Accounts',
         id: 'bilup.loginModal.continueButton',
-        description: 'Button to proceed to login on Bilup Accounts'
+        description: 'Button to proceed to login on PineEditor Accounts'
     },
     footerNote: {
-        defaultMessage: 'Sign in securely at accounts.bilup.org. Your account supports online status, cloud sync, and Bilup Git.',
+        defaultMessage: 'Sign in securely at accounts.bilup.org. Your account supports online status, cloud sync, and PineEditor Git.',
         id: 'bilup.loginModal.footerNote',
-        description: 'Footer note about Bilup Accounts login'
+        description: 'Footer note about PineEditor Accounts login'
     }
 });
 
@@ -99,26 +99,15 @@ const BilupLoginModalComponent = props => {
         onContinue
     } = props;
 
+    // PineEditor 登录功能尚未开放：点击后仅显示"开发中……"提示，不做任何跳转
+    const [comingSoon, setComingSoon] = useState(false);
+
     const handleContinue = () => {
         if (onContinue) {
             onContinue();
-        } else {
-            // 默认行为：打开 accounts.bilup.org
-            const url = 'https://accounts.bilup.org';
-            try {
-                const target = window.parent || window;
-                if (target && target.open) {
-                    target.open(url, '_blank', 'noopener,noreferrer');
-                } else {
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                }
-            } catch (e) {
-                window.open(url, '_blank', 'noopener,noreferrer');
-            }
+            return;
         }
-        if (onCancel) {
-            onCancel();
-        }
+        setComingSoon(true);
     };
 
     return (
@@ -258,15 +247,22 @@ const BilupLoginModalComponent = props => {
                     </button>
                     <button
                         className={styles.continueButton}
+                        disabled={comingSoon}
                         onClick={handleContinue}
                     >
-                        <FormattedMessage {...messages.continueButton} />
+                        {comingSoon ? '开发中……' : <FormattedMessage {...messages.continueButton} />}
                     </button>
                 </div>
 
-                <p className={styles.footerNote}>
-                    <FormattedMessage {...messages.footerNote} />
-                </p>
+                {comingSoon ? (
+                    <p className={styles.footerNote}>
+                        开发中……（登录功能尚未开放，敬请期待）
+                    </p>
+                ) : (
+                    <p className={styles.footerNote}>
+                        <FormattedMessage {...messages.footerNote} />
+                    </p>
+                )}
             </Box>
         </Modal>
     );

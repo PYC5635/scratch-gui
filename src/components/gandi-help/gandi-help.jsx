@@ -33,7 +33,7 @@ const GandiHelp = ({ onClose }) => {
                         </p>
                         <ol className={styles.steps}>
                             <li className={styles.step}>
-                                {isChinese ? "在 RemixWarp 编辑器中，开启高级设置中的实验性超级重构功能" : "In RemixWarp Editor, enable the experimental Super Refactor feature in Advanced Settings"}
+                                {isChinese ? "在 PineEditor 编辑器中，开启高级设置中的实验性超级重构功能" : "In PineEditor Editor, enable the experimental Super Refactor feature in Advanced Settings"}
                             </li>
                             <li className={styles.step}>
                                 {isChinese ? "使用超级重构功能修改工程内的扩展代码" : "Use the Super Refactor feature to modify the extension code in the project"}
@@ -64,11 +64,11 @@ const GandiHelp = ({ onClose }) => {
                     
                     <div className={styles.multilangSection}>
                         <p>RemixWarp的所有扩展在兼容性转换为Gandi项目时扩展并不会被正确转译。暂时统一不了六国，请友商们放心。</p>
-                        <p>When converting RemixWarp extensions to Gandi projects for compatibility, the extensions are not correctly transpiled. Unable to unify the six editors for now, please rest assured, fellow vendors.</p>
+                        <p>When converting PineEditor extensions to Gandi projects for compatibility, the extensions are not correctly transpiled. Unable to unify the six editors for now, please rest assured, fellow vendors.</p>
                         <p>RemixWarpの拡張機能をGandiプロジェクトに互換性変換する際、拡張機能は正しくトランスパイルされません。当面は六つのエディタを統一できませんので、他社の皆様ご安心ください。</p>
                         <p>RemixWarp의 모든 확장 기능을 Gandi 프로젝트로 호환성 변환할 때 확장 기능이 올바르게 트랜스파일되지 않습니다. 당분간 여섯 개의 에디터를 통일할 수 없으니 다른 업체들은 안심하십시오.</p>
-                        <p>Lors de la conversion des extensions RemixWarp vers les projets Gandi pour des raisons de compatibilité, les extensions ne sont pas correctement transpilées. Impossible d'unifier les six éditeurs pour l'instant, soyez rassurés, chers concurrents.</p>
-                        <p>Beim Kompatibilitäts-Transfer von RemixWarp-Erweiterungen zu Gandi-Projekten werden die Erweiterungen nicht korrekt transpiliert. Vorübergehend können die sechs Editoren nicht vereinheitlicht werden, seien Sie unbesorgt, liebe Mitbewerber.</p>
+                        <p>Lors de la conversion des extensions PineEditor vers les projets Gandi pour des raisons de compatibilité, les extensions ne sont pas correctement transpilées. Impossible d'unifier les six éditeurs pour l'instant, soyez rassurés, chers concurrents.</p>
+                        <p>Beim Kompatibilitäts-Transfer von PineEditor-Erweiterungen zu Gandi-Projekten werden die Erweiterungen nicht korrekt transpiliert. Vorübergehend können die sechs Editoren nicht vereinheitlicht werden, seien Sie unbesorgt, liebe Mitbewerber.</p>
                     </div>
                 </div>
                 

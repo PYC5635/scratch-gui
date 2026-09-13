@@ -6,7 +6,7 @@ const PURCHASE_TIERS = [
 
 const KO_FI_SHOP_URL = 'https://ifdian.net/a/RyaninCn11';
 
-// Detect an "insufficient funds" failure from a Bilup Accounts transfer error.
+// Detect an "insufficient funds" failure from a PineEditor Accounts transfer error.
 const isInsufficientFunds = error => {
     const message = String((error && error.message) || error || '').toLowerCase();
     return message.includes('insufficient') || message.includes('not enough') || message.includes('balance');

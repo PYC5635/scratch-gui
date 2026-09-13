@@ -41,7 +41,7 @@ const UserProvider = ({children}) => {
             }
         }
         applyThemeVisuals(detectTheme());
-        // A transient /me failure while Bilup Accounts is logged in should not flip the
+        // A transient /me failure while PineEditor Accounts is logged in should not flip the
         // UI to signed-out; fall back to a minimal user so it stays logged in.
         setUser(normalizeUser(me || (identityUser ? {username: identityUser.username} : null)));
     }, []);

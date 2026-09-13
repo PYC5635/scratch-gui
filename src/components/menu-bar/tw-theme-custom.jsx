@@ -1976,7 +1976,7 @@ class CustomThemeMenu extends React.Component {
                 version: '2.0',
                 timestamp: Date.now(),
                 themes: [theme.export()],
-                platform: 'Bilup'
+                platform: 'PineEditor'
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json'

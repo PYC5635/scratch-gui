@@ -13,7 +13,7 @@ import VM from 'scratch-vm';
 
 import Box from '../box/box.jsx';
 import Button from '../button/button.jsx';
-import CommunityButton from './community-button.jsx';
+
 import ShareButton from './share-button.jsx';
 import {ComingSoonTooltip} from '../coming-soon/coming-soon.jsx';
 import Divider from '../divider/divider.jsx';
@@ -39,7 +39,7 @@ import TWNews from './tw-news.jsx';
 import CollaborationContainer from '../../containers/collaboration-container.jsx';
 import AccountNav from '../../containers/account-nav.jsx';
 import LoginDropdown from './login-dropdown.jsx';
-import RoturAccount from './mw-rotur-account.jsx';
+
 import MwEditorNav from './mw-editor-nav.jsx';
 import {getCurrentUser, isLoggedIn} from '../../lib/community/api.js';
 import {saveToBilup as saveProjectToBilup} from '../../lib/mw/smart-save.js';
@@ -4110,35 +4110,14 @@ class MenuBar extends React.Component {
                             {remixButton}
                         </div>
                     )}
-                    <div className={classNames(styles.menuBarItem, styles.communityButtonWrapper)} data-mw-item="community">
-                        {this.props.enableCommunity ? (
-                            (this.props.isShowingProject || this.props.isUpdating) && (
-                                <ProjectWatcher onDoneUpdating={this.props.onSeeCommunity}>
-                                    {
-                                        waitForUpdate => (
-                                            <CommunityButton
-                                                className={styles.menuBarButton}
-                                                /* eslint-disable react/jsx-no-bind */
-                                                onClick={() => {
-                                                    this.handleClickSeeCommunity(waitForUpdate);
-                                                }}
-                                            /* eslint-enable react/jsx-no-bind */
-                                            />
-                                        )
-                                    }
-                                </ProjectWatcher>
-                            )
-                        ) : (this.props.showComingSoon ? (
-                            <MenuBarItemTooltip id="community-button">
-                                <CommunityButton className={styles.menuBarButton} />
-                            </MenuBarItemTooltip>
-                        ) : (this.props.enableSeeInside ? (
+                    {this.props.enableSeeInside ? (
+                        <div className={classNames(styles.menuBarItem)} data-mw-item="see-inside">
                             <SeeInsideButton
                                 className={styles.menuBarButton}
                                 onClick={this.handleClickSeeInside}
                             />
-                        ) : []))}
-                    </div>
+                        </div>
+                    ) : null}
                     {/* tw: add a feedback button */}
                     <div className={styles.menuBarItem} data-mw-item="feedback">
                         <a
@@ -4170,12 +4149,6 @@ class MenuBar extends React.Component {
                     </span>
                     <span data-mw-item="about">{aboutButton}</span>
                     <MwEditorNav />
-                    <span className={styles.roturAccountSlot}>
-                        <RoturAccount
-                            closeFileMenu={this.props.onRequestCloseFile}
-                            openRoturLoginModal={this.props.openRoturLoginModal}
-                        />
-                    </span>
                 </div>
             </Box>
         );

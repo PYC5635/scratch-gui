@@ -329,7 +329,7 @@ class TWExtensionLibrary extends React.Component {
             ['scratch', 'Scratch'],
             ['tw', 'TurboWarp'],
             ['mistium', 'Mistium'],
-            ['rotur', 'Bilup Accounts'],
+            ['rotur', 'PineEditor Accounts'],
             ['cy-scr-ext-hub', 'CY ScrExt Hub']
         ];
         const sections = sources.map(([source, sourceTitle]) => ({

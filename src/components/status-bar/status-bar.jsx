@@ -21,7 +21,7 @@ const StatusBar = ({vm, theme}) => {
     const [fps, setFps] = useState(0);
     const [spriteName, setSpriteName] = useState('');
     const [isRunning, setIsRunning] = useState(false);
-    const [mouseCoords, setMouseCoords] = useState({x: 0, y: 0});
+    const [pixelPos, setPixelPos] = useState({x: 0, y: 0});
     const [stageMouseCoords, setStageMouseCoords] = useState({x: 0, y: 0});
     const [zoomLevel, setZoomLevel] = useState(100);
     const [aiStatus, setAiStatus] = useState('就绪');
@@ -103,29 +103,11 @@ const StatusBar = ({vm, theme}) => {
         };
     }, [vm]);
 
-    // 鼠标坐标：工作区坐标 + 舞台坐标
+    // 鼠标：左侧像素位置 + 右侧舞台坐标
     useEffect(() => {
         const handleMouseMove = e => {
-            // 1. Blockly 工作区坐标
-            const Blockly = window.Blockly;
-            if (Blockly) {
-                const workspace = Blockly.getMainWorkspace && Blockly.getMainWorkspace();
-                const injectionDiv = document.querySelector('.injectionDiv');
-                if (workspace && injectionDiv && injectionDiv.contains(e.target)) {
-                    try {
-                        const m = workspace.getMetrics();
-                        if (m) {
-                            const scale = workspace.scale || 1;
-                            setMouseCoords({
-                                x: Math.round((e.clientX - m.absoluteLeft) / scale),
-                                y: Math.round((e.clientY - m.absoluteTop) / scale)
-                            });
-                        }
-                    } catch (err) {
-                        // 忽略转换错误
-                    }
-                }
-            }
+            // 1. 真正的像素位置（视口 clientX/clientY，屏幕像素）
+            setPixelPos({x: e.clientX, y: e.clientY});
 
             // 2. 舞台坐标（-240~240 / -180~180，中心为原点，y 向上为正）
             const stageCanvas = document.querySelector('[class*="stage_stage_"] canvas');
@@ -173,14 +155,14 @@ const StatusBar = ({vm, theme}) => {
 
     return (
         <div className={`${styles.statusBar} ${isDark ? styles.dark : styles.light}`}>
-            <div className={styles.segment} title="鼠标在工作区中的坐标">
-                <MousePointer2 size={13} className={styles.icon} />
-                <span className={styles.label}>x: {mouseCoords.x}</span>
-                <span className={styles.label}>y: {mouseCoords.y}</span>
+            <div className={styles.segment} title="鼠标在屏幕上的像素位置">
+                <Monitor size={13} className={styles.icon} />
+                <span className={styles.label}>x: {pixelPos.x}</span>
+                <span className={styles.label}>y: {pixelPos.y}</span>
             </div>
             <div className={styles.divider} />
             <div className={styles.segment} title="鼠标在舞台上的坐标">
-                <Monitor size={13} className={styles.icon} />
+                <MousePointer2 size={13} className={styles.icon} />
                 <span className={styles.label}>x: {stageMouseCoords.x}</span>
                 <span className={styles.label}>y: {stageMouseCoords.y}</span>
             </div>

@@ -80,8 +80,8 @@ const messages = defineMessages({
         id: 'mw.git.nav.readme'
     },
     rotur: {
-        defaultMessage: 'Bilup Git',
-        description: 'Bilup Git sidebar item',
+        defaultMessage: 'PineEditor Git',
+        description: 'PineEditor Git sidebar item',
         id: 'mw.git.nav.rotur'
     }
 });
@@ -856,7 +856,7 @@ class GitModalComponent extends React.Component {
                     />
                     <p className={styles.muted}>
                         <FormattedMessage
-                            defaultMessage="Generate one at git.bilup.org → Settings → Applications → Generate new token. Required for API calls to Bilup Git."
+                            defaultMessage="Generate one at git.bilup.org → Settings → Applications → Generate new token. Required for API calls to PineEditor Git."
                             description="Explains how to get a Forgejo PAT"
                             id="mw.git.remote.tokenHelp"
                         />
@@ -984,7 +984,7 @@ class GitModalComponent extends React.Component {
                         <span className={styles.cloneConfirm}>
                             <FormattedMessage
                                 // eslint-disable-next-line max-len
-                                defaultMessage="This permanently deletes the repository on Bilup Git. Click delete again to confirm."
+                                defaultMessage="This permanently deletes the repository on PineEditor Git. Click delete again to confirm."
                                 description="Confirm deleting rotur repo"
                                 id="mw.git.rotur.deleteConfirm"
                             />
@@ -1054,8 +1054,8 @@ class GitModalComponent extends React.Component {
                     <p>
                         <FormattedMessage
                             // eslint-disable-next-line max-len
-                            defaultMessage="Sign in with Bilup Accounts to create repos on git.bilup.org and push your project straight from Bilup."
-                            description="Shown on the Bilup Git tab when signed out"
+                            defaultMessage="Sign in with PineEditor Accounts to create repos on git.bilup.org and push your project straight from PineEditor."
+                            description="Shown on the PineEditor Git tab when signed out"
                             id="mw.git.rotur.signedOut"
                         />
                     </p>
@@ -1065,8 +1065,8 @@ class GitModalComponent extends React.Component {
                         onClick={this.props.onRoturLogin}
                     >
                         <FormattedMessage
-                            defaultMessage="Sign in with Bilup Accounts"
-                            description="Sign in button on the Bilup Git tab"
+                            defaultMessage="Sign in with PineEditor Accounts"
+                            description="Sign in button on the PineEditor Git tab"
                             id="mw.git.rotur.signIn"
                         />
                     </button>
@@ -1081,14 +1081,14 @@ class GitModalComponent extends React.Component {
                     <Globe className={styles.buttonIcon} />
                     <FormattedMessage
                         defaultMessage="Your repositories"
-                        description="Bilup Git section heading"
+                        description="PineEditor Git section heading"
                         id="mw.git.rotur.heading"
                     />
                 </h2>
                 <p className={styles.muted}>
                     <FormattedMessage
                         defaultMessage="Signed in as {username}. Repos live on {link}."
-                        description="Bilup Git signed-in note"
+                        description="PineEditor Git signed-in note"
                         id="mw.git.rotur.signedInAs"
                         values={{
                             username: roturUsername,
@@ -1218,7 +1218,7 @@ class GitModalComponent extends React.Component {
                         <label className={styles.fieldLabel}>
                             <FormattedMessage
                                 defaultMessage="Repositories"
-                                description="Bilup repo list label"
+                                description="PineEditor repo list label"
                                 id="mw.git.rotur.repoList"
                             />
                         </label>
@@ -1228,7 +1228,7 @@ class GitModalComponent extends React.Component {
                             onClick={this.props.onLoadRoturRepos}
                             title={this.props.intl.formatMessage({
                                 defaultMessage: 'Reload repositories',
-                                description: 'Reload Bilup repos tooltip',
+                                description: 'Reload PineEditor repos tooltip',
                                 id: 'mw.git.rotur.reload'
                             })}
                         >
@@ -1239,7 +1239,7 @@ class GitModalComponent extends React.Component {
                         <p className={styles.muted}>
                             <FormattedMessage
                                 defaultMessage="Loading repositories…"
-                                description="Bilup repos loading message"
+                                description="PineEditor repos loading message"
                                 id="mw.git.rotur.loading"
                             />
                         </p>
@@ -1261,7 +1261,7 @@ class GitModalComponent extends React.Component {
                         <FormattedMessage
                             // eslint-disable-next-line max-len
                             defaultMessage="Push sends your committed history. Pushing an uninitialized project creates the repo locally and makes an initial commit first."
-                            description="Bilup push help text"
+                            description="PineEditor push help text"
                             id="mw.git.rotur.pushHelp"
                         />
                     </p>
@@ -1269,7 +1269,7 @@ class GitModalComponent extends React.Component {
                 <Box className={styles.field}>
                     <label className={styles.fieldLabel}>
                         <FormattedMessage
-                            defaultMessage="Clone any Bilup Accounts repo"
+                            defaultMessage="Clone any PineEditor Accounts repo"
                             description="Clone other rotur repo label"
                             id="mw.git.rotur.cloneOther"
                         />

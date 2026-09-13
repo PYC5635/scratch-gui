@@ -37,7 +37,7 @@ const BetaBanner = () => {
             />
             <span className={styles.text}>
                 <FormattedMessage
-                    defaultMessage="The new Bilup is a beta. Expect bugs, and please report them via {mailto}."
+                    defaultMessage="The new PineEditor is a beta. Expect bugs, and please report them via {mailto}."
                     id="mw.community.betaBanner.text"
                     values={{
                         mailto: <a href="mailto:support@bilup.org">support@bilup.org</a>

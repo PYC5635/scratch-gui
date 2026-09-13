@@ -45,10 +45,10 @@ const messages = defineMessages({
         description: 'Filter option for all platforms',
         id: 'bl.bilme.allPlatforms'
     },
-    RemixWarp: {
-        defaultMessage: 'RemixWarp',
-        description: 'Platform filter for RemixWarp',
-        id: 'bl.bilme.RemixWarp'
+    PineEditor: {
+        defaultMessage: 'PineEditor',
+        description: 'Platform filter for PineEditor',
+        id: 'bl.bilme.PineEditor'
     },
     allColors: {
         defaultMessage: 'All Colors',
@@ -154,7 +154,7 @@ const COLORS = [
 
 const PLATFORMS = [
     {id: 'all', label: 'All Platforms'},
-    {id: 'RemixWarp', label: 'RemixWarp'},
+    {id: 'PineEditor', label: 'PineEditor'},
 ];
 
 // Helper functions for color analysis
@@ -610,7 +610,7 @@ const [popupPosition, setPopupPosition] = useState({top: 0, left: 0, visible: fa
                                     value={p.id}
                                 >
                                     {p.id === 'all' ? props.intl.formatMessage(messages.allPlatforms) :
-                                        props.intl.formatMessage(messages.RemixWarp)}
+                                        props.intl.formatMessage(messages.PineEditor)}
                                 </option>
                             ))}
                         </select>

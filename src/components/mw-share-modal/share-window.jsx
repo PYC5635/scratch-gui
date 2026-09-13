@@ -24,13 +24,13 @@ const messages = defineMessages({
     savedAndShared: {id: 'mw.share.savedAndShared', defaultMessage: 'Your project is saved and shared.'},
     savedPrivate: {
         id: 'mw.share.savedPrivate',
-        defaultMessage: 'Your project is saved to Bilup. It stays private until you share it from its project page.'
+        defaultMessage: 'Your project is saved to PineEditor. It stays private until you share it from its project page.'
     },
     close: {id: 'mw.share.close', defaultMessage: 'Close'},
     openProjectPage: {id: 'mw.share.openProjectPage', defaultMessage: 'Open project page'},
     updateDescription: {
         id: 'mw.share.updateDescription',
-        defaultMessage: 'Upload the current version of this project to Bilup. The title and thumbnail stay as they are; edit those on the project page.'
+        defaultMessage: 'Upload the current version of this project to PineEditor. The title and thumbnail stay as they are; edit those on the project page.'
     },
     title: {id: 'mw.share.title', defaultMessage: 'Title'},
     untitled: {id: 'mw.share.untitled', defaultMessage: 'Untitled'},

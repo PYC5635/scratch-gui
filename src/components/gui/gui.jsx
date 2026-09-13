@@ -60,7 +60,6 @@ import MWAssetsModal from '../../containers/mw-assets-modal.jsx';
 import MWHelpModal from '../../components/mw-help-modal/help-modal.jsx';
 import MWProjectMetadataModal from '../../containers/mw-project-metadata-modal.jsx';
 import TWDebugger from '../../containers/tw-debugger.jsx';
-import RoturLoginModal from '../mw-rotur-login-modal/rotur-login-modal.jsx';
 import Avatar from '../mw-avatar/avatar.jsx';
 import {closeRoturLoginModal, openRoturLoginModal} from '../../reducers/modals.js';
 import {openAccountMenu} from '../../reducers/menus.js';
@@ -174,7 +173,7 @@ const DonationModal = ({visible, onClose, count}) => {
                     ×
                 </button>
                 
-                <h2 style={{marginTop: 0, color: '#333', textAlign: 'center'}}>感谢使用 RemixWarp！</h2>
+                <h2 style={{marginTop: 0, color: '#333', textAlign: 'center'}}>感谢使用 PineEditor！</h2>
                 <p style={{color: '#555', lineHeight: '1.5'}}>您已经启动了 <strong>{count}</strong> 次编辑器。</p>
                 <p style={{color: '#555', lineHeight: '1.5'}}>如果您喜欢这个编辑器，考虑通过捐款来支持我们的开发工作。</p>
                 
@@ -1402,9 +1401,6 @@ const GUIComponent = props => {
             {props.gandiHelpModal && <GandiHelp onClose={() => props.dispatch && props.dispatch({type: 'scratch-gui/modals/CLOSE_MODAL', modal: 'gandiHelpModal'})} />}
             {customThemeVisible && <CustomThemeModal />}
             {readmeModalVisible && <AEReadMe />}
-            {roturLoginModalVisible && (
-                <RoturLoginModal onRequestClose={onRequestCloseRoturLogin} />
-            )}
         </React.Fragment>
     ), [
         securityManager,
@@ -1747,23 +1743,6 @@ const GUIComponent = props => {
                                                 </button>
                                             )}
                                             <div className={styles.activityBarBottomPush} />
-                                            {roturUsername ? (
-                                                <button
-                                                    className={classNames(styles.activityBarButton, styles.activityBarAvatarButton)}
-                                                    title={roturUsername}
-                                                    onClick={() => props.dispatch && props.dispatch(openAccountMenu())}
-                                                >
-                                                    <Avatar username={roturUsername} size={28} />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    className={styles.activityBarButton}
-                                                    title={intl.formatMessage({defaultMessage: '登录', id: 'tw.login.button'})}
-                                                    onClick={() => props.dispatch && props.dispatch(openRoturLoginModal())}
-                                                >
-                                                    <LogIn size={20} />
-                                                </button>
-                                            )}
                                             <div className={styles.activityBarBottomGap} />
                                             <button
                                                 className={styles.activityBarButton}

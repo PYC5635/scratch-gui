@@ -198,7 +198,7 @@ class MultiLevelDropdown extends React.Component {
     render() {
         const { open, selectedEditor, selectedCategory } = this.state;
         const editors = [
-            { id: 'remixwarp', name: 'RemixWarp' },
+            { id: 'remixwarp', name: 'PineEditor' },
             { id: '02engine', name: '02Engine' },
             { id: 'astraeditor', name: 'AstraEditor' },
             { id: 'turbowarp', name: 'TurboWarp' },

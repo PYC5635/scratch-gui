@@ -3,7 +3,7 @@ NOTE: this file only temporarily resides in scratch-gui.
 Nearly identical code appears in scratch-www, and the two should
 eventually be consolidated.
 
-Updated with Bilup Accounts integration.
+Updated with PineEditor Accounts integration.
 */
 
 import {injectIntl} from 'react-intl';
@@ -46,7 +46,7 @@ AccountNav.propTypes = {
 };
 
 const mapStateToProps = state => {
-    // Try to get user from Redux session (legacy), fall back to Bilup Accounts localStorage
+    // Try to get user from Redux session (legacy), fall back to PineEditor Accounts localStorage
     const reduxUser = state.session && state.session.session && state.session.session.user;
     const bilupUser = getCurrentUser();
     const user = reduxUser || bilupUser;
@@ -91,7 +91,7 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
                 }
             });
         } catch (e) {
-            console.error('Save to Bilup failed:', e);
+            console.error('Save to PineEditor failed:', e);
         }
     }
 });

@@ -150,26 +150,23 @@ const MenuItem = ({
         child => React.isValidElement(child) && child.type === Submenu
     );
 
-    const isExpanded = mobileMode && _menuIndex !== undefined
-        ? _expandedIndex === _menuIndex
+    // 展开状态：有索引的项既可被鼠标悬停（:hover）也可被点击（.expanded）展开，
+    // 点击由 context 的 expandedIndex 控制；无索引的根项则用 initialExpanded。
+    const isExpanded = _menuIndex !== undefined
+        ? initialExpanded || _expandedIndex === _menuIndex
         : initialExpanded;
 
     const handleClick = (e) => {
-        if (mobileMode && _menuIndex !== undefined) {
+        e.stopPropagation();
+        if (_menuIndex !== undefined) {
             if (hasSubmenu) {
-                // Toggle submenu expansion via context
+                // Toggle submenu expansion via context（桌面与移动模式均可点击展开）
                 setExpandedIndex(_expandedIndex === _menuIndex ? null : _menuIndex);
-            } else {
-                // Close any open submenu in this menu
+            } else if (mobileMode) {
+                // 移动模式：点击不带子菜单的项时关闭已展开的子菜单
                 setExpandedIndex(null);
             }
-            if (onClick) {
-                onClick(e);
-            }
-            e.stopPropagation();
-            return;
         }
-        e.stopPropagation();
         if (onClick) {
             onClick(e);
         }

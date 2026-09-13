@@ -1,6 +1,6 @@
-const SITE_NAME = 'Bilup';
+const SITE_NAME = 'PineEditor';
 const DEFAULT_DESCRIPTION =
-    'Bilup is a powerful Scratch mod. Create, share, and explore projects on the Bilup community.';
+    'PineEditor is a powerful Scratch mod. Create, share, and explore projects on the PineEditor community.';
 
 const setMeta = (attr, key, content) => {
     let el = document.head.querySelector(`meta[${attr}="${key}"]`);

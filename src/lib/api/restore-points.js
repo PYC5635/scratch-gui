@@ -9,7 +9,7 @@ const CLOUD_STORAGE_KEY = 'tw:cloud-restore-point-version';
 const CLOUD_HASH_KEY = 'tw:cloud-restore-point-hash';
 
 // GitHub 直接 API 配置（网络还原点）
-const GITHUB_REPO_OWNER = 'RemixWarp-rw';
+const GITHUB_REPO_OWNER = 'PineEditor-rw';
 const GITHUB_REPO_NAME = 'rw-owr';
 const GITHUB_API_BASE = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`;
 const GH_PROXY_PREFIX = 'https://gh-proxy.org/';

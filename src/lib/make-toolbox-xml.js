@@ -146,9 +146,9 @@ const motion = function (isInitialSetup, isStage, targetId, colors, vanilla) {
         <block id="${targetId}_direction" type="motion_direction"/>
         ${blockSeparator}
         ${vanilla ? '' : `
-        <label text="${translate("UNSUPPORT_TW_1","Blocks below do not support TurboWarp")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","And we highly discourage using them")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","They're keeping here only for compatibility with MistWarp")}"></label>
+        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
+        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
+        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
         <block type="motion_pointtowards_xy" id="motion_pointtowards_xy">
             <value name="X">
                 <shadow id="pointx" type="math_number">
@@ -336,9 +336,9 @@ const looks = function (isInitialSetup, isStage, targetId, costumeName, backdrop
             <block id="${targetId}_size" type="looks_size"/>
             ${vanilla ? '' : `
             ${blockSeparator}
-            <label text="${translate("UNSUPPORT_TW_1","Blocks below do not support TurboWarp")}"></label>
-            <label text="${translate("UNSUPPORT_TW_2","And we highly discourage using them")}"></label>
-            <label text="${translate("UNSUPPORT_TW_3","They're keeping here only for compatibility with MistWarp")}"></label>
+            <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
+            <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
+            <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
             <block id="${targetId}_costumes" type="looks_costumes"/>
             `}
         `}
@@ -501,9 +501,9 @@ const control = function (isInitialSetup, isStage, targetId, colors, vanilla) {
         ${vanilla ? '' : `
         ${blockSeparator}
         ${blockSeparator}
-        <label text="${translate("UNSUPPORT_TW_1","Blocks below do not support TurboWarp")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","And we highly discourage using them")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","They're keeping here only for compatibility with MistWarp")}"></label>
+        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
+        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
+        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
         <block type="control_switch" id="control_switch">
             <value name="VALUE">
                 <shadow type="text">
@@ -527,7 +527,6 @@ const control = function (isInitialSetup, isStage, targetId, colors, vanilla) {
         </block>
         <block type="control_default" id="control_default"></block>
         <block type="control_break" id="control_break"></block>
-        <block type="control_continue" id="control_continue"></block>
         `}
         ${categorySeparator}
     </category>
@@ -804,9 +803,9 @@ const operators = function (isInitialSetup, isStage, targetId, colors, vanilla) 
         </block>
         ${blockSeparator}
         ${vanilla ? '' : `
-        <label text="${translate("UNSUPPORT_TW_1","Blocks below do not support TurboWarp")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","And we highly discourage using them")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","They're keeping here only for compatibility with MistWarp")}"></label>
+        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
+        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
+        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
         <block type="operator_pi" id="operator_pi"></block>
         <block type="operator_newline" id="operator_newline"></block>
         `}

@@ -1,6 +1,6 @@
 /*
 NOTE: this file only temporarily resides in scratch-gui.
-Updated with Bilup Accounts menu items.
+Updated with PineEditor Accounts menu items.
 */
 
 import classNames from 'classnames';
@@ -82,8 +82,8 @@ const AccountNavComponent = ({
             <MenuSection>
                 <MenuItemContainer onClick={onSaveToBilup}>
                     <FormattedMessage
-                        defaultMessage="Save to Bilup"
-                        description="Text to save project to Bilup cloud"
+                        defaultMessage="Save to PineEditor"
+                        description="Text to save project to PineEditor cloud"
                         id="gui.accountMenu.saveToBilup"
                     />
                 </MenuItemContainer>
@@ -92,7 +92,7 @@ const AccountNavComponent = ({
                 <MenuItemContainer onClick={onSwitchAccount}>
                     <FormattedMessage
                         defaultMessage="Switch account"
-                        description="Text to switch to a different Bilup account"
+                        description="Text to switch to a different PineEditor account"
                         id="gui.accountMenu.switchAccount"
                     />
                 </MenuItemContainer>

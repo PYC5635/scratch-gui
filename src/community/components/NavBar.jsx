@@ -159,7 +159,7 @@ const NavBar = () => {
                         src={logo}
                         alt=""
                     />
-                    <span className={styles.wordmark}>Bilup</span>
+                    <span className={styles.wordmark}>PineEditor</span>
                 </Link>
 
                 <nav className={styles.links}>

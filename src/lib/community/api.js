@@ -97,7 +97,7 @@ const exchangeValidator = async (roturToken, appKey = 'bilup') => {
     const validatorData = await validatorResponse.json().catch(() => ({}));
     const validator = validatorData.validator;
     if (!validator) {
-        const error = new Error(validatorData.error || 'Could not validate Bilup Accounts login');
+        const error = new Error(validatorData.error || 'Could not validate PineEditor Accounts login');
         if (validatorData.error || validatorResponse.status === 403) {
             error.code = 'VALIDATOR_GENERATION_FAILED';
         }

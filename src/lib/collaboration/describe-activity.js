@@ -3,7 +3,7 @@ import {COSTUMES_TAB_INDEX, SOUNDS_TAB_INDEX} from '../../reducers/editor-tab';
 /**
  * Put into words where someone is working, e.g. "Editing costume \"walk-a\" in
  * Sprite1". Used for the peer list in the collaboration window and for the
- * Bilup Accounts presence status, so both always say the same thing.
+ * PineEditor Accounts presence status, so both always say the same thing.
  *
  * Names are resolved from the VM at call time rather than carried along, so a
  * rename never leaves a stale description behind.
