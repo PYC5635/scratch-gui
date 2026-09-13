@@ -6,6 +6,16 @@ onlyBuiltDependencies:
   - scratch-paint
   - scratch-render
   - scratch-vm
+  - '@bilup/scratch-l10n@git+https://github.com/PYC5635/scratch-l10n.git'
+  - '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git'
+  - '@bilup/scratch-svg-renderer@git+https://github.com/PYC5635/scratch-svg-renderer.git'
+  - scratch-audio@git+https://github.com/PYC5635/scratch-audio.git
+  - scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git
+  - scratch-paint@git+https://github.com/PYC5635/scratch-paint.git
+  - scratch-parser@git+https://github.com/PYC5635/scratch-parser.git
+  - scratch-render@git+https://github.com/PYC5635/scratch-render.git
+  - scratch-vm@git+https://github.com/PYC5635/scratch-vm.git
+  - rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git
 
 blockExoticSubdeps: false
 
