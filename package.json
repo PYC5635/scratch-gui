@@ -36,9 +36,9 @@
     }
   },
   "dependencies": {
-    "@bilup/scratch-l10n": "file:D:/PineEditor/_sdeps/scratch-l10n",
-    "@bilup/scratch-storage": "file:D:/PineEditor/_sdeps/scratch-storage",
-    "@bilup/scratch-svg-renderer": "file:D:/PineEditor/_sdeps/scratch-svg-renderer",
+    "@bilup/scratch-l10n": "github:PYC5635/scratch-l10n#main",
+    "@bilup/scratch-storage": "github:PYC5635/scratch-storage#main",
+    "@bilup/scratch-svg-renderer": "github:PYC5635/scratch-svg-renderer#main",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "@microbit/microbit-universal-hex": "0.2.2",
@@ -134,16 +134,16 @@
     "redux": "3.7.2",
     "redux-throttle": "0.1.1",
     "remark-gfm": "^2.0.0",
-    "rotur-sdk": "file:D:/PineEditor/_sdeps/accounts-sdk",
-    "scratch-audio": "file:D:/PineEditor/_sdeps/scratch-audio",
-    "scratch-blocks": "file:D:/PineEditor/_sdeps/scratch-blocks",
-    "scratch-paint": "file:D:/PineEditor/_sdeps/scratch-paint",
-    "scratch-parser": "file:D:/PineEditor/_sdeps/scratch-parser",
-    "scratch-render": "file:D:/PineEditor/_sdeps/scratch-render",
+    "rotur-sdk": "github:PYC5635/accounts-sdk#main",
+    "scratch-audio": "github:PYC5635/scratch-audio#main",
+    "scratch-blocks": "github:PYC5635/scratch-blocks#main",
+    "scratch-paint": "github:PYC5635/scratch-paint#main",
+    "scratch-parser": "github:PYC5635/scratch-parser#main",
+    "scratch-render": "github:PYC5635/scratch-render#main",
     "scratch-sb1-converter": "0.2.7",
     "scratch-storage": "^1.0.0",
     "scratch-translate-extension-languages": "0.0.20191118205314",
-    "scratch-vm": "file:D:/PineEditor/_sdeps/scratch-vm",
+    "scratch-vm": "github:PYC5635/scratch-vm#main",
     "socks-proxy-agent": "^10.0.0",
     "style-loader": "^0.23.0",
     "text-encoding": "0.7.0",
@@ -251,8 +251,9 @@
       "webpack@4.47.0>terser-webpack-plugin": "^1.4.1",
       "cheerio": "1.0.0-rc.12",
       "brace-expansion": "1.1.11",
-      "rotur-sdk": "github:Bilup/accounts-sdk#main",
+      "rotur-sdk": "github:PYC5635/accounts-sdk#main",
       "escape-string-regexp": "4.0.0"
     }
-  }
+  },
+  "packageManager": "pnpm@11.24.0+sha512.bd27e345e976dcb0be0b7a1228217b049a817e21b1f355c90dbe7dc46671895a8bc1e6d06c24554505ea93ea0b45f489a27ec1bfbc8de6a9659fca0f16fa0000"
 }

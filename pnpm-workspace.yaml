@@ -1,0 +1,29 @@
+onlyBuiltDependencies:
+  - chromedriver
+  - fsevents
+  - scratch-audio
+  - scratch-blocks
+  - scratch-paint
+  - scratch-render
+  - scratch-vm
+
+blockExoticSubdeps: false
+
+allowBuilds:
+  scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git: true
+  scratch-audio@git+https://github.com/PYC5635/scratch-audio.git: true
+  scratch-paint@git+https://github.com/PYC5635/scratch-paint.git: true
+  scratch-render@git+https://github.com/PYC5635/scratch-render.git: true
+  scratch-vm@git+https://github.com/PYC5635/scratch-vm.git: true
+  '@bilup/scratch-l10n@git+https://github.com/PYC5635/scratch-l10n.git': true
+  '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git': true
+  scratch-parser@git+https://github.com/PYC5635/scratch-parser.git: true
+  '@bilup/scratch-svg-renderer@git+https://github.com/PYC5635/scratch-svg-renderer.git': true
+  rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git: true
+
+overrides:
+  webpack@4.47.0>terser-webpack-plugin: ^1.4.1
+  cheerio: 1.0.0-rc.12
+  brace-expansion: 1.1.11
+  rotur-sdk: github:PYC5635/accounts-sdk#main
+  escape-string-regexp: 4.0.0
