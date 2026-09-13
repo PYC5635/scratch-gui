@@ -1,0 +1,21 @@
+{
+  "short_name": "PineEditor",
+  "name": "PineEditor",
+  "description": "A blazing-fast visual programming editor with an integrated performance analyzer, cloud lists, multi-dimensional lists, advanced custom blocks and a Classical Chinese (文言文) language mode. 🍍",
+  "icons": [
+    {
+      "src": "images/192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "images/512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "editor",
+  "background_color": "#4A7C31",
+  "display": "standalone",
+  "theme_color": "#4A7C31"
+}

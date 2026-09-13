@@ -1,0 +1,87 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+import {connect} from 'react-redux';
+import bindAll from 'lodash.bindall';
+import {BLOCKS_CUSTOM, Theme} from '../lib/themes';
+import {applyTheme, applyThemeVisuals, detectTheme, onSystemPreferenceChange} from '../lib/themes/themePersistance';
+import {setTheme} from '../reducers/theme';
+
+const TWThemeManagerHOC = function (WrappedComponent) {
+    class TWThemeManagerComponent extends React.Component {
+        constructor (props) {
+            super(props);
+            bindAll(this, [
+                'handleSystemThemeChange'
+            ]);
+            applyThemeVisuals(props.reduxTheme);
+        }
+        componentDidMount () {
+            this.removeListeners = onSystemPreferenceChange(this.handleSystemThemeChange);
+        }
+        componentDidUpdate (prevProps) {
+            const prevTheme = prevProps.reduxTheme;
+            const currentTheme = this.props.reduxTheme;
+
+            const themeChanged = !prevTheme ||
+                !currentTheme ||
+                prevTheme.id !== currentTheme.id ||
+                prevTheme.accent !== currentTheme.accent ||
+                prevTheme.gui !== currentTheme.gui ||
+                prevTheme.blocks !== currentTheme.blocks ||
+                prevTheme.menuBarAlign !== currentTheme.menuBarAlign ||
+                JSON.stringify(prevTheme.appearance) !== JSON.stringify(currentTheme.appearance) ||
+                prevTheme.iconPack !== currentTheme.iconPack ||
+                prevTheme.name !== currentTheme.name;
+
+            if (themeChanged) {
+                applyTheme(currentTheme);
+            }
+        }
+        componentWillUnmount () {
+            this.removeListeners();
+        }
+        handleSystemThemeChange () {
+            let newTheme = detectTheme();
+            if (this.props.reduxTheme.blocks === BLOCKS_CUSTOM) {
+                newTheme = newTheme.set('blocks', BLOCKS_CUSTOM);
+            }
+            // 系统主题变更只更新DOM，不持久化到localStorage以保留"自动"主题行为
+            applyThemeVisuals(newTheme);
+        }
+        render () {
+            const {
+                /* eslint-disable no-unused-vars */
+                reduxTheme,
+                onChangeTheme,
+                /* eslint-enable no-unused-vars */
+                ...props
+            } = this.props;
+            return (
+                <WrappedComponent
+                    {...props}
+                />
+            );
+        }
+    }
+
+    TWThemeManagerComponent.propTypes = {
+        reduxTheme: PropTypes.instanceOf(Theme),
+        onChangeTheme: PropTypes.func
+    };
+
+    const mapStateToProps = (state, ownProps) => ({
+        // Allow embed page to override theme
+        reduxTheme: ownProps.theme || state.scratchGui.theme.theme
+    });
+
+    const mapDispatchToProps = dispatch => ({
+        onChangeTheme: theme => dispatch(setTheme(theme))
+    });
+
+    return connect(
+        mapStateToProps,
+        mapDispatchToProps
+    )(TWThemeManagerComponent);
+};
+
+export default TWThemeManagerHOC;

@@ -1,0 +1,88 @@
+@import "../../css/units.css";
+@import "../../css/colors.css";
+
+.library-modal-content {
+    /* size is controlled by Modal width/height props */
+}
+
+.layout {
+    height: 100%;
+}
+
+.content {
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.search-row {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px;
+    padding: 10px 14px;
+    background: $ui-primary;
+    border: 1px solid $ui-black-transparent;
+    border-radius: 10px;
+}
+
+.search-icon {
+    flex-shrink: 0;
+    color: color-mix(in srgb, $text-primary 55%, transparent);
+}
+
+.search {
+    flex-grow: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: $text-primary;
+    font-size: 0.875rem;
+}
+
+.library-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 16px 16px;
+    width: 100%;
+}
+
+.library-scroll-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    align-content: start;
+    align-items: stretch;
+    width: 100%;
+}
+
+.library-scroll-grid.withFilterBar {
+    /* scroll handled by parent .library-scroll */
+}
+
+/* Make separator span full grid width */
+.library-scroll-grid > hr {
+    grid-column: 1 / -1;
+}
+
+/* Ensure the wrapper constrains the content properly */
+.library-wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.spinner-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

@@ -1,0 +1,524 @@
+import bindAll from 'lodash.bindall';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
+import PropTypes from 'prop-types';
+import React from 'react';
+import VM from 'scratch-vm';
+
+import {connect} from 'react-redux';
+
+import {updateTargets} from '../../reducers/targets';
+import {updateBlockDrag} from '../../reducers/block-drag';
+import {updateMonitors} from '../../reducers/monitors';
+import {setProjectChanged, setProjectUnchanged} from '../../reducers/project-changed';
+import {setRunningState, setTurboState, setStartedState} from '../../reducers/vm-status';
+import {showExtensionAlert} from '../../reducers/alerts';
+import {updateMicIndicator} from '../../reducers/mic-indicator';
+import {
+    setFramerateState,
+    setCompilerOptionsState,
+    addCompileError,
+    clearCompileErrors,
+    setRuntimeOptionsState,
+    setInterpolationState,
+    setHasCloudVariables,
+    setPlatformMismatchDetails
+} from '../../reducers/tw';
+import {openProjectThemePrompt} from '../../reducers/mw-project-theme';
+import {setCustomStageSize} from '../../reducers/custom-stage-size';
+import {openUnknownPlatformModal} from '../../reducers/modals';
+import {setTheme} from '../../reducers/theme';
+import {getIsLoading} from '../../reducers/project-state';
+import {Theme} from '../themes';
+import {CustomTheme} from '../themes/custom-themes.js';
+import {BLOCKS_TAB_INDEX} from '../../reducers/editor-tab';
+
+// Debounce utility: coalesces rapid calls into a single execution at the end
+// of the burst, with an optional leading-edge call.
+const debounce = (fn, delay) => {
+    let timer = null;
+    let leading = true;
+    return (...args) => {
+        if (leading) {
+            leading = false;
+            fn(...args);
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            leading = true;
+            fn(...args);
+        }, delay);
+    };
+};
+
+// The unsandboxed extension GUI API pulls in the whole git toolchain
+// (browser-git). It is only needed when an unsandboxed extension runs, so load
+// it lazily instead of blocking the first editor load with it.
+let extensionGuiAPIPromise;
+const implementGuiAPI = Scratch => {
+    if (!extensionGuiAPIPromise) {
+        extensionGuiAPIPromise = import('../api/extension-gui');
+    }
+    extensionGuiAPIPromise
+        .then(module => module.default(Scratch))
+        .catch(e => console.error('Failed to load extension GUI API:', e));
+};
+
+const projectThemeSuppressed = () => {
+    try {
+        return new URLSearchParams(window.location.search).get('apply_project_theme') === '0';
+    } catch (e) {
+        return false;
+    }
+};
+
+const buildProjectTheme = payload => {
+    if (payload && payload.kind === 'custom' && payload.data) {
+        return CustomTheme.import(payload.data);
+    }
+    if (payload && payload.kind === 'standard' && payload.data) {
+        const d = payload.data;
+        return new Theme(d.accent, d.gui, d.blocks, d.menuBarAlign, d.wallpaper, d.fonts, null, d.appearance || {});
+    }
+    return null;
+};
+
+let compileErrorCounter = 0;
+
+const PROJECT_THEME_IGNORE_STORAGE_KEY = 'mw:ignore-project-theme-prompts';
+
+const readIgnoreMap = () => {
+    try {
+        const raw = getStorageItem(PROJECT_THEME_IGNORE_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+        return {};
+    }
+};
+
+const hashString = str => {
+    // djb2
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(16);
+};
+
+const computePromptKey = bilupTheme => {
+    try {
+        return hashString(JSON.stringify(bilupTheme));
+    } catch (e) {
+        return null;
+    }
+};
+
+/*
+ * Higher Order Component to manage events emitted by the VM
+ * @param {React.Component} WrappedComponent component to manage VM events for
+ * @returns {React.Component} connected component with vm events bound to redux
+ */
+const vmListenerHOC = function (WrappedComponent) {
+    class VMListener extends React.Component {
+        constructor (props) {
+            super(props);
+            bindAll(this, [
+                'handleKeyDown',
+                'handleKeyUp',
+                'handleProjectChanged',
+                'handleTargetsUpdate',
+                'handleCloudDataUpdate',
+                'handleCompileError',
+                'handleProjectLoaded'
+            ]);
+            // We have to start listening to the vm here rather than in
+            // componentDidMount because the HOC mounts the wrapped component,
+            // so the HOC componentDidMount triggers after the wrapped component
+            // mounts.
+            // If the wrapped component uses the vm in componentDidMount, then
+            // we need to start listening before mounting the wrapped component.
+            this.props.vm.on('targetsUpdate', this.handleTargetsUpdate);
+            this.props.vm.on('MONITORS_UPDATE', this.props.onMonitorsUpdate);
+            this.props.vm.on('BLOCK_DRAG_UPDATE', this.props.onBlockDragUpdate);
+            this.props.vm.on('TURBO_MODE_ON', this.props.onTurboModeOn);
+            this.props.vm.on('TURBO_MODE_OFF', this.props.onTurboModeOff);
+            this.props.vm.on('PROJECT_RUN_START', this.props.onProjectRunStart);
+            this.props.vm.on('PROJECT_RUN_STOP', this.props.onProjectRunStop);
+            this.props.vm.on('PROJECT_CHANGED', this.handleProjectChanged);
+            this.props.vm.on('RUNTIME_STARTED', this.props.onRuntimeStarted);
+            this.props.vm.on('RUNTIME_STOPPED', this.props.onRuntimeStopped);
+            this.props.vm.on('PROJECT_START', this.props.onGreenFlag);
+            this.props.vm.on('PERIPHERAL_CONNECTION_LOST_ERROR', this.props.onShowExtensionAlert);
+            this.props.vm.on('MIC_LISTENING', this.props.onMicListeningUpdate);
+            this.props.vm.on('MIC_LISTENING', this.props.onMicListeningUpdate);
+            // tw: add handlers for our events
+            this.props.vm.on('HAS_CLOUD_DATA_UPDATE', this.handleCloudDataUpdate);
+            this.props.vm.on('COMPILER_OPTIONS_CHANGED', this.props.onCompilerOptionsChanged);
+            this.props.vm.on('RUNTIME_OPTIONS_CHANGED', this.props.onRuntimeOptionsChanged);
+            this.props.vm.on('FRAMERATE_CHANGED', this.props.onFramerateChanged);
+            this.props.vm.on('INTERPOLATION_CHANGED', this.props.onInterpolationChanged);
+            this.props.vm.on('COMPILE_ERROR', this.handleCompileError);
+            this.props.vm.on('RUNTIME_STARTED', this.props.onClearCompileErrors);
+            this.props.vm.on('STAGE_SIZE_CHANGED', this.props.onStageSizeChanged);
+            this.props.vm.on('CREATE_UNSANDBOXED_EXTENSION_API', implementGuiAPI);
+            this.props.vm.runtime.on('PLATFORM_MISMATCH', this.props.onPlatformMismatch);
+            this.props.vm.runtime.on('PROJECT_LOADED', this.handleProjectLoaded);
+        }
+        componentDidMount () {
+            if (this.props.attachKeyboardEvents) {
+                document.addEventListener('keydown', this.handleKeyDown);
+                document.addEventListener('keyup', this.handleKeyUp);
+            }
+            this.props.vm.postIOData('userData', {username: this.props.username});
+        }
+        componentDidUpdate (prevProps) {
+            if (prevProps.username !== this.props.username) {
+                this.props.vm.postIOData('userData', {username: this.props.username});
+            }
+
+            // Re-request a targets update when the shouldUpdateTargets state changes to true
+            // i.e. when the editor transitions out of fullscreen/player only modes
+            if (this.props.shouldUpdateTargets && !prevProps.shouldUpdateTargets) {
+                this.props.vm.emitTargetsUpdate(false /* Emit the event, but do not trigger project change */);
+            }
+
+            // When project loading completes, request a targets update from the VM.
+            // During loading, handleTargetsUpdate skips all targetsUpdate events,
+            // so the sprites are never dispatched to Redux. This ensures they show
+            // up in the sprite panel after the project finishes loading.
+            if (!this.props.isLoadingProject && prevProps.isLoadingProject) {
+                this.props.vm.emitTargetsUpdate(false);
+            }
+        }
+        componentWillUnmount () {
+            if (this.props.attachKeyboardEvents) {
+                document.removeEventListener('keydown', this.handleKeyDown);
+                document.removeEventListener('keyup', this.handleKeyUp);
+            }
+
+            this.props.vm.off('targetsUpdate', this.handleTargetsUpdate);
+            this.props.vm.off('MONITORS_UPDATE', this.props.onMonitorsUpdate);
+            this.props.vm.off('BLOCK_DRAG_UPDATE', this.props.onBlockDragUpdate);
+            this.props.vm.off('TURBO_MODE_ON', this.props.onTurboModeOn);
+            this.props.vm.off('TURBO_MODE_OFF', this.props.onTurboModeOff);
+            this.props.vm.off('PROJECT_RUN_START', this.props.onProjectRunStart);
+            this.props.vm.off('PROJECT_RUN_STOP', this.props.onProjectRunStop);
+            this.props.vm.off('PROJECT_CHANGED', this.handleProjectChanged);
+            this.props.vm.off('RUNTIME_STARTED', this.props.onRuntimeStarted);
+            this.props.vm.off('RUNTIME_STOPPED', this.props.onRuntimeStopped);
+            this.props.vm.off('PROJECT_START', this.props.onGreenFlag);
+            this.props.vm.off('PERIPHERAL_CONNECTION_LOST_ERROR', this.props.onShowExtensionAlert);
+            this.props.vm.off('MIC_LISTENING', this.props.onMicListeningUpdate);
+            this.props.vm.off('MIC_LISTENING', this.props.onMicListeningUpdate);
+            this.props.vm.off('HAS_CLOUD_DATA_UPDATE', this.handleCloudDataUpdate);
+            this.props.vm.off('COMPILER_OPTIONS_CHANGED', this.props.onCompilerOptionsChanged);
+            this.props.vm.off('RUNTIME_OPTIONS_CHANGED', this.props.onRuntimeOptionsChanged);
+            this.props.vm.off('FRAMERATE_CHANGED', this.props.onFramerateChanged);
+            this.props.vm.off('INTERPOLATION_CHANGED', this.props.onInterpolationChanged);
+            this.props.vm.off('COMPILE_ERROR', this.handleCompileError);
+            this.props.vm.off('RUNTIME_STARTED', this.props.onClearCompileErrors);
+            this.props.vm.off('STAGE_SIZE_CHANGED', this.props.onStageSizeChanged);
+            this.props.vm.off('CREATE_UNSANDBOXED_EXTENSION_API', implementGuiAPI);
+            this.props.vm.runtime.off('PLATFORM_MISMATCH', this.props.onPlatformMismatch);
+            this.props.vm.runtime.off('PROJECT_LOADED', this.handleProjectLoaded);
+        }
+
+        handleProjectLoaded () {
+            const runtime = this.props.vm && this.props.vm.runtime;
+            if (!runtime || typeof runtime.getStoredProjectOptions !== 'function') return;
+
+            const stored = runtime.getStoredProjectOptions();
+            if (!stored || !stored.bilupTheme) return;
+
+            // On the community project page the project runs embedded, so the
+            // theme just applies (no prompt) unless the page suppressed it.
+            if (this.props.isEmbedded) {
+                if (projectThemeSuppressed()) return;
+                try {
+                    const theme = buildProjectTheme(stored.bilupTheme);
+                    if (theme) {
+                        this.props.onSetTheme(theme);
+                        try {
+                            window.parent.postMessage(
+                                {type: 'mw:project-theme-applied', theme: stored.bilupTheme},
+                                '*'
+                            );
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
+                } catch (e) {
+                    // ignore: bad theme payloads just don't apply
+                }
+                return;
+            }
+
+            const promptKey = computePromptKey(stored.bilupTheme);
+            if (!promptKey) return;
+
+            const ignored = readIgnoreMap();
+            if (ignored[promptKey]) return;
+
+            this.props.onOpenProjectThemePrompt(stored.bilupTheme, promptKey);
+        }
+        handleCloudDataUpdate (hasCloudVariables) {
+            if (this.props.hasCloudVariables !== hasCloudVariables) {
+                this.props.onHasCloudVariablesChanged(hasCloudVariables);
+            }
+        }
+        // tw: handling for compile errors
+        handleCompileError (target, error) {
+            const errorMessage = `${error}`;
+            // Ignore intentonal errors
+            if (errorMessage.includes('Script explicitly disables compilation')) {
+                return;
+            }
+
+            this.props.onCompileError({
+                sprite: target.getName(),
+                error: errorMessage,
+                id: compileErrorCounter++
+            });
+        }
+        handleProjectChanged () {
+            if (this.props.isLoadingProject) return;
+            if (this.props.shouldUpdateProjectChanged && !this.props.projectChanged) {
+                this.props.onProjectChanged();
+            }
+        }
+        handleTargetsUpdate (data) {
+            // During project loading the VM fires many targetsUpdate events.
+            // Skip them to avoid flooding Redux with intermediate states that
+            // will be immediately overwritten.
+            if (this.props.isLoadingProject) return;
+            if (this.props.shouldUpdateTargets) {
+                this.props.onTargetsUpdate(data);
+            }
+        }
+        handleKeyDown (e) {
+            // Don't capture keys intended for Blockly inputs.
+            if (e.target !== document && e.target !== document.body) return;
+
+            const key = (!e.key || e.key === 'Dead') ? e.keyCode : e.key;
+            this.props.vm.postIOData('keyboard', {
+                key: key,
+                keyCode: e.keyCode,
+                isDown: true
+            });
+
+            // Prevent space/arrow key from scrolling the page.
+            if (e.keyCode === 32 || // 32=space
+                (e.keyCode >= 37 && e.keyCode <= 40)) { // 37, 38, 39, 40 are arrows
+                e.preventDefault();
+            }
+
+            // tw: prevent backspace from going back
+            if (e.keyCode === 8) {
+                e.preventDefault();
+            }
+
+            // tw: prevent ' and / from opening quick find in Firefox
+            if (e.keyCode === 222 || e.keyCode === 191) {
+                e.preventDefault();
+            }
+        }
+        handleKeyUp (e) {
+            // Always capture up events,
+            // even those that have switched to other targets.
+            const key = (!e.key || e.key === 'Dead') ? e.keyCode : e.key;
+            this.props.vm.postIOData('keyboard', {
+                key: key,
+                keyCode: e.keyCode,
+                isDown: false
+            });
+
+            // E.g., prevent scroll.
+            if (e.target !== document && e.target !== document.body) {
+                e.preventDefault();
+            }
+        }
+        render () {
+            const {
+                /* eslint-disable no-unused-vars */
+                attachKeyboardEvents,
+                isLoadingProject,
+                isEditorObscured,
+                isEditorUsable,
+                projectChanged,
+                shouldUpdateTargets,
+                shouldUpdateProjectChanged,
+                onOpenProjectThemePrompt,
+                onSetTheme,
+                onBlockDragUpdate,
+                onGreenFlag,
+                onKeyDown,
+                onKeyUp,
+                onMicListeningUpdate,
+                onMonitorsUpdate,
+                onTargetsUpdate,
+                onProjectChanged,
+                onProjectRunStart,
+                onProjectRunStop,
+                onProjectSaved,
+                onRuntimeStarted,
+                onRuntimeStopped,
+                onTurboModeOff,
+                onTurboModeOn,
+                hasCloudVariables,
+                onHasCloudVariablesChanged,
+                onFramerateChanged,
+                onInterpolationChanged,
+                onCompilerOptionsChanged,
+                onPlatformMismatch,
+                onRuntimeOptionsChanged,
+                onStageSizeChanged,
+                onCompileError,
+                onClearCompileErrors,
+                onShowExtensionAlert,
+                /* eslint-enable no-unused-vars */
+                ...props
+            } = this.props;
+            return <WrappedComponent {...props} />;
+        }
+    }
+    VMListener.propTypes = {
+        attachKeyboardEvents: PropTypes.bool,
+        isLoadingProject: PropTypes.bool,
+        isEditorObscured: PropTypes.bool.isRequired,
+        isEditorUsable: PropTypes.bool.isRequired,
+        onBlockDragUpdate: PropTypes.func.isRequired,
+        onGreenFlag: PropTypes.func,
+        onKeyDown: PropTypes.func,
+        onKeyUp: PropTypes.func,
+        onMicListeningUpdate: PropTypes.func.isRequired,
+        onMonitorsUpdate: PropTypes.func.isRequired,
+        onProjectChanged: PropTypes.func.isRequired,
+        onProjectRunStart: PropTypes.func.isRequired,
+        onProjectRunStop: PropTypes.func.isRequired,
+        onProjectSaved: PropTypes.func.isRequired,
+        onRuntimeStarted: PropTypes.func.isRequired,
+        onRuntimeStopped: PropTypes.func.isRequired,
+        onShowExtensionAlert: PropTypes.func.isRequired,
+        onTargetsUpdate: PropTypes.func.isRequired,
+        onTurboModeOff: PropTypes.func.isRequired,
+        onTurboModeOn: PropTypes.func.isRequired,
+        hasCloudVariables: PropTypes.bool,
+        onHasCloudVariablesChanged: PropTypes.func.isRequired,
+        onFramerateChanged: PropTypes.func.isRequired,
+        onInterpolationChanged: PropTypes.func.isRequired,
+        onCompilerOptionsChanged: PropTypes.func.isRequired,
+        onPlatformMismatch: PropTypes.func.isRequired,
+        onRuntimeOptionsChanged: PropTypes.func.isRequired,
+        onOpenProjectThemePrompt: PropTypes.func,
+        onSetTheme: PropTypes.func,
+        isEmbedded: PropTypes.bool,
+        onStageSizeChanged: PropTypes.func,
+        onCompileError: PropTypes.func,
+        onClearCompileErrors: PropTypes.func,
+        projectChanged: PropTypes.bool,
+        shouldUpdateTargets: PropTypes.bool,
+        shouldUpdateProjectChanged: PropTypes.bool,
+        username: PropTypes.string,
+        vm: PropTypes.instanceOf(VM).isRequired
+    };
+    VMListener.defaultProps = {
+        attachKeyboardEvents: true,
+        onGreenFlag: () => ({})
+    };
+    const mapStateToProps = state => ({
+        hasCloudVariables: state.scratchGui.tw.hasCloudVariables,
+        isLoadingProject: getIsLoading(state.scratchGui.projectState.loadingState),
+        isEditorObscured: (
+            !state.scratchGui.mode.isPlayerOnly &&
+            state.scratchGui.mode.isFullScreen
+        ),
+        isEditorUsable: (
+            !state.scratchGui.mode.isPlayerOnly &&
+            !state.scratchGui.mode.isFullScreen &&
+            state.scratchGui.editorTab.activeTabIndex === BLOCKS_TAB_INDEX
+        ),
+        projectChanged: state.scratchGui.projectChanged,
+        isEmbedded: state.scratchGui.mode.isEmbedded,
+        // Do not emit target or project updates in fullscreen or player only mode
+        // or when recording sounds (it leads to garbled recordings on low-power machines)
+        shouldUpdateTargets: !state.scratchGui.mode.isFullScreen && !state.scratchGui.mode.isPlayerOnly &&
+            !state.scratchGui.modals.soundRecorder,
+        // Do not update the projectChanged state in fullscreen or player only mode
+        shouldUpdateProjectChanged: !state.scratchGui.mode.isFullScreen && !state.scratchGui.mode.isPlayerOnly,
+        vm: state.scratchGui.vm,
+        username: state.session && state.session.session && state.session.session.user ?
+            state.session.session.user.username : state.scratchGui.tw ? state.scratchGui.tw.username : ''
+    });
+    let debouncedMonitorsUpdate = null;
+        let debouncedTargetsUpdate = null;
+        const mapDispatchToProps = dispatch => ({
+            onTargetsUpdate: (() => {
+                if (!debouncedTargetsUpdate) {
+                    debouncedTargetsUpdate = debounce(data => {
+                        dispatch(updateTargets(data.targetList, data.editingTarget));
+                    }, 50);
+                }
+                return debouncedTargetsUpdate;
+            })(),
+        // Monitors update every frame when the VM is running. For large
+        // projects with many monitors this can easily overwhelm the React
+        // render cycle on low-end devices. Debounce to at most one dispatch
+        // per 50 ms so the UI stays responsive.
+        onMonitorsUpdate: (() => {
+            if (!debouncedMonitorsUpdate) {
+                debouncedMonitorsUpdate = debounce(monitorList => {
+                    dispatch(updateMonitors(monitorList));
+                }, 50);
+            }
+            return debouncedMonitorsUpdate;
+        })(),
+        onBlockDragUpdate: areBlocksOverGui => {
+            dispatch(updateBlockDrag(areBlocksOverGui));
+        },
+        onProjectRunStart: () => dispatch(setRunningState(true)),
+        onProjectRunStop: () => dispatch(setRunningState(false)),
+        onProjectChanged: () => dispatch(setProjectChanged()),
+        onProjectSaved: () => dispatch(setProjectUnchanged()),
+        onRuntimeStarted: () => dispatch(setStartedState(true)),
+        onRuntimeStopped: () => dispatch(setStartedState(false)),
+        onTurboModeOn: () => dispatch(setTurboState(true)),
+        onTurboModeOff: () => dispatch(setTurboState(false)),
+        onHasCloudVariablesChanged: hasCloudVariables => dispatch(setHasCloudVariables(hasCloudVariables)),
+        onFramerateChanged: framerate => dispatch(setFramerateState(framerate)),
+        onInterpolationChanged: interpolation => dispatch(setInterpolationState(interpolation)),
+        onCompilerOptionsChanged: options => dispatch(setCompilerOptionsState(options)),
+        onPlatformMismatch: (platform, callback) => {
+            const isTurboWarp = platform && (
+                platform.name === 'TurboWarp' ||
+                (platform.url && platform.url.includes('turbowarp.org'))
+            );
+            if (isTurboWarp) {
+                callback();
+                return;
+            }
+            dispatch(setPlatformMismatchDetails(platform, callback));
+            dispatch(openUnknownPlatformModal());
+        },
+        onRuntimeOptionsChanged: options => dispatch(setRuntimeOptionsState(options)),
+        onStageSizeChanged: (width, height) => dispatch(setCustomStageSize(width, height)),
+        onCompileError: errors => dispatch(addCompileError(errors)),
+        onClearCompileErrors: () => dispatch(clearCompileErrors()),
+        onOpenProjectThemePrompt: (bilupTheme, promptKey) => dispatch(
+            openProjectThemePrompt(bilupTheme, promptKey)
+        ),
+        onSetTheme: theme => dispatch(setTheme(theme)),
+        onShowExtensionAlert: data => {
+            dispatch(showExtensionAlert(data));
+        },
+        onMicListeningUpdate: listening => {
+            dispatch(updateMicIndicator(listening));
+        }
+    });
+    return connect(
+        mapStateToProps,
+        mapDispatchToProps
+    )(VMListener);
+};
+
+export default vmListenerHOC;

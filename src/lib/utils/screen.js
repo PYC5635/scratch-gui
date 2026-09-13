@@ -1,0 +1,177 @@
+import {
+    STAGE_DISPLAY_SCALE_METADATA,
+    STAGE_SIZE_MODES,
+    STAGE_DISPLAY_SIZES,
+    FIXED_WIDTH
+} from '../constants/layout-constants';
+
+import getMenuBarHeight from './menu-bar-height';
+
+const maxScaleParam = typeof URLSearchParams !== 'undefined' && new URLSearchParams(location.search).get('scale');
+const isProfilePreview = typeof URLSearchParams !== 'undefined' &&
+    new URLSearchParams(location.search).get('mw_profile_preview') === '1';
+
+/**
+ * @typedef {object} StageDimensions
+ * @property {int} height - the height to be used for the stage in the current situation.
+ * @property {int} width - the width to be used for the stage in the current situation.
+ * @property {number} scale - the scale factor from the stage's default size to its current size.
+ * @property {int} heightDefault - the height of the stage in its default (large) size.
+ * @property {int} widthDefault - the width of the stage in its default (large) size.
+ */
+
+const STAGE_DIMENSION_DEFAULTS = {
+    // referencing css/units.css,
+    // spacingBorderAdjustment = 2 * $full-screen-top-bottom-margin +
+    //   2 * $full-screen-border-width
+    fullScreenSpacingBorderAdjustment: 8,
+    // referencing css/units.css,
+    // menuHeightAdjustment = $stage-menu-height
+    menuHeightAdjustment: 44
+};
+
+/**
+ * Resolve the current GUI and browser state to an actual stage size enum value.
+ * @param {STAGE_SIZE_MODES} stageSizeMode - the state of the stage size toggle button.
+ * @param {boolean} isUnconstrained - true if the window is large enough for the full stage at its full size.
+ * @return {STAGE_DISPLAY_SIZES} - the stage size enum value we should use in this situation.
+ */
+const resolveStageSize = (stageSizeMode, isUnconstrained) => {
+    if (stageSizeMode === STAGE_SIZE_MODES.full && !isUnconstrained) {
+        return STAGE_DISPLAY_SIZES.constrained;
+    }
+    return stageSizeMode;
+};
+
+/**
+ * Retrieve info used to determine the actual stage size based on the current GUI and browser state.
+ * @param {STAGE_DISPLAY_SIZES} stageSize - the current fully-resolved stage size.
+ * @param {{width: number, height: number}} customStageSize Custom stage size
+ * @param {boolean} isFullScreen - true if full-screen mode is enabled.
+ * @param {?number} stageContainerWidth - optional container width to scale to in non-fullscreen mode.
+ * @param {?number} stageMaxHeight - optional maximum height to scale to in non-fullscreen mode.
+ * @return {StageDimensions} - an object describing the dimensions of the stage.
+ */
+const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageContainerWidth, stageMaxHeight) => {
+    const stageDimensions = {
+        heightDefault: customStageSize.height,
+        widthDefault: customStageSize.width,
+        height: 0,
+        width: 0,
+        scale: 0
+    };
+
+    if (isFullScreen) {
+        const menuBarHeight = isProfilePreview ? 0 : getMenuBarHeight();
+        stageDimensions.height = window.innerHeight -
+            STAGE_DIMENSION_DEFAULTS.menuHeightAdjustment -
+            menuBarHeight -
+            STAGE_DIMENSION_DEFAULTS.fullScreenSpacingBorderAdjustment;
+
+        stageDimensions.width = stageDimensions.height * (customStageSize.width / customStageSize.height);
+
+        const maxWidth = maxScaleParam ? (
+            Math.min(window.innerWidth, maxScaleParam * customStageSize.width)
+        ) : window.innerWidth;
+        if (stageDimensions.width > maxWidth) {
+            stageDimensions.width = maxWidth;
+            stageDimensions.height = stageDimensions.width * (customStageSize.height / customStageSize.width);
+        }
+
+        stageDimensions.scale = stageDimensions.width / stageDimensions.widthDefault;
+    } else {
+        const metadata = STAGE_DISPLAY_SCALE_METADATA[stageSize];
+        if (metadata.width) {
+            // Uses a fixed width.
+            stageDimensions.width = metadata.width;
+            stageDimensions.scale = stageDimensions.width / stageDimensions.widthDefault;
+            stageDimensions.height = stageDimensions.scale * stageDimensions.heightDefault;
+        } else {
+            // Uses a width relative to the current size.
+            stageDimensions.scale = metadata.scale;
+            stageDimensions.height = stageDimensions.scale * stageDimensions.heightDefault;
+            stageDimensions.width = stageDimensions.scale * stageDimensions.widthDefault;
+        }
+    }
+
+    if (!isFullScreen &&
+        typeof stageContainerWidth === 'number' &&
+        Number.isFinite(stageContainerWidth) &&
+        stageContainerWidth > 0 &&
+        stageDimensions.width > 0) {
+        const availableContentWidth = Math.max(0, stageContainerWidth - 2);
+        // Only scale if we need to fit, and don't go below a minimum scale to prevent infinite enlargement
+        // Prevent infinite loop when browser zoom is very small (< 40%)
+        if (stageDimensions.width > availableContentWidth && stageDimensions.scale > 0.05) {
+            const fitScale = availableContentWidth / stageDimensions.width;
+            stageDimensions.scale *= fitScale;
+            stageDimensions.width *= fitScale;
+            stageDimensions.height *= fitScale;
+        }
+    }
+
+    // On short viewports (mobile landscape, etc.) keep the sprite selector
+    // usable by capping the stage height and scaling the width proportionally.
+    if (!isFullScreen &&
+        typeof stageMaxHeight === 'number' &&
+        Number.isFinite(stageMaxHeight) &&
+        stageMaxHeight > 0 &&
+        stageDimensions.height > 0 &&
+        stageDimensions.height > stageMaxHeight &&
+        stageDimensions.scale > 0.05) {
+        // Prevent infinite loop when browser zoom is very small (< 40%)
+        const fitScale = stageMaxHeight / stageDimensions.height;
+        stageDimensions.scale *= fitScale;
+        stageDimensions.width *= fitScale;
+        stageDimensions.height *= fitScale;
+        // Ensure we don't go below 1px
+        stageDimensions.width = Math.max(1, stageDimensions.width);
+        stageDimensions.height = Math.max(1, stageDimensions.height);
+    }
+
+    // Round off dimensions to prevent resampling/blurriness
+    stageDimensions.height = Math.round(stageDimensions.height);
+    stageDimensions.width = Math.round(stageDimensions.width);
+
+    return stageDimensions;
+};
+
+/**
+ * @param {STAGE_DISPLAY_SIZES} stageSize - the current fully-resolved stage size.
+ * @returns {number} Minimum width to display the stage area of the screen at. May be wider than the stage's actual size
+ */
+const getMinWidth = stageSize => {
+    const metadata = STAGE_DISPLAY_SCALE_METADATA[stageSize];
+    if (metadata.width) {
+        return metadata.width;
+    }
+    return FIXED_WIDTH * metadata.scale;
+};
+
+/**
+ * Take a pair of sizes for the stage (a target height and width and a default height and width),
+ * calculate the ratio between them, and return a CSS transform to scale to that ratio.
+ * @param {object} sizeInfo An object containing dimensions of the target and default stage sizes.
+ * @param {number} sizeInfo.width The target width
+ * @param {number} sizeInfo.height The target height
+ * @param {number} sizeInfo.widthDefault The default width
+ * @param {number} sizeInfo.heightDefault The default height
+ * @returns {object} the CSS transform
+ */
+const stageSizeToTransform = ({width, height, widthDefault, heightDefault}) => {
+    const scaleX = width / widthDefault;
+    const scaleY = height / heightDefault;
+    if (scaleX === 1 && scaleY === 1) {
+        // Do not set a transform if the scale is 1 because
+        // it messes up `position: fixed` elements like the context menu.
+        return;
+    }
+    return {transform: `scale(${scaleX},${scaleY})`};
+};
+
+export {
+    getStageDimensions,
+    getMinWidth,
+    resolveStageSize,
+    stageSizeToTransform
+};

@@ -1,0 +1,117 @@
+﻿
+> pineeditor-gui@1.2.0 build
+> npm run clean && cross-env NODE_ENV=production webpack --colors --bail
+
+
+> pineeditor-gui@1.2.0 clean
+> rimraf ./build && mkdirp build && rimraf ./dist && mkdirp dist
+
+npm.cmd : [BABEL] Note: The code generator has deoptimised the styling of D:\PineEditor\gui\node_modules\isomorphic-git
+\index.js as it exceeds the max of 500KB.
+At line:16 char:60
++ ... irror.com'; & 'C:\Users\Administrator\AppData\Roaming\TRAE SOLO CN\Mo ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([BABEL] Note: T...e max of 500KB.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ModuleNotFoundError: Module not found: Error: Can't resolve '@turbowarp/paper' in 'D:\PineEditor\gui\node_modules\scrat
+ch-paint\src\containers'
+    at D:\PineEditor\gui\node_modules\webpack\lib\Compilation.js:925:10
+    at D:\PineEditor\gui\node_modules\webpack\lib\NormalModuleFactory.js:401:22
+    at D:\PineEditor\gui\node_modules\webpack\lib\NormalModuleFactory.js:130:21
+    at D:\PineEditor\gui\node_modules\webpack\lib\NormalModuleFactory.js:224:22
+    at D:\PineEditor\gui\node_modules\neo-async\async.js:2830:7
+    at D:\PineEditor\gui\node_modules\neo-async\async.js:6877:13
+    at D:\PineEditor\gui\node_modules\webpack\lib\NormalModuleFactory.js:214:25
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:213:14
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\UnsafeCachePlugin.js:44:7
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:27:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\DescriptionFilePlugin.js:67:43
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:43:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\ModuleKindPlugin.js:30:40
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\forEachBail.js:30:14
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\UnsafeCachePlugin.js:44:7
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:15:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:27:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\DescriptionFilePlugin.js:67:43
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:16:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\RootPlugin.js:37:38
+    at _next43 (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:1
+0), <anonymous>:8:1)
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\li
+b\HookCodeFactory.js:33:10), <anonymous>:31:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:27:1)
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\DescriptionFilePlugin.js:67:43
+    at D:\PineEditor\gui\node_modules\webpack\node_modules\enhanced-resolve\lib\Resolver.js:285:5
+    at eval (eval at create (D:\PineEditor\gui\node_modules\webpack\node_modules\tapable\lib\HookCodeFactory.js:33:10),
+ <anonymous>:16:1)
+
+resolve '@turbowarp/paper' in 'D:\PineEditor\gui\node_modules\scratch-paint\src\containers'
+  Parsed request is a module
+  using description file: D:\PineEditor\gui\node_modules\scratch-paint\package.json (relative path: ./src/containers)
+    Field 'browser' doesn't contain a valid alias configuration
+    resolve as module
+      D:\PineEditor\gui\node_modules\scratch-paint\src\containers\node_modules doesn't exist or is not a directory
+      D:\PineEditor\gui\node_modules\scratch-paint\src\node_modules doesn't exist or is not a directory
+      D:\PineEditor\gui\node_modules\scratch-paint\node_modules doesn't exist or is not a directory
+      D:\PineEditor\gui\node_modules\node_modules doesn't exist or is not a directory
+      D:\PineEditor\node_modules doesn't exist or is not a directory
+      D:\node_modules doesn't exist or is not a directory
+      looking for modules in D:\PineEditor\gui\node_modules
+        using description file: D:\PineEditor\gui\package.json (relative path: ./node_modules)
+          Field 'browser' doesn't contain a valid alias configuration
+          using description file: D:\PineEditor\gui\package.json (relative path: ./node_modules/@turbowarp/paper)
+            no extension
+              Field 'browser' doesn't contain a valid alias configuration
+              D:\PineEditor\gui\node_modules\@turbowarp\paper doesn't exist
+            .js
+              Field 'browser' doesn't contain a valid alias configuration
+              D:\PineEditor\gui\node_modules\@turbowarp\paper.js doesn't exist
+            .jsx
+              Field 'browser' doesn't contain a valid alias configuration
+              D:\PineEditor\gui\node_modules\@turbowarp\paper.jsx doesn't exist
+            .ts
+              Field 'browser' doesn't contain a valid alias configuration
+              D:\PineEditor\gui\node_modules\@turbowarp\paper.ts doesn't exist
+            .tsx
+              Field 'browser' doesn't contain a valid alias configuration
+              D:\PineEditor\gui\node_modules\@turbowarp\paper.tsx doesn't exist
+            as directory
+              D:\PineEditor\gui\node_modules\@turbowarp\paper doesn't exist
+
+[BABEL] Note: The code generator has deoptimised the styling of D:\PineEditor\gui\node_modules\just-bash\dist\bundle\br
+owser.js as it exceeds the max of 500KB.
+
+[BABEL] Note: The code generator has deoptimised the styling of D:\PineEditor\gui\node_modules\isomorphic-git\index.js 
+as it exceeds the max of 500KB.
+
+[BABEL] Note: The code generator has deoptimised the styling of D:\PineEditor\gui\node_modules\just-bash\dist\bundle\br
+owser.js as it exceeds the max of 500KB.
+

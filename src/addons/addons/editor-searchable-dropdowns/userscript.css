@@ -1,0 +1,17 @@
+.u-dropdown-searchbar {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid var(--text-primary);
+  box-sizing: border-box;
+  color: var(--text-primary, rgba(87, 94, 117, 0.6));
+  background-color: transparent;
+  padding: 0.5rem 0.8rem;
+  outline: none;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.blocklyDropDownDiv .goog-menu {
+  overflow-x: hidden;
+}

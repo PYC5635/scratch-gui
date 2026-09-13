@@ -1,0 +1,1657 @@
+/**
+ * Centralized Window System for Addons
+ * Provides a unified API for creating and managing draggable, resizable windows
+ */
+
+const css = `
+.addon-window-btn {
+  background: transparent;
+  color: var(--text-primary, #666);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.addon-window-btn:hover {
+  background: var(--ui-black-transparent, rgba(0, 0, 0, 0.08));
+}
+
+.addon-window-btn-close:hover {
+  background: var(--red-primary, #e64a4a);
+  color: white;
+}
+
+.addon-window-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.addon-window-content::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.addon-window-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  margin: 2px;
+}
+
+.addon-window-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  min-height: 20px;
+}
+
+.addon-window-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+  background-clip: content-box;
+}
+
+.addon-window-content::-webkit-scrollbar-thumb:active {
+  background: rgba(0, 0, 0, 0.4);
+  background-clip: content-box;
+}
+
+.addon-window-content::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media only screen and (max-width: 900px) {
+  .addon-window {
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .addon-window .resize-handle {
+    display: none !important;
+  }
+
+  .addon-window-header {
+    cursor: default !important;
+    touch-action: auto !important;
+  }
+
+  .addon-window-btn-maximize,
+  .addon-window-btn-minimize {
+    display: none !important;
+  }
+
+  .addon-window-content {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+`;
+
+const style = document.createElement('style');
+style.textContent = css;
+document.head.appendChild(style);
+
+const WINDOW_Z_INDEX_BASE = 8000;
+const WINDOW_Z_INDEX_MAX = 8999;
+let nextZIndex = WINDOW_Z_INDEX_BASE;
+
+// Some UI overlays (like the project loader) sit above the normal window range.
+// This tier is for specific windows that must remain interactable above those overlays.
+// Keep below the context menu layer (see src/css/z-index.css).
+const WINDOW_ON_TOP_Z_INDEX_BASE = 9600;
+const WINDOW_ON_TOP_Z_INDEX_MAX = 9999;
+let nextOnTopZIndex = WINDOW_ON_TOP_Z_INDEX_BASE;
+let windowCount = 0;
+const activeWindows = new Map();
+
+const IN_PAGE_WINDOW_IDS = new Set([
+    'customProceduresModal'
+]);
+
+const canUseNativeWindows = () =>
+    typeof window !== 'undefined' &&
+    typeof window.EditorPreload !== 'undefined' &&
+    // In the desktop app (Electron), window.open() is intercepted and denied
+    // by the main process, so native popup windows can never be shown.
+    // Render windows inside the editor window instead of spawning new ones.
+    !navigator.userAgent.includes('Electron');
+
+window.addEventListener('pagehide', () => {
+    for (const win of activeWindows.values()) {
+        if (win.closePopup) {
+            win.closePopup();
+        }
+    }
+});
+
+const copyStylesInto = doc => {
+    const fragment = doc.createDocumentFragment();
+    for (const node of document.querySelectorAll('head style, head link[rel="stylesheet"], body style')) {
+        const clone = doc.importNode(node, true);
+        clone.setAttribute('data-mw-copied-style', '');
+        fragment.appendChild(clone);
+    }
+    doc.head.appendChild(fragment);
+};
+
+const copyRootAttributesInto = doc => {
+    for (const attr of document.documentElement.attributes) {
+        doc.documentElement.setAttribute(attr.name, attr.value);
+    }
+    doc.body.className = document.body.className;
+};
+
+let styleObserver = null;
+let resyncScheduled = false;
+let resyncDebounceTimer = null;
+
+const RESYNC_DEBOUNCE_MS = 50;
+
+const scheduleResync = () => {
+    if (resyncScheduled) return;
+    resyncScheduled = true;
+
+    // Debounce: if multiple mutations arrive within a short window, batch them
+    // into a single RAF callback. This avoids expensive style re-copying when
+    // many style changes happen in rapid succession (e.g. theme switching).
+    if (resyncDebounceTimer) {
+        clearTimeout(resyncDebounceTimer);
+    }
+    resyncDebounceTimer = setTimeout(() => {
+        resyncDebounceTimer = null;
+        requestAnimationFrame(() => {
+            resyncScheduled = false;
+            for (const win of activeWindows.values()) {
+                if (win.resyncStyles) {
+                    win.resyncStyles();
+                }
+            }
+        });
+    }, RESYNC_DEBOUNCE_MS);
+};
+
+const ensureStyleObserver = () => {
+    if (styleObserver) return;
+    styleObserver = new MutationObserver(scheduleResync);
+    styleObserver.observe(document.documentElement, {attributes: true});
+    styleObserver.observe(document.head, {childList: true, subtree: true, characterData: true});
+    styleObserver.observe(document.body, {childList: true});
+    const addonStyles = document.querySelector('.addons-styles');
+    if (addonStyles) {
+        styleObserver.observe(addonStyles, {childList: true, subtree: true, characterData: true});
+    }
+};
+
+class AddonWindow {
+    constructor (options = {}) {
+        this.id = options.id || `addon-window-${++windowCount}`;
+        this.title = options.title || 'Addon Window';
+        this.msg = options.msg || (key => key);
+        this.width = options.width || 400;
+        this.height = options.height || 300;
+        this.minWidth = options.minWidth || 200;
+        this.minHeight = options.minHeight || 150;
+        this.maxWidth = options.maxWidth || null;
+        this.maxHeight = options.maxHeight || null;
+        this.x = options.x || (Math.random() * 100) + 50;
+        this.y = options.y || (Math.random() * 100) + 50;
+        this.resizable = options.resizable !== false;
+        this.modal = options.modal || false;
+        this.closable = options.closable !== false;
+        this.minimizable = options.minimizable !== false;
+        this.maximizable = options.maximizable !== false;
+        this.className = options.className || '';
+        this.destroyOnMinimize = options.destroyOnMinimize || false;
+        this.alwaysOnTop = options.alwaysOnTop || false;
+        
+        this.isVisible = false;
+        this.isMinimized = false;
+        this.isMaximized = false;
+        this.isDestroying = false;
+        this.zIndex = this.alwaysOnTop ? ++nextOnTopZIndex : ++nextZIndex;
+        
+        this.onClose = options.onClose || (() => {});
+        this.onMinimize = options.onMinimize || (() => {});
+        this.onMaximize = options.onMaximize || (() => {});
+        this.onRestore = options.onRestore || (() => {});
+        this.onResize = options.onResize || (() => {});
+        this.onMove = options.onMove || (() => {});
+        
+        this._animTimer = null; // Track pending animation timeout
+        this.element = null;
+        this.headerElement = null;
+        this.contentElement = null;
+        this.isDragging = false;
+        this.isResizing = false;
+        this.dragOffset = {x: 0, y: 0};
+        this.dragPointerId = null;
+        this.resizePointerId = null;
+        this.resizeHandle = null;
+        this.savedState = null; // For maximize/restore
+        this._pendingDragPos = null; // RAF-batched drag position
+        this._dragRaf = null; // Pending drag RAF id
+        this._pendingResize = null; // RAF-batched resize state
+        this._resizeRaf = null; // Pending resize RAF id
+        
+        this.createWindow();
+        activeWindows.set(this.id, this);
+    }
+    
+    createWindow () {
+        // Create main window element
+        this.element = document.createElement('div');
+        this.element.className = `addon-window ${this.className}`;
+        this.element.style.cssText = `
+            position: fixed;
+            left: ${this.x}px;
+            top: ${this.y}px;
+            width: ${this.width}px;
+            height: ${this.height}px;
+            z-index: ${this.zIndex};
+            background: var(--ui-modal-background, #ffffff);
+            border: 1px solid var(--ui-black-transparent, rgba(0, 0, 0, 0.08));
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16),
+                        0 2px 8px rgba(0, 0, 0, 0.08);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: none !important;
+        `;
+
+        this.element.addEventListener('pointerdown', () => this.bringToFront());
+        
+        // Create header
+        this.headerElement = document.createElement('div');
+        this.headerElement.className = 'addon-window-header';
+        this.headerElement.style.cssText = `
+            background: var(--ui-primary, #f8f9fa);
+            border-bottom: 1px solid var(--ui-black-transparent, rgba(0, 0, 0, 0.08));
+            padding: 8px 16px;
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 44px;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        `;
+
+        // Title
+        const titleElement = document.createElement('div');
+        titleElement.className = 'addon-window-title';
+        titleElement.textContent = this.title;
+        titleElement.style.cssText = `
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary, #2d3748);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            z-index: 1;
+        `;
+        
+        // Controls
+        const controlsElement = document.createElement('div');
+        controlsElement.className = 'addon-window-controls';
+        controlsElement.style.cssText = `
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            z-index: 1;
+            overflow: hidden;
+        `;
+        
+        // Control buttons
+        if (this.minimizable) {
+            const minimizeBtn = this.createControlButton('minimize', this.msg('window-minimize'), () => this.minimize());
+            controlsElement.appendChild(minimizeBtn);
+        }
+
+        if (this.maximizable) {
+            const maximizeBtn = this.createControlButton('maximize', this.msg('window-maximize'), () => this.toggleMaximize());
+            this.maximizeBtn = maximizeBtn; // Store reference to update icon when maximized
+            controlsElement.appendChild(maximizeBtn);
+        }
+        
+        if (this.closable) {
+            const closeBtn = this.createControlButton('close', this.msg('window-close'), () => this.close());
+            controlsElement.appendChild(closeBtn);
+        }
+        
+        this.headerElement.appendChild(titleElement);
+        this.headerElement.appendChild(controlsElement);
+        
+        // Create content area
+        this.contentElement = document.createElement('div');
+        this.contentElement.className = 'addon-window-content';
+        this.contentElement.style.cssText = `
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+            box-sizing: border-box;
+            background: transparent;
+            border-radius: 0 0 12px 12px;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        `;
+        
+        this.element.appendChild(this.headerElement);
+        this.element.appendChild(this.contentElement);
+        
+        // Add resize handles if resizable
+        if (this.resizable) {
+            this.addResizeHandles();
+        }
+        
+        // Add drag functionality
+        this.addDragFunctionality();
+        
+        // Add to DOM
+        document.body.appendChild(this.element);
+
+        this.escapeHandler = e => {
+            if (e.key !== 'Escape' || !this.closable || !this.isVisible) return;
+            const top = Array.from(activeWindows.values())
+                .filter(w => w.isVisible)
+                .sort((a, b) => b.zIndex - a.zIndex)[0];
+            if (top === this) this.close();
+        };
+        document.addEventListener('keydown', this.escapeHandler);
+    }
+
+    createControlButton (type, title, onClick) {
+        const button = document.createElement('button');
+        button.title = title;
+        button.className = `addon-window-btn addon-window-btn-${type}`;
+        
+        // Create SVG icon based on button type
+        let svgIcon = '';
+        switch (type) {
+        case 'minimize':
+            svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>`;
+            break;
+        case 'maximize':
+            svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                </svg>`;
+            break;
+        case 'restore':
+            svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>`;
+            break;
+        case 'close':
+            svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                </svg>`;
+            break;
+        }
+        
+        button.innerHTML = svgIcon;
+        
+        // Modern button styling
+        button.style.cssText = `
+            border: none;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0;
+            margin: 0;
+            padding: 0;
+        `;
+        
+        button.addEventListener('pointerdown', e => {
+            e.stopPropagation();
+        });
+        
+        button.addEventListener('click', e => {
+            e.stopPropagation();
+            onClick();
+        });
+        
+        return button;
+    }
+    
+    updateMaximizeButton () {
+        if (this.maximizeBtn) {
+            const svgIcon = this.isMaximized ?
+                `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>` :
+                `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    </svg>`;
+            this.maximizeBtn.innerHTML = svgIcon;
+            this.maximizeBtn.title = this.isMaximized ? this.msg('window-restore') : this.msg('window-maximize');
+        }
+    }
+
+    addDragFunctionality () {
+        this.headerElement.addEventListener('pointerdown', e => {
+            // Only primary button / primary touch; ignore control buttons
+            if (e.button !== 0) return;
+            if (e.target.closest('button')) return;
+
+            this.isDragging = true;
+            this.dragPointerId = e.pointerId;
+            this.bringToFront();
+
+            // Get the current position of the window
+            const currentX = parseInt(this.element.style.left, 10) || this.x;
+            const currentY = parseInt(this.element.style.top, 10) || this.y;
+
+            // Calculate offset relative to current window position
+            this.dragOffset = {
+                x: e.clientX - currentX,
+                y: e.clientY - currentY
+            };
+
+            try {
+                this.headerElement.setPointerCapture(e.pointerId);
+            } catch (err) {
+                // setPointerCapture can throw if the pointer is already released
+            }
+
+            this.headerElement.addEventListener('pointermove', this.handleDrag);
+            this.headerElement.addEventListener('pointerup', this.handleDragEnd);
+            this.headerElement.addEventListener('pointercancel', this.handleDragEnd);
+
+            e.preventDefault();
+        });
+    }
+    
+    handleDrag = e => {
+        if (!this.isDragging) return;
+        if (this.dragPointerId !== null && e.pointerId !== this.dragPointerId) return;
+        
+        const newX = e.clientX - this.dragOffset.x;
+        const newY = e.clientY - this.dragOffset.y;
+        
+        // Allow window to move mostly off-screen but keep 50px visible
+        const minVisiblePixels = 50;
+        const minX = -(this.width - minVisiblePixels);
+        const maxX = window.innerWidth - minVisiblePixels;
+        const minY = 0;
+        const maxY = window.innerHeight - minVisiblePixels;
+        
+        const clampedX = Math.max(minX, Math.min(newX, maxX));
+        const clampedY = Math.max(minY, Math.min(newY, maxY));
+        
+        // Batch position update via RAF to avoid layout thrashing
+        this._pendingDragPos = {x: clampedX, y: clampedY};
+        if (!this._dragRaf) {
+            this._dragRaf = window.requestAnimationFrame(() => {
+                this._dragRaf = null;
+                if (this._pendingDragPos) {
+                    const pos = this._pendingDragPos;
+                    this._pendingDragPos = null;
+                    this.x = pos.x;
+                    this.y = pos.y;
+                    this.element.style.left = `${pos.x}px`;
+                    this.element.style.top = `${pos.y}px`;
+                    this.onMove(pos.x, pos.y);
+                }
+            });
+        }
+    };
+    
+    handleDragEnd = e => {
+        if (e && this.dragPointerId !== null && e.pointerId !== this.dragPointerId) return;
+
+        this.isDragging = false;
+        // Flush any pending RAF-batched position
+        if (this._dragRaf) {
+            window.cancelAnimationFrame(this._dragRaf);
+            this._dragRaf = null;
+        }
+        if (this._pendingDragPos) {
+            const pos = this._pendingDragPos;
+            this._pendingDragPos = null;
+            this.x = pos.x;
+            this.y = pos.y;
+            this.element.style.left = `${pos.x}px`;
+            this.element.style.top = `${pos.y}px`;
+            this.onMove(pos.x, pos.y);
+        }
+        if (this.dragPointerId !== null) {
+            try {
+                this.headerElement.releasePointerCapture(this.dragPointerId);
+            } catch (err) {
+                // already released
+            }
+            this.dragPointerId = null;
+        }
+        this.headerElement.removeEventListener('pointermove', this.handleDrag);
+        this.headerElement.removeEventListener('pointerup', this.handleDragEnd);
+        this.headerElement.removeEventListener('pointercancel', this.handleDragEnd);
+    };
+    
+    addResizeHandles () {
+        const handles = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        
+        handles.forEach(direction => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-${direction}`;
+            
+            const styles = {
+                position: 'absolute',
+                backgroundColor: 'transparent',
+                zIndex: '10'
+            };
+            
+            // Set position and cursor for each handle
+            switch (direction) {
+            case 'n':
+                Object.assign(styles, {
+                    top: '0',
+                    left: '8px',
+                    right: '8px',
+                    height: '4px',
+                    cursor: 'n-resize'
+                });
+                break;
+            case 'ne':
+                Object.assign(styles, {
+                    top: '0',
+                    right: '0',
+                    width: '8px',
+                    height: '8px',
+                    cursor: 'ne-resize'
+                });
+                break;
+            case 'e':
+                Object.assign(styles, {
+                    right: '0',
+                    top: '8px',
+                    bottom: '8px',
+                    width: '4px',
+                    cursor: 'e-resize'
+                });
+                break;
+            case 'se':
+                Object.assign(styles, {
+                    bottom: '0',
+                    right: '0',
+                    width: '8px',
+                    height: '8px',
+                    cursor: 'se-resize'
+                });
+                break;
+            case 's':
+                Object.assign(styles, {
+                    bottom: '0',
+                    left: '8px',
+                    right: '8px',
+                    height: '4px',
+                    cursor: 's-resize'
+                });
+                break;
+            case 'sw':
+                Object.assign(styles, {
+                    bottom: '0',
+                    left: '0',
+                    width: '8px',
+                    height: '8px',
+                    cursor: 'sw-resize'
+                });
+                break;
+            case 'w':
+                Object.assign(styles, {
+                    left: '0',
+                    top: '8px',
+                    bottom: '8px',
+                    width: '4px',
+                    cursor: 'w-resize'
+                });
+                break;
+            case 'nw':
+                Object.assign(styles, {
+                    top: '0',
+                    left: '0',
+                    width: '8px',
+                    height: '8px',
+                    cursor: 'nw-resize'
+                });
+                break;
+            }
+            
+            Object.assign(handle.style, styles);
+            handle.style.touchAction = 'none';
+            
+            handle.addEventListener('pointerdown', e => {
+                if (e.button !== 0) return;
+                e.stopPropagation();
+                this.startResize(e, direction, handle);
+            });
+            
+            this.element.appendChild(handle);
+        });
+    }
+    
+    startResize (e, direction, handle) {
+        this.isResizing = true;
+        this.resizeDirection = direction;
+        this.resizePointerId = e.pointerId;
+        this.resizeHandle = handle;
+        this.bringToFront();
+        
+        const rect = this.element.getBoundingClientRect();
+        this.resizeStart = {
+            x: e.clientX,
+            y: e.clientY,
+            width: rect.width,
+            height: rect.height,
+            left: rect.left,
+            top: rect.top
+        };
+
+        try {
+            handle.setPointerCapture(e.pointerId);
+        } catch (err) {
+            // setPointerCapture can throw if the pointer is already released
+        }
+        
+        handle.addEventListener('pointermove', this.handleResize);
+        handle.addEventListener('pointerup', this.handleResizeEnd);
+        handle.addEventListener('pointercancel', this.handleResizeEnd);
+        
+        e.preventDefault();
+    }
+    
+    handleResize = e => {
+        if (!this.isResizing) return;
+        if (this.resizePointerId !== null && e.pointerId !== this.resizePointerId) return;
+        
+        const deltaX = e.clientX - this.resizeStart.x;
+        const deltaY = e.clientY - this.resizeStart.y;
+        const direction = this.resizeDirection;
+        
+        let newWidth = this.resizeStart.width;
+        let newHeight = this.resizeStart.height;
+        let newX = this.resizeStart.left;
+        let newY = this.resizeStart.top;
+        
+        // Calculate new dimensions based on resize direction
+        if (direction.includes('e')) newWidth += deltaX;
+        if (direction.includes('w')) {
+            newWidth -= deltaX;
+            newX = this.resizeStart.left + deltaX;
+        }
+        if (direction.includes('s')) newHeight += deltaY;
+        if (direction.includes('n')) {
+            newHeight -= deltaY;
+            newY = this.resizeStart.top + deltaY;
+        }
+        
+        // Apply constraints
+        const originalNewWidth = newWidth;
+        const originalNewHeight = newHeight;
+        
+        newWidth = Math.max(this.minWidth, newWidth);
+        newHeight = Math.max(this.minHeight, newHeight);
+        
+        if (this.maxWidth) newWidth = Math.min(this.maxWidth, newWidth);
+        if (this.maxHeight) newHeight = Math.min(this.maxHeight, newHeight);
+        
+        // Adjust position if size was constrained and we're resizing from west or north
+        if (direction.includes('w') && newWidth !== originalNewWidth) {
+            newX = this.resizeStart.left + (this.resizeStart.width - newWidth);
+        }
+        if (direction.includes('n') && newHeight !== originalNewHeight) {
+            newY = this.resizeStart.top + (this.resizeStart.height - newHeight);
+        }
+        
+        // Batch resize update via RAF to avoid layout thrashing
+        this._pendingResize = {width: newWidth, height: newHeight, x: newX, y: newY};
+        if (!this._resizeRaf) {
+            this._resizeRaf = window.requestAnimationFrame(() => {
+                this._resizeRaf = null;
+                if (this._pendingResize) {
+                    const r = this._pendingResize;
+                    this._pendingResize = null;
+                    this.width = r.width;
+                    this.height = r.height;
+                    this.x = r.x;
+                    this.y = r.y;
+                    this.element.style.width = `${r.width}px`;
+                    this.element.style.height = `${r.height}px`;
+                    this.element.style.left = `${r.x}px`;
+                    this.element.style.top = `${r.y}px`;
+                    this.onResize(r.width, r.height);
+                }
+            });
+        }
+    };
+    
+    handleResizeEnd = e => {
+        if (e && this.resizePointerId !== null && e.pointerId !== this.resizePointerId) return;
+
+        this.isResizing = false;
+        // Flush any pending RAF-batched resize
+        if (this._resizeRaf) {
+            window.cancelAnimationFrame(this._resizeRaf);
+            this._resizeRaf = null;
+        }
+        if (this._pendingResize) {
+            const r = this._pendingResize;
+            this._pendingResize = null;
+            this.width = r.width;
+            this.height = r.height;
+            this.x = r.x;
+            this.y = r.y;
+            this.element.style.width = `${r.width}px`;
+            this.element.style.height = `${r.height}px`;
+            this.element.style.left = `${r.x}px`;
+            this.element.style.top = `${r.y}px`;
+            this.onResize(r.width, r.height);
+        }
+        const handle = this.resizeHandle;
+        if (handle && this.resizePointerId !== null) {
+            try {
+                handle.releasePointerCapture(this.resizePointerId);
+            } catch (err) {
+                // already released
+            }
+            handle.removeEventListener('pointermove', this.handleResize);
+            handle.removeEventListener('pointerup', this.handleResizeEnd);
+            handle.removeEventListener('pointercancel', this.handleResizeEnd);
+        }
+        this.resizePointerId = null;
+        this.resizeHandle = null;
+    };
+    
+    bringToFront () {
+        const isOnTopTier = this.alwaysOnTop;
+        const baseZ = isOnTopTier ? WINDOW_ON_TOP_Z_INDEX_BASE : WINDOW_Z_INDEX_BASE;
+        const maxZ = isOnTopTier ? WINDOW_ON_TOP_Z_INDEX_MAX : WINDOW_Z_INDEX_MAX;
+
+        if ((isOnTopTier ? nextOnTopZIndex : nextZIndex) >= maxZ) {
+            const windows = Array.from(activeWindows.values()).filter(w => w.alwaysOnTop === isOnTopTier);
+            const index = windows.indexOf(this);
+            if (index !== -1) windows.splice(index, 1);
+            windows.sort((a, b) => a.zIndex - b.zIndex);
+
+            if (isOnTopTier) {
+                nextOnTopZIndex = baseZ;
+                for (const window of windows) {
+                    window.zIndex = ++nextOnTopZIndex;
+                    window.element.style.zIndex = window.zIndex;
+                }
+            } else {
+                nextZIndex = baseZ;
+                for (const window of windows) {
+                    window.zIndex = ++nextZIndex;
+                    window.element.style.zIndex = window.zIndex;
+                }
+            }
+        }
+
+        this.zIndex = isOnTopTier ? ++nextOnTopZIndex : ++nextZIndex;
+        this.element.style.zIndex = this.zIndex;
+    }
+    
+    show () {
+        // Cancel any pending animation timer
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+
+        activeWindows.set(this.id, this);
+        const wasVisible = this.isVisible;
+        this.isVisible = true;
+
+        // Always ensure the element is displayed immediately
+        this.element.style.display = 'flex';
+        this.element.style.pointerEvents = 'auto';
+
+        // A show() while the window is maximized can happen after the
+        // maximize/restore animation was interrupted (its _animTimer was
+        // cleared above). End any residual transform and re-assert the
+        // maximized layout so the window still fills the whole screen.
+        if (this.isMaximized) {
+            this._finishMaximizeRestoreAnimation();
+            // Re-apply the fullscreen overrides, including clearing any external
+            // CSS max-width/max-height/margin, so the maximized window always
+            // fills the whole screen.
+            this.element.style.maxWidth = 'none';
+            this.element.style.maxHeight = 'none';
+            this.element.style.margin = '0';
+            this.element.style.left = '0px';
+            this.element.style.top = '0px';
+            this.element.style.width = '100vw';
+            this.element.style.height = '100vh';
+        }
+
+        if (!wasVisible) {
+            this.bringToFront();
+            if (WindowManager.getAnimationsEnabled()) {
+                // Set initial hidden state. Only transform + opacity are animated,
+                // which are compositor-friendly and do not trigger layout on old devices.
+                this.element.style.willChange = 'transform, opacity';
+                this.element.style.opacity = '0';
+                this.element.style.transform = 'scale(0.92)';
+                this.element.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+
+                // Force browser to apply initial state before animating
+                // eslint-disable-next-line no-unused-expressions
+                this.element.offsetHeight;
+
+                // Kick off the animation
+                this.element.style.opacity = '1';
+                this.element.style.transform = 'scale(1)';
+
+                this._animTimer = setTimeout(() => {
+                    this._animTimer = null;
+                    if (this.element && this.element.style) {
+                        this.element.style.transition = 'none';
+                        this.element.style.willChange = '';
+                    }
+                }, 220);
+            }
+        }
+        return this;
+    }
+
+    hide () {
+        // A destroy is already in progress: the closing animation is playing
+        // and the element will be removed from the DOM when it finishes.
+        // Hiding again here would cancel that removal (leaking the element),
+        // so bail out and let destroy() finish its work.
+        if (this.isDestroying) {
+            return this;
+        }
+
+        // Cancel any pending animation timer
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+
+        if (!this.isVisible) {
+            this.element.style.display = 'none';
+            this.element.style.transition = 'none';
+            return this;
+        }
+
+        this.isVisible = false;
+
+        if (!WindowManager.getAnimationsEnabled()) {
+            this.element.style.display = 'none';
+            this.element.style.transition = 'none';
+            return this;
+        }
+
+        // Start close animation
+        this.element.style.pointerEvents = 'none';
+        // Ensure no transition interference — remove any previous transition first
+        this.element.style.transition = 'none';
+        // eslint-disable-next-line no-unused-expressions
+        this.element.offsetHeight;
+        // Now set the animated transition (transform + opacity only, compositor-friendly)
+        this.element.style.willChange = 'transform, opacity';
+        this.element.style.transition = 'opacity 0.18s ease-in, transform 0.18s ease-in';
+        // eslint-disable-next-line no-unused-expressions
+        this.element.offsetHeight;
+        this.element.style.opacity = '0';
+        this.element.style.transform = 'scale(0.92)';
+
+        this._animTimer = setTimeout(() => {
+            this._animTimer = null;
+            if (this.element && this.element.style) {
+                this.element.style.display = 'none';
+                this.element.style.transition = 'none';
+                this.element.style.willChange = '';
+            }
+        }, 200);
+
+        return this;
+    }
+    
+    destroy (callOnClose = true) {
+        // A destroy is already in progress: the closing animation is playing
+        // and the element will be removed when it finishes. This second call
+        // usually comes from a componentWillUnmount that the owner's onClose
+        // callback triggered synchronously. Bail out so the pending animation
+        // isn't cancelled and the element isn't removed instantly.
+        if (this.isDestroying) {
+            return this;
+        }
+
+        // Cancel any pending animation timer
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+
+        // Cancel any pending drag/resize RAF
+        if (this._dragRaf) {
+            window.cancelAnimationFrame(this._dragRaf);
+            this._dragRaf = null;
+            this._pendingDragPos = null;
+        }
+        if (this._resizeRaf) {
+            window.cancelAnimationFrame(this._resizeRaf);
+            this._resizeRaf = null;
+            this._pendingResize = null;
+        }
+
+        // Ask the window's owner whether closing is allowed. If the owner
+        // vetoes the close (returns false), abort the destroy entirely so the
+        // window stays visible and can be opened again later. The onClose
+        // callback is already invoked here, so it must NOT be invoked again
+        // after the closing animation.
+        if (callOnClose && this.onClose() === false) {
+            return this;
+        }
+
+        this.isDestroying = true;
+
+        const needsAnimation = WindowManager.getAnimationsEnabled() && this.isVisible;
+
+        // Clean up event handlers immediately
+        if (this.escapeHandler) {
+            document.removeEventListener('keydown', this.escapeHandler);
+            this.escapeHandler = null;
+        }
+        activeWindows.delete(this.id);
+
+        if (needsAnimation) {
+            // Play hide animation
+            this.isVisible = false;
+            this.element.style.pointerEvents = 'none';
+            this.element.style.transition = 'none';
+            // eslint-disable-next-line no-unused-expressions
+            this.element.offsetHeight;
+            this.element.style.willChange = 'transform, opacity';
+            this.element.style.transition = 'opacity 0.18s ease-in, transform 0.18s ease-in';
+            // eslint-disable-next-line no-unused-expressions
+            this.element.offsetHeight;
+            this.element.style.opacity = '0';
+            this.element.style.transform = 'scale(0.92)';
+
+            const element = this.element;
+            this._animTimer = setTimeout(() => {
+                this._animTimer = null;
+                if (element && element.parentNode) {
+                    if (element.style) {
+                        element.style.display = 'none';
+                        element.style.transition = 'none';
+                        element.style.willChange = '';
+                    }
+                    element.parentNode.removeChild(element);
+                }
+                // onClose was already consulted (and called) at the top of
+                // this method, so it must not be called again here.
+            }, 200);
+        } else {
+            // No animation — immediate cleanup
+            this.isVisible = false;
+            this.element.style.display = 'none';
+            this.element.style.transition = 'none';
+            if (this.element && this.element.parentNode) {
+                this.element.parentNode.removeChild(this.element);
+            }
+        }
+    }
+
+    abortAnimation (enabled) {
+        if (!this.element || !this.element.style) return;
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+        // End any in-flight maximize/restore transform animation
+        this._finishMaximizeRestoreAnimation();
+        if (enabled) {
+            // Animations re-enabled: just clear any leftover intermediate styles
+            this.element.style.transition = 'none';
+            return;
+        }
+        if (this.isDestroying) {
+            // A destroy (element removal) was in progress — finish it now so
+            // the element doesn't leak in the DOM.
+            this.isVisible = false;
+            this.element.style.display = 'none';
+            this.element.style.transition = 'none';
+            this.element.style.willChange = '';
+            if (this.element.parentNode) {
+                this.element.parentNode.removeChild(this.element);
+            }
+            return;
+        }
+        // Animations disabled: jump to the final state immediately
+        if (!this.isVisible) {
+            // A hide/destroy fade-out was in progress (or the window is hidden)
+            this.element.style.display = 'none';
+        }
+        this.element.style.opacity = '1';
+        this.element.style.transform = '';
+        this.element.style.pointerEvents = '';
+        this.element.style.willChange = '';
+        this.element.style.transition = 'none';
+    }
+
+    close () {
+        this.destroy(true);
+    }
+    
+    minimize () {
+        if (this.destroyOnMinimize) {
+            // Like close(), give the owner a chance to veto. Otherwise the
+            // window would be destroyed while the owner still thinks it is
+            // open, making it impossible to open it again later.
+            if (this.onClose() === false) {
+                return this;
+            }
+            this.onMinimize();
+            this.destroy(false);
+            return this;
+        }
+
+        this.hide();
+        this.isMinimized = true;
+        this.onMinimize();
+        this.updateMaximizeButton();
+        return this;
+    }
+    
+    /**
+     * Animate the window between two rectangles using a pure transform
+     * (translate + scale), which runs on the compositor thread and does NOT
+     * trigger layout/reflow. This keeps the running Scratch project smooth
+     * even on old devices while the maximize/restore animation plays.
+     *
+     * The element's layout geometry is set to `toRect` (the target), and a
+     * transform is applied that visually maps `toRect` onto `fromRect` (the
+     * start), then animated back to identity.
+     *
+     * @param {object} fromRect start visual rect {x, y, width, height}
+     * @param {object} toRect actual layout rect the element will occupy
+     */
+    _animateMaximizeRestore (fromRect, toRect) {
+        const sx = fromRect.width / toRect.width;
+        const sy = fromRect.height / toRect.height;
+        const tx = fromRect.x - toRect.x;
+        const ty = fromRect.y - toRect.y;
+
+        this.element.style.transformOrigin = '0 0';
+        this.element.style.willChange = 'transform';
+        this.element.style.transition = 'none';
+        this.element.style.transform = `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
+        // Force browser to apply the starting state before enabling the transition
+        // eslint-disable-next-line no-unused-expressions
+        this.element.offsetHeight;
+        this.element.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        this.element.style.transform = 'translate(0, 0) scale(1, 1)';
+    }
+
+    _finishMaximizeRestoreAnimation () {
+        this._animTimer = null;
+        if (this.element && this.element.style) {
+            this.element.style.transition = 'none';
+            this.element.style.willChange = '';
+            this.element.style.transformOrigin = '';
+            this.element.style.transform = '';
+        }
+    }
+
+    restore () {
+        // Cancel any pending animation timer, like show()/hide()/destroy() do,
+        // so an interrupted maximize/restore animation cannot leave a stale
+        // transform that makes the window look like it is not filling the screen.
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+        this._finishMaximizeRestoreAnimation();
+
+        // Let external CSS size/margin constraints (e.g. a modal's .modal-content
+        // rule with max-width/max-height) apply again, so the window returns to
+        // the same appearance it had before it was maximized.
+        this.element.style.maxWidth = '';
+        this.element.style.maxHeight = '';
+        this.element.style.margin = '';
+
+        if (this.isMaximized) {
+            this.isMaximized = false;
+            if (this.savedState) {
+                const saved = this.savedState;
+                this.x = saved.x;
+                this.y = saved.y;
+                this.width = saved.width;
+                this.height = saved.height;
+                if (WindowManager.getAnimationsEnabled()) {
+                    // Visual start is the fullscreen rect, target is the saved rect.
+                    const from = {x: 0, y: 0, width: window.innerWidth, height: window.innerHeight};
+                    const to = {x: saved.x, y: saved.y, width: saved.width, height: saved.height};
+                    this.element.style.left = `${saved.x}px`;
+                    this.element.style.top = `${saved.y}px`;
+                    this.element.style.width = `${saved.width}px`;
+                    this.element.style.height = `${saved.height}px`;
+                    this._animateMaximizeRestore(from, to);
+                    this._animTimer = setTimeout(() => this._finishMaximizeRestoreAnimation(), 260);
+                } else {
+                    this.element.style.left = `${saved.x}px`;
+                    this.element.style.top = `${saved.y}px`;
+                    this.element.style.width = `${saved.width}px`;
+                    this.element.style.height = `${saved.height}px`;
+                }
+            }
+            this.updateMaximizeButton();
+        }
+        
+        if (this.isMinimized) {
+            this.isMinimized = false;
+            this.show();
+        }
+        
+        this.onRestore();
+        return this;
+    }
+    
+    maximize () {
+        if (this.isMaximized) return this;
+
+        // Cancel any pending animation timer and clear a stale transform, same
+        // as restore(). This guarantees the window ends up at the fullscreen
+        // rect even if a previous animation was interrupted.
+        if (this._animTimer) {
+            clearTimeout(this._animTimer);
+            this._animTimer = null;
+        }
+        this._finishMaximizeRestoreAnimation();
+
+        // Save current state
+        this.savedState = {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height
+        };
+
+        // Override any external CSS size/margin constraints on the window element
+        // (e.g. a modal's .modal-content rule with max-width/max-height). Without
+        // this, setting width/height to 100vw/100vh alone cannot fill the screen.
+        this.element.style.maxWidth = 'none';
+        this.element.style.maxHeight = 'none';
+        this.element.style.margin = '0';
+
+        if (WindowManager.getAnimationsEnabled()) {
+            // Visual start is the saved rect, target is fullscreen.
+            const from = {x: this.x, y: this.y, width: this.width, height: this.height};
+            const to = {x: 0, y: 0, width: window.innerWidth, height: window.innerHeight};
+            this.isMaximized = true;
+            this.x = 0;
+            this.y = 0;
+            this.width = window.innerWidth;
+            this.height = window.innerHeight;
+            this.element.style.left = '0px';
+            this.element.style.top = '0px';
+            this.element.style.width = '100vw';
+            this.element.style.height = '100vh';
+            this._animateMaximizeRestore(from, to);
+            this._animTimer = setTimeout(() => this._finishMaximizeRestoreAnimation(), 260);
+        } else {
+            this.isMaximized = true;
+            this.x = 0;
+            this.y = 0;
+            this.width = window.innerWidth;
+            this.height = window.innerHeight;
+            this.element.style.left = '0px';
+            this.element.style.top = '0px';
+            this.element.style.width = '100vw';
+            this.element.style.height = '100vh';
+        }
+
+        this.updateMaximizeButton();
+        this.onMaximize();
+        return this;
+    }
+    
+    toggleMaximize () {
+        if (this.isMaximized) {
+            this.restore();
+        } else {
+            this.maximize();
+        }
+        return this;
+    }
+    
+    setContent (content) {
+        this.contentElement.innerHTML = '';
+        if (typeof content === 'string') {
+            this.contentElement.innerHTML = content;
+        } else if (content instanceof HTMLElement) {
+            this.contentElement.appendChild(content);
+        }
+        return this;
+    }
+    
+    setTitle (newTitle) {
+        this.title = newTitle;
+        const titleElement = this.headerElement.querySelector('.addon-window-title');
+        if (titleElement) {
+            titleElement.textContent = newTitle;
+        }
+        return this;
+    }
+    
+    getContentElement () {
+        return this.contentElement;
+    }
+    
+    center () {
+        this.x = Math.max(0, (window.innerWidth - this.width) / 2);
+        this.y = Math.max(0, (window.innerHeight - this.height) / 2);
+        this.element.style.left = `${this.x}px`;
+        this.element.style.top = `${this.y}px`;
+        return this;
+    }
+
+    moveTo (x, y) {
+        this.x = x;
+        this.y = y;
+        this.element.style.left = `${x}px`;
+        this.element.style.top = `${y}px`;
+        return this;
+    }
+    
+    // Compatibility methods for external code
+    focus () {
+        this.bringToFront();
+        return this;
+    }
+    
+    isClosed () {
+        return !this.isVisible;
+    }
+}
+
+class NativeAddonWindow {
+    constructor (options = {}) {
+        this.id = options.id || `addon-window-${++windowCount}`;
+        this.title = options.title || 'Addon Window';
+        this.width = options.width || 400;
+        this.height = options.height || 300;
+        this.minWidth = options.minWidth || 200;
+        this.minHeight = options.minHeight || 150;
+        this.maxWidth = options.maxWidth || null;
+        this.maxHeight = options.maxHeight || null;
+        this.x = options.x || (Math.random() * 100) + 50;
+        this.y = options.y || (Math.random() * 100) + 50;
+        this.resizable = options.resizable !== false;
+        this.modal = options.modal || false;
+        this.closable = options.closable !== false;
+        this.destroyOnMinimize = options.destroyOnMinimize || false;
+        this.alwaysOnTop = options.alwaysOnTop || false;
+        this.className = options.className || '';
+
+        this.isVisible = false;
+        this.isMinimized = false;
+        this.isMaximized = false;
+        this.isDestroying = false;
+        this.zIndex = ++nextZIndex;
+
+        this.onClose = options.onClose || (() => {});
+        this.onMinimize = options.onMinimize || (() => {});
+        this.onMaximize = options.onMaximize || (() => {});
+        this.onRestore = options.onRestore || (() => {});
+        this.onResize = options.onResize || (() => {});
+        this.onMove = options.onMove || (() => {});
+
+        this.popup = null;
+        this.centerOnShow = false;
+
+        this.element = document.createElement('div');
+        this.element.className = `addon-window ${this.className}`;
+        this.element.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--ui-modal-background, #ffffff);
+            color: var(--text-primary, #2d3748);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        `;
+        this.element.style.setProperty('margin', '0', 'important');
+        this.element.style.setProperty('width', '100%', 'important');
+        this.element.style.setProperty('height', '100%', 'important');
+
+        this.headerElement = document.createElement('div');
+
+        this.contentElement = document.createElement('div');
+        this.contentElement.className = 'addon-window-content';
+        this.contentElement.style.cssText = `
+            flex: 1;
+            overflow: auto;
+            box-sizing: border-box;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        `;
+        this.element.appendChild(this.contentElement);
+
+        activeWindows.set(this.id, this);
+    }
+
+    show () {
+        activeWindows.set(this.id, this);
+        if (this.popup && !this.popup.closed) {
+            this.isVisible = true;
+            return this;
+        }
+
+        const width = Math.round(this.width);
+        const height = Math.round(this.height);
+        let left;
+        let top;
+        if (this.centerOnShow) {
+            left = Math.round((window.screen.availWidth - width) / 2);
+            top = Math.round((window.screen.availHeight - height) / 2);
+        } else {
+            left = Math.round(window.screenX + this.x);
+            top = Math.round(window.screenY + this.y);
+        }
+
+        const features = [
+            'mistwarpAddonWindow=1',
+            'popup=1',
+            `width=${width}`,
+            `height=${height}`,
+            `left=${left}`,
+            `top=${top}`,
+            `minWidth=${Math.round(this.minWidth)}`,
+            `minHeight=${Math.round(this.minHeight)}`,
+            `resizable=${this.resizable ? 1 : 0}`,
+            `alwaysOnTop=${this.alwaysOnTop ? 1 : 0}`
+        ].join(',');
+
+        const popup = window.open('about:blank', this.id, features);
+        if (!popup) {
+            return this;
+        }
+        this.popup = popup;
+        this.isVisible = true;
+        this.isMinimized = false;
+        this.zIndex = ++nextZIndex;
+
+        const doc = popup.document;
+        doc.open();
+        doc.write('<!DOCTYPE html><html><head></head><body></body></html>');
+        doc.close();
+        doc.documentElement.setAttribute('data-mw-native-window', '');
+        doc.title = this.title;
+
+        const base = doc.createElement('base');
+        base.href = document.baseURI;
+        doc.head.appendChild(base);
+
+        copyStylesInto(doc);
+        copyRootAttributesInto(doc);
+        doc.body.style.cssText = 'margin:0;width:100%;height:100vh;overflow:hidden;';
+        doc.body.appendChild(this.element);
+        ensureStyleObserver();
+
+        doc.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && this.closable) {
+                this.close();
+            }
+        });
+
+        popup.addEventListener('resize', () => {
+            this.width = popup.innerWidth;
+            this.height = popup.innerHeight;
+            this.onResize(this.width, this.height);
+        });
+
+        popup.addEventListener('pagehide', () => {
+            if (this.popup === popup) {
+                this.popup = null;
+                this.isVisible = false;
+                document.adoptNode(this.element);
+                activeWindows.delete(this.id);
+                this.onClose();
+            }
+        });
+
+        return this;
+    }
+
+    resyncStyles () {
+        if (!this.popup || this.popup.closed) return;
+        const doc = this.popup.document;
+        for (const node of doc.querySelectorAll('[data-mw-copied-style]')) {
+            node.remove();
+        }
+        copyStylesInto(doc);
+        copyRootAttributesInto(doc);
+    }
+
+    closePopup () {
+        const popup = this.popup;
+        this.popup = null;
+        this.isVisible = false;
+        if (popup && !popup.closed) {
+            document.adoptNode(this.element);
+            popup.close();
+        }
+    }
+
+    hide () {
+        if (this.popup && !this.popup.closed) {
+            this.destroy(true);
+        }
+        this.isVisible = false;
+        return this;
+    }
+
+    destroy (callOnClose = true) {
+        // Ask the owner first; abort if the close is vetoed. The onClose
+        // callback is already invoked here, so it is NOT invoked again below.
+        if (callOnClose && this.onClose() === false) {
+            return this;
+        }
+        this.isDestroying = true;
+        activeWindows.delete(this.id);
+        this.closePopup();
+    }
+
+    close () {
+        this.destroy(true);
+    }
+
+    minimize () {
+        if (this.destroyOnMinimize) {
+            // Like close(), give the owner a chance to veto. Otherwise the
+            // window would be destroyed while the owner still thinks it is
+            // open, making it impossible to open it again later.
+            if (this.onClose() === false) {
+                return this;
+            }
+            this.onMinimize();
+            this.destroy(false);
+            return this;
+        }
+        this.isMinimized = true;
+        this.onMinimize();
+        return this;
+    }
+
+    restore () {
+        this.isMinimized = false;
+        this.show();
+        this.onRestore();
+        return this;
+    }
+
+    maximize () {
+        return this;
+    }
+
+    toggleMaximize () {
+        return this;
+    }
+
+    setContent (content) {
+        this.contentElement.innerHTML = '';
+        if (typeof content === 'string') {
+            this.contentElement.innerHTML = content;
+        } else if (content instanceof HTMLElement) {
+            this.contentElement.appendChild(content);
+        }
+        return this;
+    }
+
+    setTitle (newTitle) {
+        this.title = newTitle;
+        if (this.popup && !this.popup.closed) {
+            this.popup.document.title = newTitle;
+        }
+        return this;
+    }
+
+    getContentElement () {
+        return this.contentElement;
+    }
+
+    center () {
+        if (this.popup && !this.popup.closed) {
+            this.popup.moveTo(
+                Math.round((window.screen.availWidth - this.popup.outerWidth) / 2),
+                Math.round((window.screen.availHeight - this.popup.outerHeight) / 2)
+            );
+        } else {
+            this.centerOnShow = true;
+        }
+        return this;
+    }
+
+    moveTo (x, y) {
+        this.x = x;
+        this.y = y;
+        if (this.popup && !this.popup.closed) {
+            const chromeHeight = window.outerHeight - window.innerHeight;
+            this.popup.moveTo(
+                Math.round(window.screenX + x),
+                Math.round(window.screenY + chromeHeight + y)
+            );
+        }
+        return this;
+    }
+
+    bringToFront () {
+        this.zIndex = ++nextZIndex;
+        if (this.popup && !this.popup.closed) {
+            this.popup.focus();
+        }
+        return this;
+    }
+
+    focus () {
+        return this.bringToFront();
+    }
+
+    isClosed () {
+        return !this.popup || this.popup.closed;
+    }
+}
+
+// Window Manager API
+const WindowManager = {
+    getAnimationsEnabled () {
+        return localStorage.getItem('mw:window-animation') !== 'false';
+    },
+
+    setAnimationsEnabled (enabled) {
+        try {
+            localStorage.setItem('mw:window-animation', enabled);
+        } catch (err) {
+            // ignore
+        }
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mw:window-animation-change', {detail: {enabled}}));
+        }
+        // Immediately apply the new setting to all open windows
+        for (const win of activeWindows.values()) {
+            if (win && typeof win.abortAnimation === 'function') {
+                win.abortAnimation(enabled);
+            }
+        }
+    },
+    
+    createWindow (options = {}) {
+        if (canUseNativeWindows() && !IN_PAGE_WINDOW_IDS.has(options.id)) {
+            return new NativeAddonWindow(options);
+        }
+        return new AddonWindow(options);
+    },
+    
+    getWindow (id) {
+        return activeWindows.get(id);
+    },
+    
+    getAllWindows () {
+        return Array.from(activeWindows.values());
+    },
+    
+    closeWindow (id) {
+        const window = activeWindows.get(id);
+        if (window) {
+            window.close();
+        }
+    },
+    
+    closeAllWindows () {
+        for (const window of activeWindows.values()) {
+            window.close();
+        }
+    },
+    
+    bringToFront (id) {
+        const window = activeWindows.get(id);
+        if (window) {
+            window.bringToFront();
+        }
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.wm = WindowManager;
+}
+
+export default WindowManager;

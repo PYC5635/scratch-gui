@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - sync-mw
+      - web
+      - sync-mw-web
+  pull_request:
+    branches-ignore:
+      - sync-mw
+      - web
+      - sync-mw-web
+  workflow_dispatch: 
+
+permissions:
+  contents: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build (production)
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            static/microbit
+            src/generated
+            build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/develop'
+
+    steps:
+    - name: Checkout repo (with push access)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: true
+
+    - name: Download dist
+      uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: .
+
+    - name: Deploy to develop-builds
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Backup downloaded directories
+        rm -rf /tmp/static /tmp/src /tmp/build
+        mkdir -p /tmp/static /tmp/src /tmp/build
+        cp -r static/microbit /tmp/static/
+        cp -r src/generated /tmp/src/
+        cp -r build /tmp/
+
+        # Fetch all branches
+        git fetch origin
+
+        # Checkout or create develop-builds based on develop
+        if git show-ref --verify --quiet refs/remotes/origin/develop-builds; then
+          git checkout develop-builds
+          git pull origin develop-builds
+        else
+          git checkout -b develop-builds origin/develop
+        fi
+
+        # Sync code with develop (auto-resolve conflicts in favor of develop)
+        git merge origin/develop --no-edit -X theirs
+
+        # Replace directories
+        rm -rf static/microbit src/generated build
+        mkdir -p static/microbit src/generated build
+        cp -r /tmp/static/microbit/* static/microbit/
+
+        cp -r /tmp/src/generated/* src/generated/
+        cp -r /tmp/build/* build/
+
+        # Force add directories (ignore .gitignore)
+        git add -f static/microbit src/generated build
+
+        # Commit if changed
+        git commit -m "chore: update build artifacts from develop" || echo "No changes"
+
+        # Push
+        git push origin develop-builds
+
+    - name: Deploy to web branch
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Backup build folder and Cloudflare Pages functions.
+        # The web branch is what com.bilup.org is served from (via Cloudflare
+        # Pages), so the functions/ directory must live at the repo root there
+        # for /api/proxy and _middleware.js to actually execute.
+        rm -rf /tmp/web-build /tmp/functions /tmp/old-web-js
+        mkdir -p /tmp/web-build
+        cp -r /tmp/build/* /tmp/web-build/
+        cp -r functions /tmp/functions
+
+        # Fetch web branch if exists
+        git fetch origin web 2>/dev/null || true
+
+        # Create orphan web branch if not exists, otherwise checkout
+        if git show-ref --verify --quiet refs/remotes/origin/web; then
+          git checkout web
+          # Save old JS files before cleaning, so browsers that loaded an older
+          # index.html can still load their referenced chunk files.
+          mkdir -p /tmp/old-web-js
+          find . -name '*.js' -type f | while read f; do
+            mkdir -p "/tmp/old-web-js/$(dirname "$f")"
+            cp "$f" "/tmp/old-web-js/$f"
+          done
+        else
+          git checkout --orphan web
+        fi
+
+        # Clean web branch (keep .git directory)
+        find . -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
+
+        # Copy build contents directly to root
+        cp -r /tmp/web-build/* .
+
+        # Restore old JS files that are not in the new build, so in-flight page
+        # loads with a stale index.html still resolve their chunk references.
+        if [ -d /tmp/old-web-js ]; then
+          find /tmp/old-web-js -name '*.js' -type f | while read f; do
+            rel="${f#/tmp/old-web-js/}"
+            if [ ! -f "$rel" ]; then
+              mkdir -p "$(dirname "$rel")"
+              cp "$f" "$rel"
+            fi
+          done
+        fi
+
+        # Copy Cloudflare Pages functions into the deployed branch.
+        # The web branch is an orphan/clean branch, so functions/ won't exist
+        # after the checkout above; create it first.
+        mkdir -p functions
+        cp -r /tmp/functions/* functions/
+
+        # Add all files
+        git add -A
+
+        # Commit if changed
+        git commit -m "chore: deploy web build from develop" || echo "No changes"
+
+        # Push to web branch
+        git push origin web --force

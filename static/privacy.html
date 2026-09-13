@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Bilup Privacy Policy</title>
+        <meta charset="utf8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            :root,
+            [data-theme="dark"] {
+                --bg-color: #1a1a2e;
+                --text-color: #e4e4e7;
+                --accent-color: #75C1C4;
+                --secondary-bg: #252542;
+                --card-bg: rgba(37, 37, 66, 0.8);
+                --border-color: rgba(117, 193, 196, 0.2);
+                --hover-bg: rgba(117, 193, 196, 0.1);
+            }
+
+            [data-theme="light"] {
+                --bg-color: #f8fafc;
+                --text-color: #1e293b;
+                --accent-color: #75C1C4;
+                --secondary-bg: #e2e8f0;
+                --card-bg: rgba(255, 255, 255, 0.95);
+                --border-color: rgba(117, 193, 196, 0.3);
+                --hover-bg: rgba(117, 193, 196, 0.08);
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                background: var(--bg-color);
+                background-image: 
+                    radial-gradient(circle at 20% 80%, rgba(117, 193, 196, 0.05) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(117, 193, 196, 0.03) 0%, transparent 50%),
+                    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+                background-size: 100% 100%, 100% 100%, 32px 32px;
+                font-family: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", Helvetica, Arial, sans-serif;
+                color: var(--text-color);
+                line-height: 1.6;
+                min-height: 100vh;
+                padding: 2rem;
+            }
+
+            [data-theme="light"] body {
+                background-image: 
+                    radial-gradient(circle at 20% 80%, rgba(117, 193, 196, 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(117, 193, 196, 0.05) 0%, transparent 50%),
+                    radial-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+            }
+
+            main {
+                max-width: 700px;
+                width: 100%;
+                margin: 0 auto;
+            }
+
+            .card {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 24px;
+                padding: 3rem;
+                box-shadow: 
+                    0 8px 32px rgba(0, 0, 0, 0.15),
+                    0 0 0 1px rgba(117, 193, 196, 0.1);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .header {
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+
+            .update-date {
+                font-size: 0.875rem;
+                font-family: 'SF Mono', 'Fira Code', monospace;
+                background: var(--secondary-bg);
+                display: inline-block;
+                padding: 0.3rem 1rem;
+                margin-top: 0.75rem;
+                border-radius: 32px;
+                border: 1px solid var(--border-color);
+                color: rgba(255, 255, 255, 0.5);
+            }
+
+            [data-theme="dark"] .update-date {
+                color: rgba(255, 255, 255, 0.6);
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                letter-spacing: -0.02em;
+                margin-top: 0;
+                margin-bottom: 0.5rem;
+                background: linear-gradient(135deg, var(--accent-color), #98D8C8);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+
+            section {
+                margin-bottom: 2rem;
+            }
+
+            section:last-child {
+                margin-bottom: 0;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+                font-weight: 600;
+                color: var(--accent-color);
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.25rem;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+            p {
+                margin: 0.75rem 0;
+                font-weight: 450;
+                color: var(--text-color);
+                font-size: 1rem;
+                opacity: 0.9;
+            }
+
+            a {
+                color: var(--accent-color);
+                text-decoration: none;
+                font-weight: 600;
+                border-bottom: 2px solid transparent;
+                transition: all 0.25s ease;
+                padding-bottom: 2px;
+            }
+
+            a:hover {
+                color: #98D8C8;
+                border-bottom-color: var(--accent-color);
+            }
+
+            input[type="checkbox"] {
+                margin-right: 8px;
+                cursor: pointer;
+            }
+
+            @media (max-width: 720px) {
+                body {
+                    padding: 1rem;
+                }
+
+                .card {
+                    padding: 2rem 1.5rem;
+                    border-radius: 20px;
+                }
+
+                h1 {
+                    font-size: 2rem;
+                }
+            }
+        </style>
+        <script>
+            (function() {
+                var detectTheme = function() {
+                    var prefersDarkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+                    var storageKey = 'tw:theme';
+                    
+                    try {
+                        var local = localStorage.getItem(storageKey);
+                        if (local === 'dark') {
+                            return 'dark';
+                        }
+                        if (local === 'light') {
+                            return 'light';
+                        }
+                        var parsed = JSON.parse(local);
+                        if (parsed && parsed.gui) {
+                            return parsed.gui;
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                    
+                    return prefersDarkQuery && prefersDarkQuery.matches ? 'dark' : 'light';
+                };
+                
+                var theme = detectTheme();
+                document.documentElement.setAttribute('data-theme', theme);
+            })();
+        </script>
+    </head>
+
+    <body>
+        <main>
+            <div class="card">
+                <div class="header">
+                    <h1>Bilup Privacy Policy</h1>
+                </div>
+
+                <section>
+                    <p><span class="update-date">Updated June 3, 2026</span></p>
+                </section>
+
+                <section>
+                    <p>The Bilup project respects your privacy. We're an open source project ran by volunteers. For transparency, this page lists all the places in Bilup where we or a third-party receive your data and how your data is handled.</p>
+                </section>
+
+                <section>
+                    <h2>Abuse</h2>
+                    <p>When a service is being abused, we may take measures to collect information to protect the service. For example, we could log IP addresses making excessive amounts of requests. We strive to do this carefully so that no one is caught in the crossfire. Data is kept only as long as needed to stop the abuse.</p>
+                </section>
+
+                <section>
+                    <h2>bilup.org</h2>
+                    <p>A randomly generated username may be saved in your browser. You can replace this with a custom username. Randomly generated usernames are anonymized by removing the random numbers before being sent to any cloud variable server.</p>
+                    <p>When you start a project that is loaded from Scratch, this may be logged so that a view counter can be incremented over time. Views are anonymous and can not be tied back to any user. You can prevent your views from being counted by unchecking the box below. This checkbox will not affect your ability to see view counts.</p>
+                    <p>
+                        <label>
+                            <input type="checkbox" class="windchimes-optout">
+                            Allow counting my views
+                        </label>
+                    </p>
+                    <script>
+                        (function() {
+                            const isOptedOut = () => {
+                                try {
+                                    const local = localStorage.getItem('tw:windchime_opt_out');
+                                    if (local !== null) {
+                                        return local === 'true';
+                                    }
+                                } catch (e) {
+                                    // ignore
+                                }
+                                return navigator.globalPrivacyControl === 'true' || navigator.doNotTrack === '1';
+                            };
+                            const setOptedOut = optedOut => {
+                                try {
+                                    localStorage.setItem('tw:windchime_opt_out', optedOut);
+                                } catch (e) {
+                                    // ignore
+                                }
+                            };
+                            const checkbox = document.querySelector('.windchimes-optout');
+                            checkbox.checked = !isOptedOut();
+                            checkbox.addEventListener('change', (e) => {
+                                setOptedOut(!e.target.checked);
+                            });
+                        })();
+                    </script>
+                </section>
+
+                <section>
+                    <h2>Loading projects</h2>
+                    <p>When you load a project from another website, you are subject to the privacy practices of that website. For example, when loading projects from Scratch, you are subject to the <a href="https://scratch.mit.edu/privacy_policy">Scratch privacy policy</a>. When loading projects from Scratch specifically, the project ID will also be shared with TurboWarp as part of Scratch's API does not allow direct access. We may briefly log the project ID for caching.</p>
+                </section>
+
+                <section>
+                    <h2>Cloud variables</h2>
+                    <p>When connecting to our cloud variable servers, the project ID and username may be logged for 14 days. Data in cloud variables is public and sent to anyone else connected at the same time. Custom cloud variable servers are outside of our control.</p>
+                </section>
+
+                <section>
+                    <h2>Extensions</h2>
+                    <p>Some extensions must communicate with external APIs to function. For example, the translate and text-to-speech extensions rely on the Scratch API, which is covered by the <a href="https://scratch.mit.edu/privacy_policy">Scratch privacy policy</a>. To improve performance, some extensions access TurboWarp's APIs instead where both the request (for example, the text being translated) and the result after forwarding to Scratch (for example, the translated version of the text) may be cached.</p>
+                    <p>Most extensions on the <a href="https://extensions.turbowarp.org/">TurboWarp official extension gallery</a> will ask for permission when the project attempts to use the extension to access an untrusted website, however we cannot guarantee this is 100% reliable.</p>
+                    <p>Other extension gallerys in the editor, they're less secure than TurboWarp's and we can't guarantee the security of the extensions on them.</p>
+                    <p>When loading a custom extension from a place other than the official gallery such as a URL or file on your computer, the editor will ask for permission to load the extension. If you approve this dialog, the extension can bypass the permission dialogs that official extensions show.</p>
+                </section>
+
+                <section>
+                    <h2>Settings</h2>
+                    <p>Many Bilup websites will store settings such as <a href="https://com.bilup.org/addons">addon settings</a> or <a href="https://packager.bilup.org/">packager settings</a> in your browser.</p>
+                </section>
+
+                <section>
+                    <h2>Aggregated data</h2>
+                    <p>We may log anonymous aggregated data such as how many people use a certain site per day.</p>
+                </section>
+
+                <section>
+                    <h2>Bilup Desktop</h2>
+                    <p><a href="https://desktop.bilup.org/">Bilup Desktop</a> may make requests to check for updates. This can be disabled by pressing "Settings" then "Desktop Settings".</p>
+                    <p><a href="https://desktop.bilup.org/">Bilup Desktop</a> has a disabled-by-default option to enable "Rich Presence" which shares the name of the project you have open and how long it has been open with chat apps running on your computer, which may be displayed on your public profile. This can be disabled by pressing "Settings" then "Desktop Settings".</p>
+                </section>
+
+                <section>
+                    <h2><a href="https://docs.bilup.org/">Bilup Documentation</a></h2>
+                    <p>The search bar is provided by Algolia. See the <a href="https://www.algolia.com/policies/privacy/">Algolia privacy policy</a>.</p>
+                </section>
+
+                <section>
+                    <h2>Bilup Packager</h2>
+                    <p>The <a href="https://packager.bilup.org/">Bilup Packager</a> may store settings and cache large downloads such as Electron in your browser for convenience and performance.</p>
+                    <p>When packaging a project using custom extensions, the packager may access those websites to download the extensions.</p>
+                </section>
+
+                <section>
+                    <h2>Projects generated by the Bilup Packager</h2>
+                    <p>Packaged projects include all scripts, costumes, and sounds to run the project. The packager tries to include all custom extensions too, but in some cases, the packaged project may need to download certain extensions each time it runs.</p>
+                    <p>Advanced features such as third-party custom extensions, custom cloud host, custom JS, and custom CSS are outside of our control.</p>
+                    <p>Note that, unlike the TurboWarp editor, custom extensions in packaged projects will not ask for permission before contacting websites.</p>
+                    <p>You are responsible for informing end users about the privacy practices of the files you distribute. Do not link to this document as your project's privacy policy as it may change in the future. You must write your own.</p>
+                </section>
+
+                <section>
+                    <h2>Bilup Packager Extras</h2>
+                    <p><a href="https://github.com/Bilup/packager-extras/releases">Bilup Packager Extras</a> may make requests to check for updates.</p>
+                </section>
+
+                <section>
+                    <h2>Contact</h2>
+                    <p>Any concerns related to privacy or any other matter should be sent to: <a href="mailto:support@bilup.org">support@bilup.org</a></p>
+                </section>
+            </div>
+        </main>
+    </body>
+</html>

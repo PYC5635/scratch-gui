@@ -1,0 +1,149 @@
+.page {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 28px 22px 88px;
+}
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-header);
+    border-radius: var(--radius);
+    padding: 48px 44px;
+    text-align: center;
+    margin-bottom: 26px;
+}
+
+.hero h1 {
+    margin: 0 0 12px;
+    font-size: 34px;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+}
+
+.intro {
+    margin: 0 auto;
+    max-width: 560px;
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+.section {
+    margin-bottom: 28px;
+}
+
+.sectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 16px;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    color: var(--accent-strong);
+}
+
+.sectionTitle::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.body {
+    margin: 0 0 10px;
+    color: var(--text-dim);
+    line-height: 1.6;
+}
+
+.body a {
+    color: var(--accent-strong);
+    font-weight: 600;
+}
+
+.body a:hover {
+    text-decoration: underline;
+}
+
+.users {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user:hover {
+    border-color: var(--accent-border);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--accent-shadow);
+}
+
+.userImage,
+.userAvatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--accent-border);
+}
+
+.userAvatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--accent-strong);
+    background: var(--accent-softer);
+    border-style: dashed;
+}
+
+.userInfo {
+    min-width: 0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.footnote {
+    margin-top: 30px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 13px;
+}
+
+@media (max-width: 720px) {
+    .hero {
+        padding: 32px 20px;
+    }
+
+    .hero h1 {
+        font-size: 28px;
+    }
+
+    .users {
+        grid-template-columns: 1fr;
+    }
+
+    .userImage,
+    .userAvatar {
+        width: 46px;
+        height: 46px;
+    }
+}

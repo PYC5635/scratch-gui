@@ -1,0 +1,118 @@
+import React, {createContext, useContext, useEffect, useState, useCallback, useRef} from 'react';
+import api from './api';
+import {applyThemeVisuals, detectTheme} from '../lib/themes/themePersistance.js';
+import {customThemeManager} from '../lib/themes/custom-themes.js';
+import {onRoturLogin} from '../lib/rotur/cloud-sync.js';
+import {subscribeNotifications, subscribeNotificationRemovals} from '../lib/rotur/client.js';
+import {
+    subscribe as subscribeIdentity,
+    restore as identityRestore,
+    login as identityLogin,
+    logout as identityLogout
+} from '../lib/rotur/identity.js';
+
+const UserContext = createContext({user: null, login: () => {}, logout: () => {}});
+
+const normalizeUser = user => user && {...user, isAdmin: user.isAdmin === true};
+
+const UserProvider = ({children}) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [banMessage, setBanMessage] = useState(null);
+    const notificationsUnsub = useRef(null);
+    const removalsUnsub = useRef(null);
+
+    const handleNotificationPush = useCallback(notification => {
+        if (!notification || notification.read) return;
+        window.dispatchEvent(new CustomEvent('mw:notifications-push', {detail: notification}));
+    }, []);
+
+    const handleNotificationRemoved = useCallback(payload => {
+        if (!payload || typeof payload.id !== 'string') return;
+        window.dispatchEvent(new CustomEvent('mw:notifications-removed', {detail: payload}));
+    }, []);
+
+    const clearNotificationSub = useCallback(() => {
+        if (notificationsUnsub.current) {
+            notificationsUnsub.current();
+            notificationsUnsub.current = null;
+        }
+        if (removalsUnsub.current) {
+            removalsUnsub.current();
+            removalsUnsub.current = null;
+        }
+    }, []);
+
+    const applyLoggedIn = useCallback(async identityUser => {
+        let me = null;
+        try {
+            me = await api.me();
+        } catch (e) {
+            me = null;
+        }
+        let applied = false;
+        try {
+            applied = (await onRoturLogin()).applied;
+        } catch (e) {
+            applied = false;
+        }
+        if (applied) {
+            try {
+                customThemeManager.themes.clear();
+                customThemeManager.loadCustomThemes();
+            } catch (e) {
+                // ignore
+            }
+        }
+        applyThemeVisuals(detectTheme());
+        // A transient /me failure while Bilup Accounts is logged in should not flip the
+        // UI to signed-out; fall back to a minimal user so it stays logged in.
+        setUser(normalizeUser(me || (identityUser ? {username: identityUser.username} : null)));
+    }, []);
+
+    const handleIdentity = useCallback(state => {
+        setBanMessage(state.banMessage || null);
+        if (state.user) {
+            if (!notificationsUnsub.current) {
+                notificationsUnsub.current = subscribeNotifications(handleNotificationPush);
+                removalsUnsub.current = subscribeNotificationRemovals(handleNotificationRemoved);
+            }
+            applyLoggedIn(state.user).finally(() => setLoading(false));
+        } else {
+            clearNotificationSub();
+            setUser(null);
+            applyThemeVisuals(detectTheme());
+            if (state.status !== 'restoring') {
+                setLoading(false);
+            }
+        }
+    }, [applyLoggedIn, clearNotificationSub, handleNotificationPush, handleNotificationRemoved]);
+
+    useEffect(() => {
+        const unsubscribe = subscribeIdentity(handleIdentity);
+        identityRestore();
+        return unsubscribe;
+    }, [handleIdentity]);
+
+    useEffect(() => () => {
+        clearNotificationSub();
+    }, [clearNotificationSub]);
+
+    const login = useCallback(async () => {
+        await identityLogin();
+    }, []);
+
+    const logout = useCallback(async () => {
+        await identityLogout();
+    }, []);
+
+    return (
+        <UserContext.Provider value={{user, loading, login, logout, banMessage, dismissBan: () => setBanMessage(null)}}>
+            {children}
+        </UserContext.Provider>
+    );
+};
+
+const useUser = () => useContext(UserContext);
+
+export {UserProvider, useUser, normalizeUser};
