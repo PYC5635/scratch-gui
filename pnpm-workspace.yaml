@@ -1,21 +1,16 @@
 onlyBuiltDependencies:
   - chromedriver
   - fsevents
-  - scratch-audio
-  - scratch-blocks
-  - scratch-paint
-  - scratch-render
-  - scratch-vm
-  - '@bilup/scratch-l10n@git+https://github.com/PYC5635/scratch-l10n.git'
-  - '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git'
-  - '@bilup/scratch-svg-renderer@git+https://github.com/PYC5635/scratch-svg-renderer.git'
-  - scratch-audio@git+https://github.com/PYC5635/scratch-audio.git
-  - scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git
-  - scratch-paint@git+https://github.com/PYC5635/scratch-paint.git
-  - scratch-parser@git+https://github.com/PYC5635/scratch-parser.git
-  - scratch-render@git+https://github.com/PYC5635/scratch-render.git
-  - scratch-vm@git+https://github.com/PYC5635/scratch-vm.git
-  - rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git
+  - 'scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git#7357809ac3a2ab79d53f8f02af140473a003835d'
+  - 'scratch-audio@git+https://github.com/PYC5635/scratch-audio.git#35f794710dd38616b9a02a0ca5f21969575cc037'
+  - 'scratch-paint@git+https://github.com/PYC5635/scratch-paint.git#01029209005aa1cff1ca8f73e65eb8b6d5b42536'
+  - 'scratch-render@git+https://github.com/PYC5635/scratch-render.git#01df30f4b76108581bb0add8eded502bb07ecb11'
+  - 'scratch-vm@git+https://github.com/PYC5635/scratch-vm.git#33e550cc5c40ead082f01f4d4bfbe775898ad377'
+  - 'scratch-parser@git+https://github.com/PYC5635/scratch-parser.git#2517e6e8206e8c48bbe09b551c4b3a4495427abe'
+  - '@bilup/scratch-l10n@git+https://github.com/PYC5635/scratch-l10n.git#76904641febda9375cad4d0ffd8ab8db611d53d6'
+  - '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git#473a0f16059e9f24e54d93bee80d1979ad55695a'
+  - '@bilup/scratch-svg-renderer@git+https://github.com/PYC5635/scratch-svg-renderer.git#d19dab859b080afc5d981b3c6b13076376b668fa'
+  - 'rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git#c83b7980681c61e48cd143d14d648265cc205d02'
 
 blockExoticSubdeps: false
 strictDepBuilds: false
