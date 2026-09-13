@@ -18,6 +18,7 @@ onlyBuiltDependencies:
   - rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git
 
 blockExoticSubdeps: false
+strictDepBuilds: false
 
 allowBuilds:
   scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git: true
