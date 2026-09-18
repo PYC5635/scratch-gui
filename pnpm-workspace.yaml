@@ -1,7 +1,7 @@
 onlyBuiltDependencies:
   - chromedriver
   - fsevents
-  - 'scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git#7357809ac3a2ab79d53f8f02af140473a003835d'
+  - 'scratch-blocks@git+https://github.com/PYC5635/scratch-blocks.git#c853a27bc5d46cd6f83cc4fe72f7b57b845ac693'
   - 'scratch-audio@git+https://github.com/PYC5635/scratch-audio.git#35f794710dd38616b9a02a0ca5f21969575cc037'
   - 'scratch-paint@git+https://github.com/PYC5635/scratch-paint.git#01029209005aa1cff1ca8f73e65eb8b6d5b42536'
   - 'scratch-render@git+https://github.com/PYC5635/scratch-render.git#01df30f4b76108581bb0add8eded502bb07ecb11'
