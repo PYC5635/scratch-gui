@@ -16,8 +16,8 @@
  * 官方 scratch-l10n 已内置完成的文言文(lzh)翻译。
  * 这里把它们并入编辑器，并补充 Bilup/PineEditor 独有的 UI 文案。
  */
-import interfaceLzh from '../../../_sdeps/scratch-l10n/editor/interface/lzh.json';
-import {default as lzhBlocksJson} from '../../../_sdeps/scratch-l10n/editor/blocks/lzh.json';
+import interfaceLzh from '@bilup/scratch-l10n/editor/interface/lzh.json';
+import {default as lzhBlocksJson} from '@bilup/scratch-l10n/editor/blocks/lzh.json';
 export const LZH_BLOCKS = lzhBlocksJson;
 
 export const CLASSICAL_LOCALE = 'lzh';
