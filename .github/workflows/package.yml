@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
-          ref: develop
+          ref: main
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -45,4 +45,4 @@ jobs:
           
           git add pnpm-lock.yaml
           git commit -m "chore: update pnpm-lock.yaml" || echo "No changes"
-          git push origin develop
+          git push origin main
