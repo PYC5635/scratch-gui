@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
+    <!-- OpenGraph Meta Tags for Discord/Social Embeds -->
+    <meta property="og:title" content="<%= htmlWebpackPlugin.options.title %>" />
+    <meta property="og:description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="<%= htmlWebpackPlugin.options.root %>images/apple-touch-icon.png" />
+    <meta property="og:url" content="https://com.bilup.org/" />
+    <meta property="og:site_name" content="<%= htmlWebpackPlugin.options.APP_NAME %>" />
+    <meta name="twitter:card" content="summary" />
+    <title><%= htmlWebpackPlugin.options.title %></title>
+    <style>
+      body[data-splash-theme="dark"] {
+        background: #111;
+      }
+
+      noscript {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      #app {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      <h1>This page requires JavaScript</h1>
+    </noscript>
+
+    <script>
+      (function() {
+        var theme = '';
+        var accent = '#75C1C4';
+
+        try {
+          var themeSetting = localStorage.getItem('tw:theme');
+        } catch (e) {
+          // ignore
+        }
+        if (themeSetting === 'light') {
+          theme = 'light';
+        } else if (themeSetting === 'dark') {
+          theme = 'dark';
+        } else if (themeSetting) {
+          try {
+            var parsed = JSON.parse(themeSetting);
+            if (parsed.gui === 'dark' || parsed.gui === 'light') {
+              theme = parsed.gui;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (!theme) {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        document.body.setAttribute('data-splash-theme', theme);
+      })();
+    </script>
+
+    <div id="app"></div>
+  </body>
+</html>

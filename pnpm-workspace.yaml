@@ -8,9 +8,9 @@ onlyBuiltDependencies:
   - 'scratch-vm@git+https://github.com/PYC5635/scratch-vm.git#33e550cc5c40ead082f01f4d4bfbe775898ad377'
   - 'scratch-parser@git+https://github.com/PYC5635/scratch-parser.git#2517e6e8206e8c48bbe09b551c4b3a4495427abe'
   - '@bilup/scratch-l10n@git+https://github.com/PYC5635/scratch-l10n.git#76904641febda9375cad4d0ffd8ab8db611d53d6'
-  - '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git#473a0f16059e9f24e54d93bee80d1979ad55695a'
+  - '@bilup/scratch-storage@git+https://github.com/PYC5635/scratch-storage.git#57d0d7aa3f54d7993e269e597e8e5051e3183258'
   - '@bilup/scratch-svg-renderer@git+https://github.com/PYC5635/scratch-svg-renderer.git#d19dab859b080afc5d981b3c6b13076376b668fa'
-  - 'rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git#c83b7980681c61e48cd143d14d648265cc205d02'
+  - 'rotur-sdk@git+https://github.com/PYC5635/accounts-sdk.git#718dab813dec7bd9f28700015d8e432e5c4b0e78'
 
 blockExoticSubdeps: false
 strictDepBuilds: false
