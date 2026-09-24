@@ -121,6 +121,24 @@
     transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
+.item-wrap {
+    position: relative;
+}
+
+.item-with-trailing {
+    padding-right: 2.5rem;
+}
+
+.trailing-action {
+    position: absolute;
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 .item:hover {
     background: $ui-tertiary;
 }
@@ -140,6 +158,16 @@
     width: 18px;
     height: 18px;
     margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.status-dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    margin-right: 0.6rem;
     flex-shrink: 0;
 }
 
@@ -178,34 +206,6 @@
 .itemSelected .count {
     background: color-mix(in srgb, $looks-secondary 22%, transparent);
     color: $looks-secondary;
-}
-
-.item-wrap {
-    position: relative;
-}
-
-.item-with-trailing {
-    padding-right: 2.5rem;
-}
-
-.trailing-action {
-    position: absolute;
-    top: 50%;
-    right: 0.5rem;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.status-dot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 12px;
-    height: 12px;
-    margin-right: 0.6rem;
-    flex-shrink: 0;
 }
 
 .footer {
@@ -324,6 +324,13 @@
         min-width: 0;
         max-width: none;
         border-right: none;
+        /* Override min-height: 100% from the base style — without this the
+           sidebar fills the entire column height and the content area is
+           pushed out of view (clipped by overflow: hidden on .layout).
+           Limit the sidebar to at most 45% of the modal height so the
+           content area always gets the remaining space. */
+        min-height: auto;
+        max-height: 45%;
     }
 
     .layout.mobile-content > .sidebar {

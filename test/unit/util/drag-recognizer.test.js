@@ -1,4 +1,4 @@
-import DragRecognizer from '../../../src/lib/drag-recognizer';
+import DragRecognizer from '../../../src/lib/utils/drag-recognizer.js';
 
 describe('DragRecognizer', () => {
     let onDrag;

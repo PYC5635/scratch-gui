@@ -2,6 +2,7 @@ const manifest = {
     "editorOnly": true,
     "name": "To-Do",
     "description": "Record your project to-do!",
+    "tags": ["new", "recommended","astraeditor"],
     "credits": [
         {
             "name": "KOSHINO",
@@ -12,31 +13,16 @@ const manifest = {
             "link": "https://github.com/RyaninCn11"
         }
     ],
-    "tags": [
-    "new", 
-    "recommended",
-    "astraeditor"
-    ],
-    "dynamicDisable": true,
+    "enabledByDefault": true,
     "userscripts": [
-    {
-      url: "userscript.js"
-    }
-  ],
-  "userstyles": [
-    {
-      url: "userstyle.css"
-    }
-  ],
-  "enabledByDefault": true,
-  "l10n": {
-    "defaultLocale": "en",
-    "locales": ["en", "zh-cn"]
-  },
-  "permissions": [
-    "vm",
-    "tab",
-    "storage"
-  ]
+        {
+            "url": "userscript.js"
+        }
+    ],
+    "userstyles": [
+        {
+            "url": "userstyle.css"
+        }
+    ]
 };
 export default manifest;

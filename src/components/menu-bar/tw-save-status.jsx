@@ -1,67 +1,102 @@
 import {connect} from 'react-redux';
-import {FormattedMessage} from 'react-intl';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, {useCallback} from 'react';
+import {injectIntl, defineMessages} from 'react-intl';
 import InlineMessages from '../../containers/inline-messages.jsx';
-import SB3Downloader from '../../containers/sb3-downloader.jsx';
 import {filterInlineAlerts} from '../../reducers/alerts';
+import {setProjectUnchanged} from '../../reducers/project-changed';
+import smartSave from '../../lib/mw/smart-save.js';
+import {getMistWarpAction, getRememberedPlatformProjectState} from '../../lib/community/publish.js';
+import communityEnabled from '../../lib/community/enabled.js';
+
+import {Save} from 'lucide-react';
 
 import styles from './save-status.css';
 
+const messages = defineMessages({
+    remix: {
+        id: 'mw.share.windowTitleRemix',
+        defaultMessage: 'Remix to Bilup',
+        description: 'Tooltip label for saving a remixed project to Bilup'
+    },
+    save: {
+        id: 'mw.share.windowTitleSave',
+        defaultMessage: 'Save to Bilup',
+        description: 'Tooltip label for saving a project to Bilup'
+    }
+});
+
 const TWSaveStatus = ({
     alertsList,
-    fileHandle,
+    intl,
     projectChanged,
-    showSaveFilePicker
-}) => (
-    filterInlineAlerts(alertsList).length > 0 ? (
-        <InlineMessages />
-    ) : projectChanged && (
-        <SB3Downloader
-            showSaveFilePicker={showSaveFilePicker}
+    projectTitle,
+    roturReady,
+    onProjectUnchanged,
+    vm
+}) => {
+    const platformState = communityEnabled && roturReady ? getRememberedPlatformProjectState() : null;
+    const mistwarpAction = communityEnabled && roturReady ?
+        getMistWarpAction(platformState, projectChanged) :
+        null;
+    const onSaveClick = useCallback(() => smartSave({
+        vm,
+        title: projectTitle,
+        onSaved: onProjectUnchanged
+    }), [vm, projectTitle, onProjectUnchanged]);
+    if (filterInlineAlerts(alertsList).length > 0) {
+        return <InlineMessages />;
+    }
+    if (!projectChanged) {
+        return null;
+    }
+    if (!platformState || !mistwarpAction) return null;
+    const mistwarpLabel = mistwarpAction === 'remix' ?
+        intl.formatMessage(messages.remix) :
+        intl.formatMessage(messages.save);
+    return (
+        <div
+            className={styles.saveNow}
+            onClick={onSaveClick}
+            title={mistwarpLabel}
         >
-            {(_className, _downloadProjectCallback, {smartSave}) => (
-                <div
-                    onClick={smartSave}
-                    className={styles.saveNow}
-                >
-                    {fileHandle ? (
-                        <FormattedMessage
-                            defaultMessage="Save as {file}"
-                            description="Menu bar item to save project to an existing file on the user's computer"
-                            id="tw.menuBar.saveAs"
-                            values={{
-                                file: fileHandle.name
-                            }}
-                        />
-                    ) : (
-                        <FormattedMessage
-                            defaultMessage="Save to your computer"
-                            description="Menu bar item for downloading a project to your computer"
-                            id="gui.menuBar.downloadToComputer"
-                        />
-                    )}
-                </div>
-            )}
-        </SB3Downloader>
-    ));
+            <Save
+                className={styles.saveIconAlways}
+                size={18}
+            />
+        </div>
+    );
+};
 
 TWSaveStatus.propTypes = {
     alertsList: PropTypes.arrayOf(PropTypes.object),
-    fileHandle: PropTypes.shape({
-        name: PropTypes.string
-    }),
+    intl: PropTypes.shape({
+        formatMessage: PropTypes.func.isRequired
+    }).isRequired,
     projectChanged: PropTypes.bool,
-    showSaveFilePicker: PropTypes.func
+    projectTitle: PropTypes.string,
+    roturReady: PropTypes.bool,
+    onProjectUnchanged: PropTypes.func,
+    vm: PropTypes.shape({
+        saveProjectSb3: PropTypes.func,
+        renderer: PropTypes.object
+    })
 };
 
 const mapStateToProps = state => ({
     alertsList: state.scratchGui.alerts.alertsList,
     fileHandle: state.scratchGui.tw.fileHandle,
-    projectChanged: state.scratchGui.projectChanged
+    projectChanged: state.scratchGui.projectChanged,
+    projectTitle: state.scratchGui.projectTitle,
+    roturReady: state.scratchGui.rotur && state.scratchGui.rotur.status === 'ready',
+    vm: state.scratchGui.vm
 });
 
-export default connect(
+const mapDispatchToProps = dispatch => ({
+    onProjectUnchanged: () => dispatch(setProjectUnchanged())
+});
+
+export default injectIntl(connect(
     mapStateToProps,
-    () => ({})
-)(TWSaveStatus);
+    mapDispatchToProps
+)(TWSaveStatus));

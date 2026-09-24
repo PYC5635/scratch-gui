@@ -8,6 +8,7 @@ import FancyCheckbox from '../tw-fancy-checkbox/checkbox.jsx';
 
 import extensionLibrary from '../../lib/libraries/extensions/index.jsx';
 import centralDispatch from 'scratch-vm/src/dispatch/central-dispatch';
+import {getExtensionSandboxStatus} from '../../containers/tw-security-manager.jsx';
 
 import styles from './extension-manager-modal.css';
 
@@ -16,6 +17,21 @@ const messages = defineMessages({
         defaultMessage: 'Extension Manager',
         description: 'Title of modal that appears when opening the Extension Manager',
         id: 'tw.extensionManager.title'
+    },
+    noExtensionsLoaded: {
+        defaultMessage: 'No extensions loaded',
+        description: 'Text shown when no extensions are loaded',
+        id: 'tw.extensionManager.noExtensionsLoaded'
+    },
+    oneExtensionLoaded: {
+        defaultMessage: '1 loaded extension',
+        description: 'Text shown when one extension is loaded',
+        id: 'tw.extensionManager.oneExtensionLoaded'
+    },
+    multipleExtensionsLoaded: {
+        defaultMessage: '{count} loaded extensions',
+        description: 'Text shown when multiple extensions are loaded',
+        id: 'tw.extensionManager.multipleExtensionsLoaded'
     }
 });
 
@@ -40,6 +56,38 @@ const ExtensionManagerModal = props => {
         if (libraryItem) return libraryItem.name;
         return extensionId;
     }, [extensionLibraryById, props.vm]);
+
+    const getExtensionSandboxInfo = useCallback(extensionId => {
+        const map = props.vm?.extensionManager?._loadedExtensions;
+        if (!map) return null;
+        const serviceName = map.get(extensionId);
+        if (!serviceName) return null;
+
+        // Built-in extensions (music, pen, tw, etc.) are loaded internally
+        // without going through getSandboxMode, so they have no cache entry.
+        // They always run unsandboxed as trusted extensions.
+        const isBuiltin = extensionLibraryById.has(extensionId);
+        if (isBuiltin) {
+            return {label: '信任的', type: 'trusted', color: '#27AE60'};
+        }
+
+        // For non-built-in extensions, try the cached sandbox status first
+        const cachedStatus = getExtensionSandboxStatus(extensionId);
+        if (cachedStatus) {
+            return {
+                ...cachedStatus,
+                color: cachedStatus.type === 'trusted' ? '#27AE60' :
+                       cachedStatus.type === 'unsandboxed' ? '#E74C3C' : '#4A90D9'
+            };
+        }
+
+        // Fallback: determine from the service name
+        const isUnsandboxed = typeof serviceName === 'string' && serviceName.startsWith('unsandboxed.');
+        if (!isUnsandboxed) {
+            return {label: '沙盒', type: 'sandboxed', color: '#4A90D9'};
+        }
+        return {label: '非沙盒', type: 'unsandboxed', color: '#E74C3C'};
+    }, [props.vm, extensionLibraryById]);
 
     const readLoadedExtensions = useCallback(() => {
         const map = props.vm?.extensionManager?._loadedExtensions;
@@ -106,10 +154,10 @@ const ExtensionManagerModal = props => {
     }, [loadedExtensions]);
 
     const loadedAmountText = useMemo(() => {
-        if (loadedExtensions.length === 0) return 'No extensions loaded';
-        if (loadedExtensions.length === 1) return '1 loaded extension';
-        return `${loadedExtensions.length} loaded extensions`;
-    }, [loadedExtensions]);
+        if (loadedExtensions.length === 0) return props.intl.formatMessage(messages.noExtensionsLoaded);
+        if (loadedExtensions.length === 1) return props.intl.formatMessage(messages.oneExtensionLoaded);
+        return props.intl.formatMessage(messages.multipleExtensionsLoaded, {count: loadedExtensions.length});
+    }, [loadedExtensions, props.intl]);
 
     const removeExtension = useCallback(async extensionId => {
         const em = props.vm?.extensionManager;
@@ -206,7 +254,9 @@ const ExtensionManagerModal = props => {
         >
             <Box className={styles.body}>
                 <p>{loadedAmountText}</p>
-                {loadedExtensions.map((extension, index) => (
+                {loadedExtensions.map((extension, index) => {
+                    const sandboxInfo = getExtensionSandboxInfo(extension[0]);
+                    return (
                     <div
                         className={styles.extensionCard}
                         key={index}
@@ -228,6 +278,17 @@ const ExtensionManagerModal = props => {
                                 />
                             ) : null}
                             <p className={styles.extensionName}>{getExtensionName(extension[0])}</p>
+                            {sandboxInfo && (
+                                <span
+                                    className={styles.sandboxBadge}
+                                    style={{
+                                        backgroundColor: sandboxInfo.color,
+                                        color: '#fff'
+                                    }}
+                                >
+                                    {sandboxInfo.label}
+                                </span>
+                            )}
                         </div>
                         {multiSelect ? (
                             <FancyCheckbox
@@ -246,7 +307,7 @@ const ExtensionManagerModal = props => {
                             />
                         )}
                     </div>
-                ))}
+                );})}
 
                 {loadedExtensions.length !== 0 && !multiSelect && (
                     <Box className={styles.multiSelectRow}>

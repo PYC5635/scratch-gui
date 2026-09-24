@@ -6,7 +6,7 @@ import log from '../utils/log';
 import { getIsShowingProject } from '../../reducers/project-state';
 import windowManager from '../../addons/window-system/window-manager';
 
-const PACKAGER_URL = 'https://packager.02engine.org';
+const PACKAGER_URL = 'https://packager.bilup.org';
 const PACKAGER_ORIGIN = PACKAGER_URL;
 
 let packagerWindow = null;
@@ -55,11 +55,16 @@ const PackagerIntegrationHOC = function (WrappedComponent) {
             container.style.padding = '0';
             container.style.overflow = 'hidden';
 
+            // The packager is cross-origin, so scale the whole iframe: render it at a
+            // larger viewport, then transform it back down so more fits in the window.
+            const scale = 0.9;
             const iframe = document.createElement('iframe');
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
+            iframe.style.width = `${100 / scale}%`;
+            iframe.style.height = `${100 / scale}%`;
             iframe.style.border = 'none';
             iframe.style.borderRadius = '0 0 8px 8px';
+            iframe.style.transformOrigin = '0 0';
+            iframe.style.transform = `scale(${scale})`;
             iframe.src = `${PACKAGER_URL}/?import_from=${location.origin}`;
 
             container.appendChild(iframe);

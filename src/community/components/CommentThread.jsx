@@ -7,7 +7,18 @@ import Avatar from './Avatar.jsx';
 import ReactionButtons from './ReactionButtons.jsx';
 import ReportModal from './ReportModal.jsx';
 import RichText from './RichText.jsx';
-import {timeAgo, sameUser} from '../format';
+import {sameUser} from '../format';
+
+// Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).
+// Defined locally (rather than imported) to avoid depending on a newly-added
+// named export in a shared chunk, which browsers may cache as an older version.
+const formatDateTime = ms => {
+    if (!ms) return '';
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 import useLatest from '../use-latest.js';
 import styles from './CommentThread.module.css';
 
@@ -29,7 +40,7 @@ const CommentRow = ({comment, onReply, onDelete, onReact, onReport, canReply, ca
                         className={styles.author}
                     >{comment.author}</Link>
                     {comment.created ? (
-                        <span className={styles.time}>{timeAgo(comment.created)}</span>
+                        <span className={styles.time}>{formatDateTime(comment.created)}</span>
                     ) : null}
                     <span className={styles.headSpacer} />
                     {canReply ? (

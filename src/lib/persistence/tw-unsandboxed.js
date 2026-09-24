@@ -1,3 +1,4 @@
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 // All we save is whether the box was checked last time, nothing more.
 // User still has to manually confirm loading the extension and has
 // every opportunity to uncheck the box.
@@ -9,7 +10,7 @@ const PERSISTED_UNSANDBOXED_KEY = 'tw:persisted_unsandboxed';
  */
 const getPersistedUnsandboxed = () => {
     try {
-        return localStorage.getItem(PERSISTED_UNSANDBOXED_KEY) === 'true';
+        return getStorageItem(PERSISTED_UNSANDBOXED_KEY) === 'true';
     } catch (e) {
         return false;
     }

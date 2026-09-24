@@ -1,6 +1,6 @@
 // Enhanced service worker for improved caching and performance
-const CACHE_NAME = 'RemixWarp-cache-v1';
-const RUNTIME_CACHE = 'RemixWarp-runtime';
+const CACHE_NAME = 'bilup-cache-v1';
+const RUNTIME_CACHE = 'bilup-runtime';
 
 // Assets to cache immediately
 const PRECACHE_URLS = [
@@ -30,13 +30,12 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => Promise.all(
-            cacheNames.forEach(cacheName => {
-                if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
+            cacheNames
+                .filter(cacheName => cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE)
+                .map(cacheName => {
                     console.log('Deleting old cache:', cacheName);
                     return caches.delete(cacheName);
-                }
-                return null;
-            })
+                })
         ))
             .then(() => self.clients.claim())
     );

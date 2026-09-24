@@ -16,7 +16,13 @@ const reducer = function (state, action) {
 const updateMonitors = function (monitors) {
     return {
         type: UPDATE_MONITORS,
-        monitors: monitors
+        monitors: monitors,
+        meta: {
+            // The VM fires MONITORS_UPDATE on every frame where any monitored
+            // value changed; coalesce to ~10Hz, well within the refresh
+            // resolution the stage monitors render at.
+            throttle: 100
+        }
     };
 };
 

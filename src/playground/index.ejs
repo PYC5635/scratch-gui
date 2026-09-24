@@ -4,21 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google" value="notranslate">
-    <meta name="description" content="<%= htmlWebpackPlugin.options.description || htmlWebpackPlugin.options.APP_NAME + ' is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations.' %>" />
+    <meta name="description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
     <!-- OpenGraph Meta Tags for Discord/Social Embeds -->
     <meta property="og:title" content="<%= htmlWebpackPlugin.options.title %>" />
-    <meta property="og:description" content="<%= htmlWebpackPlugin.options.description || htmlWebpackPlugin.options.APP_NAME + ' is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations.' %>" />
+    <meta property="og:description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="<%= htmlWebpackPlugin.options.root %>images/apple-touch-icon.png" />
-    <meta property="og:url" content="https://warp.mistium.com/" />
+    <meta property="og:url" content="https://com.bilup.org/" />
     <title><%= htmlWebpackPlugin.options.title %></title>
     <link rel="apple-touch-icon" href="<%= htmlWebpackPlugin.options.root %>images/apple-touch-icon.png">
     <% if (htmlWebpackPlugin.options.root === "/" || htmlWebpackPlugin.options.root === "") { %>
       <link rel="manifest" href="<%= htmlWebpackPlugin.options.root %>manifest.webmanifest">
     <% } %>
-    <!-- Cloudflare Turnstile -->
-    <link rel="preconnect" href="https://challenges.cloudflare.com">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
     <style>
       .splash-screen {
         position: absolute;
@@ -60,27 +57,54 @@
       }
       .splash-error-title {
         font-weight: bold;
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
       }
       .splash-error-title a {
-        color: inherit;
+        color: #75C1C4;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .splash-error-title a:hover {
+        color: #5AB8BC;
       }
       .splash-errors {
-        font-family: monospace;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        max-width: 800px;
+        width: 90%;
+        max-height: 40vh;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: left;
+        word-break: break-all;
       }
       .splash-error-list {
         white-space: pre-wrap;
+        color: #e53935;
       }
       .splash-reset {
-        color: inherit;
-        background: none;
-        padding: 0;
-        margin: 0;
-        border: none;
-        text-decoration: underline;
+        color: #75C1C4;
+        background: rgba(117, 193, 196, 0.1);
+        padding: 0.5rem 1rem;
+        margin-top: 1rem;
+        border: 1px solid #75C1C4;
+        border-radius: 4px;
+        text-decoration: none;
         cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .splash-reset:hover {
+        background: rgba(117, 193, 196, 0.2);
+        color: #5AB8BC;
       }
       .splash-reset:disabled {
-        opacity: 0.8;
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     </style>
   </head>
@@ -97,7 +121,9 @@
     <div class="splash-screen spash-waiting-for-js" hidden>
       <div class="splash-spinner"></div>
 
-      <div class="splash-error-title" hidden>Something went wrong. <a href="https://scratch.mit.edu/users/M1stium/#comments" target="_blank" rel="noreferrer">Please report</a> with the information below.</div>
+      <div class="splash-error-title" hidden>Something went wrong. <a href="https://github.com/Bilup/scratch-gui/issues" target="_blank" rel="noreferrer">Please report</a> with the information below.</div>
+      <div class="splash-errors" hidden></div>
+      <button class="splash-reset" hidden> with the information below.</div>
       <div class="splash-errors" hidden></div>
       <button class="splash-reset" hidden>Click here to reset caches (can fix some errors)</button>
     </div>

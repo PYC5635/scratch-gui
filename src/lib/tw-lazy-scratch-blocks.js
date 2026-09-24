@@ -1,4 +1,5 @@
 import {getVanillaPalette} from './mw-vanilla-palette';
+import {getItem as getStorageItem} from './utils/safe-storage.js';
 
 let _ScratchBlocks = null;
 
@@ -22,16 +23,7 @@ const load = () => {
             try {
                 const operatorUtils = _ScratchBlocks.ScratchBlocks && _ScratchBlocks.ScratchBlocks.OperatorUtils;
                 if (operatorUtils) {
-                    operatorUtils.arrowsHidden = localStorage.getItem('mw:hide-operator-arrows') === 'true';
-                }
-            } catch (e) {
-                // ignore
-            }
-
-            try {
-                const blocksNS = _ScratchBlocks.ScratchBlocks;
-                if (blocksNS && typeof blocksNS.setBlockLazyLoading === 'function') {
-                    blocksNS.setBlockLazyLoading(localStorage.getItem('mw:block-lazy-loading') !== 'false');
+                    operatorUtils.arrowsHidden = getStorageItem('mw:hide-operator-arrows') === 'true';
                 }
             } catch (e) {
                 // ignore
@@ -74,67 +66,6 @@ const load = () => {
 
             const verticalFlyoutProto = _ScratchBlocks.VerticalFlyout && _ScratchBlocks.VerticalFlyout.prototype;
 
-            if (verticalFlyoutProto && typeof verticalFlyoutProto.twSetClippingEnabled !== 'function') {
-
-                if (typeof verticalFlyoutProto.setMetrics_ === 'function' &&
-                    typeof verticalFlyoutProto.twOriginalSetMetrics_ !== 'function') {
-                    verticalFlyoutProto.twOriginalSetMetrics_ = verticalFlyoutProto.setMetrics_;
-
-                    verticalFlyoutProto.setMetrics_ = function (...args) {
-                        return verticalFlyoutProto.twOriginalSetMetrics_.call(this, args[0]);
-                    };
-                }
-
-                verticalFlyoutProto.twSetClippingEnabled = function (enabled) {
-                    if (!this.workspace_ || !this.workspace_.svgGroup_) return;
-    
-                    let clipRect = this.clipRect_;
-                    if (!clipRect) {
-                        const svg = this.workspace_.getParentSvg();
-                        if (svg) {
-                            clipRect = svg.querySelector('#blocklyBlockMenuClipRect');
-                        }
-                    }
-    
-                    let flyoutSvg = this.svgGroup_;
-                    while (flyoutSvg && flyoutSvg.tagName !== 'svg') {
-                        flyoutSvg = flyoutSvg.parentElement;
-                    }
-
-                    if (!enabled && flyoutSvg && flyoutSvg.classList.contains('sa-flyoutClose')) {
-                        return;
-                    }
-    
-                    if (clipRect) {
-                        this.twClippingEnabled_ = enabled;
-                        if (enabled) {
-                            const metrics = this.getMetrics_();
-                            clipRect.setAttribute('width', metrics ? (`${metrics.viewWidth}px`) : '250px');
-            
-                            if (flyoutSvg) {
-                                flyoutSvg.style.overflow = 'hidden';
-                            }
-                        } else {
-                            clipRect.setAttribute('width', '100000px');
-            
-                            if (flyoutSvg) {
-                                flyoutSvg.style.overflow = 'visible';
-                            }
-                        }
-                    }
-                };
-
-                const originalSetMetrics = verticalFlyoutProto.setMetrics_;
-                verticalFlyoutProto.setMetrics_ = function (...args) {
-                    const ret = originalSetMetrics.call(this, args[0]);
-                    
-                    if (this.twClippingEnabled_ === false && this.clipRect_) {
-                        this.clipRect_.setAttribute('width', '100000px');
-                    }
-                    return ret;
-                };
-            }
-            
             if (verticalFlyoutProto && verticalFlyoutProto.createRect_) {
                 verticalFlyoutProto.createRect_ = function (block, x, y, blockHW, index) {
                     const rect = _ScratchBlocks.utils.createSvgElement('rect', {

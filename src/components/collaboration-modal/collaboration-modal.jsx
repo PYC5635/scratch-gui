@@ -1,26 +1,28 @@
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import {FormattedMessage, injectIntl} from 'react-intl';
+import { FormattedMessage, injectIntl } from 'react-intl';
 import classNames from 'classnames';
 
 import Modal from '../../containers/windowed-modal.jsx';
 import Box from '../box/box.jsx';
 import Button from '../button/button.jsx';
-import BufferedInputHOC from '../forms/buffered-input-hoc.jsx';
 import Input from '../forms/input.jsx';
-
-const BufferedInput = BufferedInputHOC(Input);
-
-import {Handshake as CollaborationIcon, User, Crown, UserMinus, Copy, AlertTriangle, PenLine, Settings, X} from 'lucide-react';
+import BufferedInputHOC from '../forms/buffered-input-hoc.jsx';
 
 import showAlert from '../../addons/window-system/alert';
 import NotificationSystem from '../../lib/notification-manager.js';
 import CollaborationService from '../../lib/collaboration/index.js';
+import {avatarForCollabUser} from '../../lib/collaboration/avatar.js';
+import describeActivity from '../../lib/collaboration/describe-activity.js';
 
 import styles from './collaboration-modal.css';
 
+import {Handshake as CollaborationIcon, User, Crown, UserMinus, Copy, AlertTriangle, PenLine, Settings, X} from 'lucide-react';
+
+const BufferedInput = BufferedInputHOC(Input);
+
 class CollaborationModal extends Component {
-    constructor (props) {
+    constructor(props) {
         super(props);
 
         this.state = {
@@ -40,13 +42,11 @@ class CollaborationModal extends Component {
             }
         };
 
-        this.autoJoinAttempted = new Set();
-        this.autoJoinInProgress = false;
-        this._autoJoinTimer = null;
-        this._lastAutoJoinAttempt = new Map();
-        this._autoJoinFailures = new Map();
+        this._autoJoinKey = null;
 
         this.handleRoomIdChange = this.handleRoomIdChange.bind(this);
+        this.handleRoomIdKeyPress = this.handleRoomIdKeyPress.bind(this);
+        this.maybeAutoJoin = this.maybeAutoJoin.bind(this);
         this.handleJoinRoom = this.handleJoinRoom.bind(this);
         this.handleCreateRoom = this.handleCreateRoom.bind(this);
         this.handleLeaveRoom = this.handleLeaveRoom.bind(this);
@@ -79,24 +79,7 @@ class CollaborationModal extends Component {
     }
 
     componentDidMount () {
-        console.log('[COLLAB MODAL] ComponentDidMount - props:', {
-            roomId: this.props.roomId,
-            isConnected: this.props.isConnected,
-            currentUsername: this.props.currentUsername
-        });
-
-        if (this.props.roomId && !this.props.isConnected && !this._autoJoinTimer && !this.autoJoinInProgress) {
-            console.log('[COLLAB MODAL] Auto-joining room from URL:', this.props.roomId);
-
-            const roomIdKey = `${this.props.roomId}-${this.props.currentUsername}`;
-            this.autoJoinAttempted.add(roomIdKey);
-            this.autoJoinInProgress = true;
-            this._autoJoinTimer = setTimeout(() => {
-                this._autoJoinTimer = null;
-                this.autoJoinInProgress = false;
-                this.attemptAutoJoin(this.props.roomId, this.props.currentUsername);
-            }, 100);
-        }
+        this.maybeAutoJoin();
 
         if (CollaborationService) {
             try {
@@ -113,34 +96,22 @@ class CollaborationModal extends Component {
         }
     }
 
-    componentDidUpdate (prevProps) {
+    componentDidUpdate(prevProps) {
         if (prevProps.isConnected !== this.props.isConnected) {
-            const newConnectionStep = this.props.isConnected ? 'connected' : 'join';
             this.setState({
-                connectionStep: newConnectionStep,
+                connectionStep: this.props.isConnected ? 'connected' : 'join',
                 isConnecting: false,
                 error: null
             });
-
-            if (!this.props.isConnected) {
-                this.autoJoinInProgress = false;
-                if (this._autoJoinTimer) {
-                    clearTimeout(this._autoJoinTimer);
-                    this._autoJoinTimer = null;
-                }
-                return;
-            }
-            const roomIdKey = `${this.props.roomId}-${this.props.currentUsername}`;
-            this._autoJoinFailures.delete(roomIdKey);
         }
 
-        const shouldResetToJoin =
-            prevProps.roomId !== this.props.roomId &&
-            this.props.roomId === null &&
-            !this.props.isConnected;
-
-        if (shouldResetToJoin) {
-            this.resetToJoinScreen();
+        if (prevProps.roomId !== this.props.roomId) {
+            if (this.props.roomId) {
+                this.setState({roomId: this.props.roomId});
+            } else {
+                this._autoJoinKey = null;
+                if (!this.props.isConnected) this.resetToJoinScreen();
+            }
         }
 
         if (prevProps.connectionError !== this.props.connectionError && this.props.connectionError) {
@@ -151,53 +122,7 @@ class CollaborationModal extends Component {
             });
         }
 
-        if (prevProps.roomId !== this.props.roomId && this.props.roomId && !this.props.isConnected) {
-            console.log('Room ID prop changed, updating local state:', this.props.roomId);
-            this.setState({
-                roomId: this.props.roomId
-            });
-
-            const roomIdKey = `${this.props.roomId}-${this.props.currentUsername}`;
-            const now = Date.now();
-            const lastAttempt = this._lastAutoJoinAttempt.get(roomIdKey) || 0;
-            const timeSinceLastAttempt = now - lastAttempt;
-            const cooldownPeriod = 30000;
-            const failureCount = this._autoJoinFailures.get(roomIdKey) || 0;
-            const hasNoPreviousRoomId = prevProps.roomId === null || prevProps.roomId === undefined;
-            const hasCurrentUsername = this.props.currentUsername != null;
-            const shouldAttemptAutoJoin =
-                hasNoPreviousRoomId &&
-                this.props.roomId &&
-                hasCurrentUsername &&
-                !this._autoJoinTimer &&
-                !this.autoJoinInProgress &&
-                timeSinceLastAttempt > cooldownPeriod &&
-                failureCount < 5;
-
-            if (shouldAttemptAutoJoin) {
-                console.log('Auto-joining room after prop update:', this.props.roomId);
-                this.autoJoinAttempted.add(roomIdKey);
-                this._lastAutoJoinAttempt.set(roomIdKey, now);
-                this.autoJoinInProgress = true;
-                this._autoJoinTimer = setTimeout(() => {
-                    this._autoJoinTimer = null;
-                    this.autoJoinInProgress = false;
-                    this.attemptAutoJoin(this.props.roomId, this.props.currentUsername);
-                }, 100);
-            } else if (failureCount >= 5) {
-                console.log(
-                    `[COLLAB MODAL] Too many consecutive failures (${failureCount}), skipping auto-join`
-                );
-                this.setState({
-                    error: 'Unable to connect to the room. Please try again later.',
-                    connectionStep: 'join'
-                });
-            } else if (timeSinceLastAttempt <= cooldownPeriod) {
-                const elapsedSeconds = Math.round(timeSinceLastAttempt / 1000);
-                const cooldownSeconds = cooldownPeriod / 1000;
-                console.log(`[COLLAB MODAL] Auto-join cooldown in effect (${elapsedSeconds}s / ${cooldownSeconds}s)`);
-            }
-        }
+        this.maybeAutoJoin();
 
         if (this.props.visible && CollaborationService) {
             try {
@@ -208,7 +133,7 @@ class CollaborationModal extends Component {
                         JSON.stringify(pendingRequests) !== JSON.stringify(this.state.pendingRequests);
 
                     if (hasChanged) {
-                        this.setState({pendingRequests});
+                        this.setState({ pendingRequests });
                     }
                 }
             } catch (error) {
@@ -232,17 +157,10 @@ class CollaborationModal extends Component {
             }
         }
 
-        this.autoJoinAttempted.clear();
-        this.autoJoinInProgress = false;
-        this._lastAutoJoinAttempt.clear();
-        this._autoJoinFailures.clear();
-        if (this._autoJoinTimer) {
-            clearTimeout(this._autoJoinTimer);
-            this._autoJoinTimer = null;
-        }
+        this._autoJoinKey = null;
     }
 
-    resetToJoinScreen () {
+    resetToJoinScreen() {
         this.setState({
             connectionStep: 'join',
             isConnecting: false,
@@ -250,143 +168,34 @@ class CollaborationModal extends Component {
         });
     }
 
-    handleCancelClick () {
+    handleCancelClick() {
         this.resetToJoinScreen();
         this.props.onCancelConnection();
     }
 
-    togglePublicPrivacy () {
+    togglePublicPrivacy() {
         this.handleChangeCurrentRoomPrivacy('public');
     }
 
-    togglePrivatePrivacy () {
+    togglePrivatePrivacy() {
         this.handleChangeCurrentRoomPrivacy('private');
     }
 
-    handleShowSettings () {
-        if (typeof window !== 'undefined' && window.CollaborationService) {
-            try {
-                const service = window.CollaborationService.getInstance();
-                if (service && service.getPeerConfig) {
-                    const config = service.getPeerConfig();
-                    this.setState({
-                        showSettings: true,
-                        peerConfig: config
-                    });
-                    return;
-                }
-            } catch (error) {
-                console.warn('Could not get peer config:', error);
-            }
-        }
-        this.setState({showSettings: true});
+    handleRoomIdChange (event) {
+        this.setState({roomId: event.target.value});
     }
 
-    handleCloseSettings () {
-        this.setState({showSettings: false});
-    }
-
-    handleHostChange (host) {
-        this.setState(prevState => ({
-            peerConfig: {
-                ...prevState.peerConfig,
-                host
-            }
-        }));
-    }
-
-    handlePortChange (port) {
-        const portNum = parseInt(port, 10);
-        this.setState(prevState => ({
-            peerConfig: {
-                ...prevState.peerConfig,
-                port: isNaN(portNum) ? port : portNum
-            }
-        }));
-    }
-
-    handleKeyChange (key) {
-        this.setState(prevState => ({
-            peerConfig: {
-                ...prevState.peerConfig,
-                key: key === '' ? undefined : key
-            }
-        }));
-    }
-
-    handlePathChange (path) {
-        this.setState(prevState => ({
-            peerConfig: {
-                ...prevState.peerConfig,
-                path
-            }
-        }));
-    }
-
-    handleSecureChange (secure) {
-        this.setState(prevState => ({
-            peerConfig: {
-                ...prevState.peerConfig,
-                secure
-            }
-        }));
-    }
-
-    handleSaveConfig () {
-        if (typeof window !== 'undefined' && window.CollaborationService) {
-            try {
-                const service = window.CollaborationService.getInstance();
-                if (service && service.updatePeerConfig) {
-                    service.updatePeerConfig(this.state.peerConfig);
-                    
-                    // Update URL collab parameter
-                    const {host, port, key, path, secure} = this.state.peerConfig;
-                    const peerConfig = {
-                        host,
-                        port,
-                        key: key === undefined ? '' : key,
-                        path,
-                        secure
-                    };
-                    const collabConfig = {peer: peerConfig};
-                    const encoded = encodeURIComponent(JSON.stringify(collabConfig));
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('collab', encoded);
-                    window.history.replaceState(null, null, url.toString());
-                    
-                    if (service.isConnected) {
-                        service.disconnect();
-                    }
-                    
-                    showAlert(this.props.intl, this.props.intl.formatMessage({
-                        defaultMessage: 'Configuration saved successfully!',
-                        description: 'Alert message when configuration is saved',
-                        id: 'gui.collaboration.configSaved'
-                    }));
-                    this.setState({showSettings: false});
-                    return;
-                }
-            } catch (error) {
-                console.error('Failed to save configuration:', error);
-                showAlert(this.props.intl, this.props.intl.formatMessage({
-                    defaultMessage: 'Failed to save configuration',
-                    description: 'Alert message when configuration save fails',
-                    id: 'gui.collaboration.configSaveFailed'
-                }));
-            }
-        }
-        this.setState({showSettings: false});
-    }
-
-    handleRoomIdChange (roomId) {
-        this.setState({roomId});
+    handleRoomIdKeyPress (event) {
+        if (event.key === 'Enter') this.handleJoinRoom();
     }
 
     async handleJoinRoom () {
-        if (!this.state.roomId.trim()) {
+        const roomId = this.state.roomId.trim();
+        if (!roomId) {
             this.setState({error: 'Please enter a room ID'});
             return;
         }
+        this._autoJoinKey = `${roomId}-${this.props.currentUsername}`;
 
         this.setState({
             isConnecting: true,
@@ -395,10 +204,12 @@ class CollaborationModal extends Component {
         });
 
         try {
-            await this.props.onJoinRoom(this.state.roomId.trim(), this.props.currentUsername);
+            await this.props.onJoinRoom(roomId, this.props.currentUsername);
         } catch (error) {
             this.setState({
-                error: error.message || 'Failed to join room',
+                error: error.collabCode === 'ROOM_NOT_FOUND' ?
+                    `Nobody is hosting room "${roomId}" yet. You can create it below.` :
+                    error.message || 'Failed to join room',
                 isConnecting: false,
                 connectionStep: 'join'
             });
@@ -406,7 +217,8 @@ class CollaborationModal extends Component {
     }
 
     async handleCreateRoom () {
-        const roomCode = this.generateRoomCode();
+        const roomCode = this.state.roomId.trim() || this.generateRoomCode();
+        this._autoJoinKey = `${roomCode}-${this.props.currentUsername}`;
 
         this.setState({
             isConnecting: true,
@@ -422,18 +234,19 @@ class CollaborationModal extends Component {
             currentUrl.searchParams.delete('username');
             window.history.replaceState(null, null, currentUrl.toString());
 
-            this.setState({roomId: roomCode});
+            this.setState({ roomId: roomCode });
 
         } catch (error) {
             this.setState({
                 error: error.message || 'Failed to create room',
-                isConnecting: false,
                 connectionStep: 'join'
             });
+        } finally {
+            this.setState({isConnecting: false});
         }
     }
 
-    handleLeaveRoom () {
+    handleLeaveRoom() {
         this.props.onLeaveRoom();
         this.setState({
             connectionStep: 'join',
@@ -442,11 +255,16 @@ class CollaborationModal extends Component {
         });
     }
 
-    handleKickUser (userId) {
+    handleKickUser(userId) {
         this.props.onKickUser(userId);
+        // In case the kicked peer still had a pending join request, drop it
+        // from the local list immediately as well.
+        this.setState(prevState => ({
+            pendingRequests: prevState.pendingRequests.filter(req => req.id !== userId)
+        }));
     }
 
-    handleCopyRoomUrl () {
+    handleCopyRoomUrl() {
         const currentUrl = new URL(window.location.href);
         currentUrl.searchParams.set('room', this.props.roomId);
         currentUrl.searchParams.delete('username');
@@ -473,7 +291,7 @@ class CollaborationModal extends Component {
         }
     }
 
-    fallbackCopyToClipboard (text) {
+    fallbackCopyToClipboard(text) {
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
@@ -507,7 +325,7 @@ class CollaborationModal extends Component {
         }
     }
 
-    showUrlPrompt (text) {
+    showUrlPrompt(text) {
         console.log('Room URL:', text);
         NotificationSystem.error(
             this.props.intl.formatMessage({
@@ -519,7 +337,7 @@ class CollaborationModal extends Component {
         );
     }
 
-    generateRoomCode () {
+    generateRoomCode() {
         const adjectives = ['cool', 'fun', 'epic', 'wild', 'neat', 'rad', 'hot', 'ice', 'big', 'tiny'];
         const nouns = ['cat', 'dog', 'owl', 'fox', 'bee', 'ant', 'fish', 'bird', 'frog', 'duck'];
 
@@ -531,105 +349,69 @@ class CollaborationModal extends Component {
         return `${randomAdjective}-${randomNoun}-${randomNum}`;
     }
 
+    maybeAutoJoin () {
+        const {roomId, currentUsername, isConnected} = this.props;
+        if (!roomId || !currentUsername || isConnected) return;
+        if (CollaborationService.getInstance().roomId) return;
+        const key = `${roomId}-${currentUsername}`;
+        if (this._autoJoinKey === key) return;
+        this._autoJoinKey = key;
+        this.attemptAutoJoin(roomId, currentUsername);
+    }
+
     async attemptAutoJoin (roomCode, username) {
-        console.log(`Attempting to auto-join room "${roomCode}" as "${username}"`);
+        this.setState({
+            isConnecting: true,
+            connectionStep: 'connecting',
+            error: null
+        });
 
         try {
-            if (!roomCode) {
-                console.error('attemptAutoJoin called with null/undefined roomCode');
-                this.autoJoinInProgress = false;
-                this.setState({
-                    error: 'No room code provided',
-                    isConnecting: false,
-                    connectionStep: 'join'
-                });
-                return;
-            }
-
-            if (!username) {
-                console.error('attemptAutoJoin called with null/undefined username');
-                this.autoJoinInProgress = false;
-                this.setState({
-                    error: 'Username not available',
-                    isConnecting: false,
-                    connectionStep: 'join'
-                });
-                return;
-            }
-
-            this.setState({
-                isConnecting: true,
-                connectionStep: 'connecting',
-                error: null
-            });
-
             await this.props.onJoinRoom(roomCode, username);
-            console.log(`Successfully joined room "${roomCode}"`);
-
-            const roomIdKey = `${roomCode}-${username}`;
-            this._autoJoinFailures.delete(roomIdKey);
         } catch (error) {
-            console.log(`Failed to join room "${roomCode}":`, error.message);
-
-            const roomIdKey = `${roomCode}-${username}`;
-            const failureCount = (this._autoJoinFailures.get(roomIdKey) || 0) + 1;
-            this._autoJoinFailures.set(roomIdKey, failureCount);
-            console.log(`[COLLAB MODAL] Update failure count for "${roomCode}": ${failureCount}`);
-
-            try {
-                console.log(`Auto-creating room "${roomCode}" since it doesn't exist`);
-                await this.props.onCreateRoom(roomCode, username);
-                console.log(`Successfully created room "${roomCode}"`);
-
-                this._autoJoinFailures.delete(roomIdKey);
-            } catch (createError) {
-                console.error(`Failed to create room "${roomCode}":`, createError.message);
-
-                this.autoJoinInProgress = false;
-
-                if (failureCount < 3) {
-                    this.setState({
-                        error: `Room "${roomCode}" doesn't exist and couldn't be created: ${createError.message || 'Unknown error'}`,
-                        isConnecting: false,
-                        connectionStep: 'join'
-                    });
-                } else {
-                    this.setState({
-                        error: `Unable to connect. Will retry in a moment... (${failureCount} attempts)`,
-                        isConnecting: false,
-                        connectionStep: 'join'
-                    });
-                }
-            }
+            this.setState({
+                roomId: roomCode,
+                error: error.collabCode === 'ROOM_NOT_FOUND' ?
+                    `Nobody is hosting room "${roomCode}" yet. You can create it below.` :
+                    error.message || 'Failed to join room',
+                isConnecting: false,
+                connectionStep: 'join'
+            });
         }
     }
 
 
-    async handleApproveRequest (requesterId, requesterUsername) {
+    async handleApproveRequest(requesterId, requesterUsername) {
         try {
             await this.props.onApproveJoinRequest(requesterId, requesterUsername);
-            this.setState(prevState => ({
-                pendingRequests: prevState.pendingRequests.filter(req => req.id !== requesterId)
-            }));
         } catch (error) {
             console.error('Failed to approve join request:', error);
-            this.setState({error: 'Failed to approve join request'});
-        }
-    }
-
-    async handleDenyRequest (requesterId) {
-        try {
-            await this.props.onDenyJoinRequest(requesterId);
+            this.setState({ error: 'Failed to approve join request' });
+        } finally {
+            // Remove the request from the local list no matter what, so the
+            // host never gets stuck with a request that is already gone.
             this.setState(prevState => ({
                 pendingRequests: prevState.pendingRequests.filter(req => req.id !== requesterId)
             }));
-        } catch (error) {
-            console.error('Failed to deny join request:', error);
-            this.setState({error: 'Failed to deny join request'});
         }
     }
 
-    handleCancelJoinRequest () {
+    async handleDenyRequest(requesterId) {
+        try {
+            await this.props.onDenyJoinRequest(requesterId);
+        } catch (error) {
+            console.error('Failed to deny join request:', error);
+            this.setState({ error: 'Failed to deny join request' });
+        } finally {
+            // Remove the request from the local list no matter what, so the
+            // host never gets stuck with a request that is already gone.
+            this.setState(prevState => ({
+                pendingRequests: prevState.pendingRequests.filter(req => req.id !== requesterId)
+            }));
+        }
+    }
+
+    handleCancelJoinRequest() {
         if (this.props.onCancelJoinRequest) {
             this.props.onCancelJoinRequest();
         }
@@ -652,7 +434,7 @@ class CollaborationModal extends Component {
         });
     }
 
-    handleAwaitingApproval () {
+    handleAwaitingApproval() {
         console.log('[COLLAB MODAL] Awaiting approval from host', {
             isConnected: this.props.isConnected,
             connectionStep: this.state.connectionStep
@@ -665,7 +447,7 @@ class CollaborationModal extends Component {
         });
     }
 
-    handleApprovalResolved () {
+    handleApprovalResolved() {
         console.log('[COLLAB MODAL] Approval resolved', {
             isConnected: this.props.isConnected,
             connectionStep: this.state.connectionStep
@@ -677,7 +459,7 @@ class CollaborationModal extends Component {
         });
     }
 
-    handleJoinDenied (reason) {
+    handleJoinDenied(reason) {
         console.log('[COLLAB MODAL] Join request denied:', reason);
         this.setState({
             connectionStep: 'join',
@@ -686,16 +468,16 @@ class CollaborationModal extends Component {
         });
     }
 
-    async handleChangeCurrentRoomPrivacy (newPrivacy) {
+    async handleChangeCurrentRoomPrivacy(newPrivacy) {
         try {
             await this.props.onChangeRoomPrivacy(newPrivacy);
         } catch (error) {
             console.error('Failed to change room privacy:', error);
-            this.setState({error: 'Failed to change room privacy'});
+            this.setState({ error: 'Failed to change room privacy' });
         }
     }
 
-    handleJoinRequestEvent (data) {
+    handleJoinRequestEvent(data) {
         console.log('[COLLAB MODAL] Join request event received:', data);
         if (CollaborationService) {
             try {
@@ -703,12 +485,82 @@ class CollaborationModal extends Component {
                 if (service && service.getPendingJoinRequests) {
                     const pendingRequests = service.getPendingJoinRequests();
                     console.log('[COLLAB MODAL] Updated pending requests:', pendingRequests);
-                    this.setState({pendingRequests});
+                    this.setState({ pendingRequests });
                 }
             } catch (error) {
                 console.warn('Could not get pending requests:', error);
             }
         }
+    }
+
+    handleShowSettings () {
+        this.setState({ showSettings: true });
+    }
+
+    handleCloseSettings () {
+        this.setState({ showSettings: false });
+    }
+
+    handleHostChange (value) {
+        this.setState(prevState => ({
+            peerConfig: { ...prevState.peerConfig, host: value }
+        }));
+    }
+
+    handlePortChange (value) {
+        const port = parseInt(value, 10);
+        this.setState(prevState => ({
+            peerConfig: { ...prevState.peerConfig, port: isNaN(port) ? 443 : port }
+        }));
+    }
+
+    handleKeyChange (value) {
+        this.setState(prevState => ({
+            peerConfig: { ...prevState.peerConfig, key: value }
+        }));
+    }
+
+    handlePathChange (value) {
+        this.setState(prevState => ({
+            peerConfig: { ...prevState.peerConfig, path: value }
+        }));
+    }
+
+    handleSecureChange (value) {
+        this.setState(prevState => ({
+            peerConfig: { ...prevState.peerConfig, secure: value }
+        }));
+    }
+
+    handleSaveConfig () {
+        this.setState({ showSettings: false });
+    }
+
+    describeActivity (userId) {
+        return describeActivity(
+            this.props.vm,
+            (this.props.userActivity || {})[userId],
+            (descriptor, values) => this.props.intl.formatMessage(descriptor, values)
+        );
+    }
+
+    renderUserIcon (user, isHost) {
+        const avatarUrl = avatarForCollabUser(user);
+        if (avatarUrl) {
+            return (
+                <img
+                    className={styles.avatar}
+                    src={avatarUrl}
+                    alt=""
+                    draggable={false}
+                />
+            );
+        }
+        return (
+            <div className={styles.userIcon}>
+                {isHost ? <Crown /> : <User />}
+            </div>
+        );
     }
 
     renderAlphaBanner () {
@@ -737,6 +589,7 @@ class CollaborationModal extends Component {
     }
 
     renderJoinStep () {
+        const typedRoomId = this.state.roomId.trim();
         return (
             <Box className={styles.content}>
                 {this.renderAlphaBanner()}
@@ -767,19 +620,22 @@ class CollaborationModal extends Component {
                 </div>
 
                 <div className={styles.description}>
+                    {this.renderUserIcon({handle: this.props.roturHandle}, false)}
                     <FormattedMessage
                         defaultMessage="You will be known as: {username}"
                         description="Shows current username"
                         id="gui.collaboration.currentUsername"
-                        values={{username: this.props.currentUsername}}
+                        values={{ username: this.props.currentUsername }}
                     />
-                    <button
-                        className={styles.editUsernameButton}
-                        onClick={this.props.onOpenChangeUsername}
-                        title="Change username"
-                    >
-                        <PenLine size={16} />
-                    </button>
+                    {!this.props.roturHandle && (
+                        <button
+                            className={styles.editUsernameButton}
+                            onClick={this.props.onOpenChangeUsername}
+                            title="Change username"
+                        >
+                            <PenLine size={16} />
+                        </button>
+                    )}
                 </div>
 
                 <div className={styles.roomActions}>
@@ -799,7 +655,7 @@ class CollaborationModal extends Component {
                                     id="gui.collaboration.roomId"
                                 />
                             </label>
-                            <BufferedInput
+                            <Input
                                 className={styles.input}
                                 placeholder={this.props.intl.formatMessage({
                                     id: 'gui.collaboration.roomIdPlaceholder',
@@ -807,7 +663,8 @@ class CollaborationModal extends Component {
                                     description: 'Placeholder for room ID input'
                                 })}
                                 value={this.state.roomId}
-                                onSubmit={this.handleRoomIdChange}
+                                onChange={this.handleRoomIdChange}
+                                onKeyPress={this.handleRoomIdKeyPress}
                             />
                         </div>
                         <Button
@@ -852,7 +709,7 @@ class CollaborationModal extends Component {
                         </h3>
                         <div className={styles.createDescription}>
                             <FormattedMessage
-                                defaultMessage="Generate a new room ID to start collaborating with others. Share the room URL to invite people."
+                                defaultMessage="Host a room and share its URL to invite people."
                                 description="Create room description"
                                 id="gui.collaboration.createDescription"
                             />
@@ -862,11 +719,20 @@ class CollaborationModal extends Component {
                             onClick={this.handleCreateRoom}
                             disabled={this.state.isConnecting}
                         >
-                            <FormattedMessage
-                                defaultMessage="Create New Room"
-                                description="Button to create new collaboration room"
-                                id="gui.collaboration.createRoom"
-                            />
+                            {typedRoomId ? (
+                                <FormattedMessage
+                                    defaultMessage='Host room "{roomId}"'
+                                    description="Button to host a collaboration room with a custom room ID"
+                                    id="gui.collaboration.hostRoom"
+                                    values={{roomId: typedRoomId}}
+                                />
+                            ) : (
+                                <FormattedMessage
+                                    defaultMessage="Create New Room"
+                                    description="Button to create new collaboration room"
+                                    id="gui.collaboration.createRoom"
+                                />
+                            )}
                         </Button>
                         <div className={styles.privacyNotice}>
                             <div className={styles.privacyNoticeIcon}>
@@ -886,7 +752,7 @@ class CollaborationModal extends Component {
         );
     }
 
-    renderConnectingStep () {
+    renderConnectingStep() {
         return (
             <Box className={styles.content}>
                 {this.renderAlphaBanner()}
@@ -914,10 +780,23 @@ class CollaborationModal extends Component {
         );
     }
 
-    renderConnectedStep () {
+    renderConnectedStep() {
         const users = this.props.connectedUsers || [];
         const currentUser = users.find(user => user.id === this.props.currentUserId);
-        const isHost = currentUser && currentUser.isHost;
+        // Trust the connection state over the users list: the host may not
+        // appear in connectedUsers yet (or currentUserId may be momentarily
+        // null), and losing the host badge would hide the kick / approve /
+        // deny / privacy controls entirely.
+        let serviceIsHost = false;
+        try {
+            const service = CollaborationService.getInstance();
+            if (service && typeof service.isCurrentUserHost === 'function') {
+                serviceIsHost = Boolean(service.isCurrentUserHost());
+            }
+        } catch (error) {
+            // Fall through to the users-list check below.
+        }
+        const isHost = serviceIsHost || Boolean(currentUser && currentUser.isHost);
 
         return (
             <Box className={styles.content}>
@@ -933,7 +812,7 @@ class CollaborationModal extends Component {
                             defaultMessage="Room: {roomId}"
                             description="Connected room title"
                             id="gui.collaboration.connectedRoom"
-                            values={{roomId: this.props.roomId}}
+                            values={{ roomId: this.props.roomId }}
                         />
                     </div>
                 </div>
@@ -945,7 +824,7 @@ class CollaborationModal extends Component {
                             defaultMessage="Connected - {userCount} {userCount, plural, one {user} other {users}} online"
                             description="Connection status"
                             id="gui.collaboration.status"
-                            values={{userCount: users.length}}
+                            values={{ userCount: users.length }}
                         />
                     </div>
                 </div>
@@ -955,7 +834,7 @@ class CollaborationModal extends Component {
                         <h3 className={styles.sectionTitle}>
                             <FormattedMessage
                                 defaultMessage="Connected Users"
-                                description="Users section title"
+                                description="Connected users section title"
                                 id="gui.collaboration.connectedUsers"
                             />
                         </h3>
@@ -968,9 +847,7 @@ class CollaborationModal extends Component {
                                         [styles.currentUser]: user.id === this.props.currentUserId
                                     })}
                                 >
-                                    <div className={styles.userIcon}>
-                                        {user.isHost ? <Crown /> : <User />}
-                                    </div>
+                                    {this.renderUserIcon(user, user.isHost)}
                                     <span className={styles.username}>
                                         {user.username}
                                         {user.isHost && (
@@ -989,6 +866,11 @@ class CollaborationModal extends Component {
                                                     description="You badge"
                                                     id="gui.collaboration.you"
                                                 />
+                                            </span>
+                                        )}
+                                        {this.describeActivity(user.id) && (
+                                            <span className={styles.userActivity}>
+                                                {this.describeActivity(user.id)}
                                             </span>
                                         )}
                                     </span>
@@ -1031,7 +913,7 @@ class CollaborationModal extends Component {
                                     defaultMessage="Pending Join Requests ({count})"
                                     description="Pending requests section title"
                                     id="gui.collaboration.pendingRequests"
-                                    values={{count: this.state.pendingRequests.length}}
+                                    values={{ count: this.state.pendingRequests.length }}
                                 />
                             </h3>
 
@@ -1042,7 +924,7 @@ class CollaborationModal extends Component {
                                         className={styles.requestItem}
                                     >
                                         <div className={styles.requesterInfo}>
-                                            <User className={styles.userIcon} />
+                                            {this.renderUserIcon(request, false)}
                                             <span className={styles.username}>
                                                 {request.username}
                                             </span>
@@ -1172,7 +1054,7 @@ class CollaborationModal extends Component {
         );
     }
 
-    renderPendingApprovalStep () {
+    renderPendingApprovalStep() {
         return (
             <Box className={styles.content}>
                 {this.renderAlphaBanner()}
@@ -1220,7 +1102,7 @@ class CollaborationModal extends Component {
         );
     }
 
-    renderSettingsStep () {
+    renderSettingsStep() {
         return (
             <Box className={styles.content}>
                 <div className={styles.alphaBanner}>
@@ -1401,26 +1283,26 @@ class CollaborationModal extends Component {
         );
     }
 
-    render () {
+    render() {
         let content;
         if (this.state.showSettings) {
             content = this.renderSettingsStep();
         } else {
             switch (this.state.connectionStep) {
-            case 'join':
-                content = this.renderJoinStep();
-                break;
-            case 'connecting':
-                content = this.renderConnectingStep();
-                break;
-            case 'connected':
-                content = this.renderConnectedStep();
-                break;
-            case 'pending-approval':
-                content = this.renderPendingApprovalStep();
-                break;
-            default:
-                content = this.renderJoinStep();
+                case 'join':
+                    content = this.renderJoinStep();
+                    break;
+                case 'connecting':
+                    content = this.renderConnectingStep();
+                    break;
+                case 'connected':
+                    content = this.renderConnectedStep();
+                    break;
+                case 'pending-approval':
+                    content = this.renderPendingApprovalStep();
+                    break;
+                default:
+                    content = this.renderJoinStep();
             }
         }
 
@@ -1457,9 +1339,15 @@ CollaborationModal.propTypes = {
     connectedUsers: PropTypes.arrayOf(PropTypes.shape({
         id: PropTypes.string.isRequired,
         username: PropTypes.string.isRequired,
+        handle: PropTypes.string,
         isHost: PropTypes.bool
     })),
     connectionError: PropTypes.string,
+    roturHandle: PropTypes.string,
+    // eslint-disable-next-line react/forbid-prop-types
+    userActivity: PropTypes.object,
+    // eslint-disable-next-line react/forbid-prop-types
+    vm: PropTypes.object,
     onRequestClose: PropTypes.func.isRequired,
     onJoinRoom: PropTypes.func.isRequired,
     onCreateRoom: PropTypes.func.isRequired,

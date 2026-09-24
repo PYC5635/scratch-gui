@@ -10,7 +10,7 @@
 
 .body-wrapper {
     flex-grow: 1;
-    background-color: $page-background;
+    background-color: $ui-primary;
 }
 
 .body-wrapper * {
@@ -56,231 +56,6 @@
     flex-direction: column;
 }
 
-/* VS Code Layout */
-.editor-wrapper.vscodeLayout {
-    flex-basis: calc(1024px - 408px - (($space + $stage-standard-border-width) * 2));
-    flex-grow: 1;
-    flex-shrink: 0;
-    position: relative;
-
-    display: flex;
-    flex-direction: column;
-    background-color: $page-background;
-    color: $text-primary;
-}
-
-.editor-wrapper.vscodeLayout .tab-list {
-    background-color: $ui-tertiary;
-    border-bottom: 1px solid $ui-black-transparent;
-    color: $text-primary;
-}
-
-.editor-wrapper.vscodeLayout .tab {
-    background-color: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    color: $text-primary-transparent;
-}
-
-.editor-wrapper.vscodeLayout .tab:hover {
-    background-color: $ui-tertiary;
-    border-color: $looks-secondary;
-}
-
-.editor-wrapper.vscodeLayout .tab.is-selected {
-    background-color: $ui-white;
-    border-color: $ui-black-transparent;
-    color: $looks-secondary;
-}
-
-.editor-wrapper.vscodeLayout .blocks-wrapper {
-    background-color: $page-background;
-}
-
-.editor-wrapper.vscodeLayout .extension-button-container {
-    background-color: $looks-secondary;
-    border-color: $looks-secondary;
-}
-
-.editor-wrapper.vscodeLayout .extension-button {
-    color: #ffffff;
-}
-
-/* VS Code Layout */
-.vscode {
-    flex-direction: column !important;
-    height: 100% !important;
-    background-color: $ui-tertiary;
-}
-
-.vscodeList {
-    flex-direction: row !important;
-    display: flex;
-    height: 100%;
-}
-
-.tab-list.vscode {
-    height: 100% !important;
-    width: 41px;
-    flex-direction: column !important;
-    align-items: center;
-    justify-content: flex-start;
-    border-bottom: none;
-    background-color: $ui-tertiary;
-    padding: 10px 0;
-}
-
-.vscode .tab {
-    width: 40px;
-    height: 40px;
-    flex-grow: 0;
-    border-radius: 0px !important;
-    margin: 0 !important;
-    padding: 10px !important;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 0 !important;
-    background-color: #00000000;
-    border: 0;
-    margin-bottom: 10px !important;
-}
-
-.vscode .tab svg {
-    width: 2rem;
-    height: 2rem;
-    margin: 0 !important;
-    filter: grayscale(100%);
-    color: $text-primary-transparent;
-}
-
-.vscode .tab:hover svg {
-    filter: none;
-    color: $text-primary;
-}
-
-.vscode .tab.is-selected svg {
-    filter: none;
-    color: $looks-secondary;
-}
-
-[dir="rtl"] .vscode .tab svg {
-    margin: 0 !important;
-    transform: none;
-}
-
-.vscode .tab.is-selected {
-    background-color: $ui-white;
-    box-shadow: inset 3px 0px 0px 0px $looks-secondary;
-    width: 40px;
-    height: 40px;
-}
-
-/* 重置 RTL 下的镜像效果 */
-.vscode .tab:nth-of-type(1) svg,
-.vscode .tab:nth-of-type(3) svg {
-    transform: none;
-}
-
-/* VS Code 活动栏分隔符 */
-.activity-bar-separator {
-    width: 24px;
-    height: 1px;
-    background-color: $ui-black-transparent;
-    margin: 6px 0;
-    flex-shrink: 0;
-}
-
-/* VS Code 活动栏工具按钮 */
-.activity-bar-button {
-    width: 40px;
-    height: 40px;
-    flex-grow: 0;
-    flex-shrink: 0;
-    border-radius: 0px !important;
-    margin: 0 !important;
-    padding: 10px !important;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #00000000;
-    border: 0;
-    cursor: pointer;
-    margin-bottom: 10px !important;
-}
-
-.activity-bar-button svg {
-    width: 2rem;
-    height: 2rem;
-    margin: 0 !important;
-    filter: grayscale(100%);
-    color: $text-primary-transparent;
-}
-
-.activity-bar-button:hover svg {
-    filter: none;
-    color: $text-primary;
-}
-
-[dir="rtl"] .activity-bar-button svg {
-    margin: 0 !important;
-    transform: none;
-}
-
-/* VS Code 活动栏底部弹性占位：把登录/头像和高级设置按钮推到最下方 */
-.activity-bar-bottom-push {
-    flex: 1 1 auto;
-    min-height: 8px;
-}
-/* VS Code 活动栏登录/头像与高级设置之间的固定间距 */
-.activity-bar-bottom-gap {
-    flex: 0 0 auto;
-    height: 6px;
-    min-height: 6px;
-}
-
-/* VS Code 活动栏登录控件（高级设置按钮上方） */
-.activity-bar-avatar-button {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px !important;
-    border-radius: 50%;
-    overflow: hidden;
-    margin-bottom: 10px;
-}
-.activity-bar-avatar-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    display: block;
-}
-
-/* VS Code Layout: Find bar as floating overlay */
-.editor-wrapper.vscodeLayout .mw-native-find-bar-container {
-    position: absolute;
-    top: 0;
-    left: 50px;
-    right: 10px;
-    max-width: none;
-    width: auto;
-    z-index: 1000;
-    flex: none;
-    display: flex !important;
-}
-
-.editor-wrapper.vscodeLayout .sa-find-bar {
-    width: 100%;
-    max-width: none;
-}
-
-.editor-wrapper.vscodeLayout .sa-find-bar[hidden] {
-    display: none !important;
-}
-
 .stage-pane-resizer {
     flex: 0 0 6px;
     cursor: col-resize;
@@ -290,6 +65,9 @@
     z-index: 2;
     pointer-events: auto;
     opacity: 0;
+    /* Promote to its own compositor layer so hover/active changes don't
+       trigger layout on the rest of the editor during drag. */
+    will-change: opacity;
 }
 
 .stage-pane-resizer::before {
@@ -313,7 +91,7 @@
     display: flex;
     align-items: flex-end;
     flex-shrink: 0;
-    padding-left: 0.3rem;
+    padding-left: 3px;
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: 500;
@@ -324,6 +102,7 @@
     border-bottom: 0 !important;
 
     color: $text-primary;
+    gap: 0.8rem;
 }
 
 .tab {
@@ -331,7 +110,7 @@
     height: 80%;
     top: -4px;
 
-    border-radius: 0 0 0 0;
+    border-radius: 5px;
     border: 1px solid $ui-black-transparent;
 
     font-size: 0.75rem;
@@ -345,6 +124,8 @@
 
     user-select: none;
     white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .tab svg {
@@ -353,49 +134,34 @@
 }
 
 [dir="ltr"] .tab {
-    margin-left: -1px;
+    margin-left: -0.5rem;
 }
 
 [dir="rtl"] .tab {
-    margin-right: -1px;
+    margin-right: -0.5rem;
 }
 
 [dir="ltr"] .tab:nth-of-type(1) {
     margin-left: 0;
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
 }
 
 [dir="rtl"] .tab:nth-of-type(1) {
     margin-right: 0;
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
-}
-
-[dir="ltr"] .tab:nth-of-type(3) {
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
-}
-
-[dir="rtl"] .tab:nth-of-type(3) {
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
 }
 
 /* Use z-indices to force left-on-top for tabs */
 .tab:nth-of-type(1) {
-    z-index: 1;
+    z-index: 3;
 }
 .tab:nth-of-type(2) {
     z-index: 2;
 }
 .tab:nth-of-type(3) {
-    z-index: 3;
+    z-index: 1;
 }
 
 .tab:hover {
   border-color: $looks-secondary;
-  z-index: 5; /* make sure hovered tab is on top */
 }
 
 .tab.is-selected {
@@ -439,6 +205,7 @@
 .tab.is-selected:focus {
     outline: none;
     box-shadow: none;
+    border-color: $ui-black-transparent;
 }
 
 .tab.is-selected:focus:after {
@@ -466,6 +233,7 @@
 .blocks-wrapper {
     flex-grow: 1;
     position: relative;
+    border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .stage-and-target-wrapper {
@@ -485,6 +253,14 @@
 
     /* this will only ever be as wide as the stage */
     flex-basis: 0;
+    /* No transition on width / flex-basis during drag resizing — the resizer
+       updates position synchronously via requestAnimationFrame, so a CSS
+       transition would add a 0.3 s lag that makes the drag feel sluggish. */
+}
+
+.stage-and-target-wrapper.stage-hidden {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
 }
 
 .target-wrapper {
@@ -503,23 +279,47 @@
     /* overflow: hidden; */
 }
 
-.extension-button-container {
+.palette-footer {
     width: 3.75rem;
-    height: 3.25rem;
     position: absolute;
     bottom: 0;
     left: 0;
-    right: 0;
     z-index: $z-index-extension-button;
+    display: flex;
+    flex-direction: column;
     background: $looks-secondary;
 
     border: 1px solid $looks-secondary;
     box-sizing: content-box; /* To match scratch-block vertical toolbox borders */
+    color: $accent-foreground;
+}
+
+.palette-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 3.25rem;
+    background: none;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    color: inherit;
+    user-select: none;
+}
+
+.palette-search-button {
+    display: none;
+    border-bottom: 1px solid $ui-black-transparent;
+}
+
+.palette-button-icon {
+    display: block;
 }
 
 $fade-out-distance: 15px;
 
-.extension-button-container:before {
+.palette-footer:before {
     content: "";
     position: absolute;
     top: calc(calc(-1 * $fade-out-distance) - 1px);
@@ -531,7 +331,6 @@ $fade-out-distance: 15px;
 
 
 .extension-button {
-    color: white;
     background: none;
     border: none;
     outline: none;
@@ -554,55 +353,6 @@ $fade-out-distance: 15px;
     margin-top: 0;
 }
 
-.readmeButton {
-    font-family: inherit;
-    font-size: 14px;
-    font-weight:bold;
-    background-color: $ui-modal-background;
-    border-width: 1px;
-    border-style: solid;
-    color: $text-primary;
-    border-color: $ui-black-transparent;
-    padding: 0.2rem 0.5rem;
-    margin: 0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: border-color 0.2s ease;
-    flex-shrink: 0;
-    z-index: 10;
-    position: relative;
-}
-
-
-/* VSCode layout: README button as icon */
-.tab-list.vscode .readmeButton {
-    width: 40px;
-    height: 40px;
-    font-size: 0;
-    background-color: transparent;
-    border: 0;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 8px !important;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    display: flex;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
-}
-
-.tab-list.vscode .readmeButton img {
-    width: 24px;
-    height: 24px;
-}
-
-.tab-list.vscode .readmeButton:hover {
-    background-color: $ui-white;
-    box-shadow: inset 3px 0px 0px 0px $looks-secondary
-}
-
 /* Sprite Selection Watermark */
 .watermark {
     position: absolute;
@@ -623,11 +373,6 @@ $fade-out-distance: 15px;
 .menu-bar-position {
     position: relative;
     z-index: $z-index-menu-bar;
-    transition: transform 0.3s ease-in-out;
-}
-
-.menu-bar-hidden {
-    transform: translateY(-100%);
 }
 /* Alerts */
 
@@ -658,4 +403,74 @@ $fade-out-distance: 15px;
     height: 100%;
     /* overridden by JS; this will be used if the browser can't understand that color */
     background-color: white;
+}
+@media only screen and (max-width: 900px) {
+    [class*="gui_tab_"] span {
+        display: none;
+    }
+
+    [class*="gui_tab_"] svg {
+        margin-right: 0;
+    }
+
+    .editor-wrapper {
+        flex-basis: auto;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    :global(.sa-screenshot-container),
+    :global(.sa-gamepad-container),
+    :global(.sa-variable-manager-container) {
+        display: none !important;
+    }
+
+    .palette-search-button {
+        display: flex;
+    }
+
+    .stage-and-target-wrapper.stage-hidden {
+        width: auto;
+        min-width: 0;
+        flex-basis: auto;
+        flex-grow: 0;
+        flex-shrink: 1;
+        padding-inline: 0.1rem !important;
+    }
+}
+
+/*
+    Short viewports (phones in landscape, small windows): there isn't enough
+    vertical space for the stage and the sprite selector at their normal sizes.
+    Give the sprite selector a compact fixed-height strip at the bottom and let
+    the stage canvas fill (and scale to fit) the remaining space.
+*/
+@media only screen and (max-height: 480px) {
+    .stage-and-target-wrapper {
+        overflow: hidden;
+    }
+
+    .target-wrapper {
+        flex-grow: 0;
+        flex-basis: auto;
+    }
+
+    /* Only the editor layout (`.offset-controls`, i.e. not full-screen or
+       embedded) gets the flexible stage area; full-screen and embedded keep
+       their own sizing. */
+    [class*="stage-wrapper_offset-controls_"] {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    [class*="stage-wrapper_offset-controls_"] [class*="stage-wrapper_stage-canvas-wrapper_"] {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 }

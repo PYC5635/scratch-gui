@@ -15,10 +15,15 @@ import {applyTheme} from '../../lib/themes/themePersistance.js';
 import styles from './settings-menu.css';
 
 const AlignIcon = ({id}) => {
+    const icons = Object.entries(MENUBAR_ALIGN).reduce((acc, [key, value]) => {
+        acc[key] = value.icon;
+        return acc;
+    }, {});
+
     return (
         <img
             className={styles.accentIconOuter}
-            src={MENUBAR_ALIGN[id].icon}
+            src={icons[id]}
             draggable={false}
             width={24}
             height={24}
@@ -32,29 +37,22 @@ AlignIcon.propTypes = {
     id: PropTypes.string
 };
 
-const AlignMenuItem = props => {
-    const alignMessage = MENUBAR_ALIGN[props.id] || {
-        id: 'tw.menuBar.align.unknown',
-        defaultMessage: 'Unknown',
-        description: 'Unknown menu bar alignment'
-    };
-    return (
-        <MenuItem onClick={props.onClick}>
-            <div className={styles.option}>
-                <Check
-                    size={15}
-                    className={classNames(styles.check, {[styles.selected]: props.isSelected})}
+const AlignMenuItem = props => (
+    <MenuItem onClick={props.onClick}>
+        <div className={styles.option}>
+            <Check
+                size={15}
+                className={classNames(styles.check, {[styles.selected]: props.isSelected})}
+            />
+            <AlignIcon id={props.id} />
+            <span className={styles.themeName}>
+                <FormattedMessage
+                    {...MENUBAR_ALIGN[props.id]}
                 />
-                <AlignIcon id={props.id} />
-                <span className={styles.themeName}>
-                    <FormattedMessage
-                        {...alignMessage}
-                    />
-                </span>
-            </div>
-        </MenuItem>
-    );
-};
+            </span>
+        </div>
+    </MenuItem>
+);
 
 AlignMenuItem.propTypes = {
     id: PropTypes.string,

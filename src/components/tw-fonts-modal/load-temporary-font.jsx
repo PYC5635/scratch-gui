@@ -27,7 +27,7 @@ class LoadFont extends React.Component {
     }
 
     updateStyle () {
-        this.style.textContent = `@font-face { font-family: "${this.getFamily()}"; src: url("${this.props.url}"); }`;
+        this.style.textContent = `@font-face { font-family: "${this.getFamily()}"; src: url("${this.props.url}"); font-display: swap; }`;
     }
 
     getFamily () {

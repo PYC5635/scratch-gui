@@ -51,4 +51,3 @@ const smartSave = async ({vm, title, onSaved = () => {}}) => {
 };
 
 export default smartSave;
-export {smartSave as saveToBilup};

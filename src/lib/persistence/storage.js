@@ -1,6 +1,8 @@
-import ScratchStorage from '@turbowarp/scratch-storage';
+import ScratchStorage from '@bilup/scratch-storage';
 
 import defaultProject from '../default-project';
+import {hasBridge, bridgeFetch} from '../community/embed-bridge';
+import {cachedFetchBuffer} from '../community/cached-fetch';
 
 /**
  * Wrapper for ScratchStorage which adds default web sources.
@@ -9,6 +11,12 @@ import defaultProject from '../default-project';
 class Storage extends ScratchStorage {
     constructor () {
         super();
+        this.AssetType.CustomAsset = {
+            contentType: 'application/octet-stream',
+            name: 'CustomAsset',
+            runtimeFormat: 'bin',
+            immutable: true
+        };
         this.cacheDefaultProject();
     }
     addOfficialScratchWebStores () {
@@ -19,7 +27,13 @@ class Storage extends ScratchStorage {
             this.getProjectUpdateConfig.bind(this)
         );
         this.addWebStore(
-            [this.AssetType.ImageVector, this.AssetType.ImageBitmap, this.AssetType.Sound, this.AssetType.Font],
+            [
+                this.AssetType.ImageVector,
+                this.AssetType.ImageBitmap,
+                this.AssetType.Sound,
+                this.AssetType.Font,
+                this.AssetType.CustomAsset
+            ],
             this.getAssetGetConfig.bind(this),
             // We set both the create and update configs to the same method because
             // storage assumes it should update if there is an assetId, but the
@@ -27,6 +41,31 @@ class Storage extends ScratchStorage {
             this.getAssetCreateConfig.bind(this),
             this.getAssetCreateConfig.bind(this)
         );
+    }
+    addMistWarpAssetStore (assetsBase) {
+        const base = assetsBase.replace(/\/+$/, '');
+        if (this.mistwarpAssetsBase === base) {
+            return;
+        }
+        if (this.mistwarpAssetsBase) {
+            this.mistwarpAssetsBase = base;
+            return;
+        }
+        this.mistwarpAssetsBase = base;
+        if (hasBridge()) {
+            this.addHelper({
+                load: (assetType, assetId, dataFormat) =>
+                    bridgeFetch(`${this.mistwarpAssetsBase}/${assetId}.${dataFormat}`)
+                        .then(buffer => this.createAsset(assetType, dataFormat, new Uint8Array(buffer), assetId))
+            });
+        } else {
+            this.addHelper({
+                load: (assetType, assetId, dataFormat) =>
+                    cachedFetchBuffer(`${this.mistwarpAssetsBase}/${assetId}.${dataFormat}`)
+                        .then(buffer => this.createAsset(assetType, dataFormat, new Uint8Array(buffer), assetId))
+                        .catch(() => null)
+            });
+        }
     }
     setProjectHost (projectHost) {
         this.projectHost = projectHost;
@@ -54,12 +93,11 @@ class Storage extends ScratchStorage {
     setAssetHost (assetHost) {
         this.assetHost = assetHost;
     }
+    getAssetHost () {
+        return this.assetHost;
+    }
     getAssetGetConfig (asset) {
-        // 素材本身是内容寻址的（assetId 即为内容哈希），无需每次都绕过缓存。
-        // 之前每次请求都 delete 内置缓存并追加 ?v=Date.now()，
-        // 导致加载作品时每个素材都强制重新从远程 CDN 拉取，无法复用任何缓存，
-        // 这正是加载作品极其缓慢的根因。这里恢复为稳定的可缓存 URL。
-        return `${this.assetHost}/asset/${asset.assetId}.${asset.dataFormat}`;
+        return `${this.assetHost}/${asset.assetId}.${asset.dataFormat}`;
     }
     getAssetCreateConfig (asset) {
         return {

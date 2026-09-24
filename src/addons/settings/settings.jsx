@@ -27,6 +27,7 @@ import upstreamMeta from '../generated/upstream-meta.json';
 import {detectLocale} from '../../lib/utils/detect-locale';
 import SettingsStore from '../settings-store-singleton';
 import Channels from '../channels';
+import CustomPlugins, {parseCustomPlugin} from '../custom-plugins';
 import extensionImage from './icons/extension.svg';
 import brushImage from './icons/brush.svg';
 import undoImage from './icons/undo.svg';
@@ -38,9 +39,6 @@ import {detectTheme} from '../../lib/themes/themePersistance.js';
 import {applyGuiColors} from '../../lib/themes/guiHelpers.js';
 import {APP_NAME, FEEDBACK_URL} from '../../lib/constants/brand.js';
 import '../../lib/normalize.css';
-
-// 编辑器名称
-const EDITOR_NAME = 'RemixWarp';
 
 /* eslint-disable no-alert */
 /* eslint-disable no-console */
@@ -77,10 +75,22 @@ const postThrottledSettingsChange = store => {
     }, 100);
 };
 
+const NATIVISED_ADDONS = new Set([
+    'remove-curved-stage-border',
+    'hide-delete-button',
+    'remove-extension-button',
+    'tw-remove-backpack',
+    'tab-styles',
+    'window-theme'
+]);
+
 const filterAddonsBySupport = () => {
     const supported = {};
     const unsupported = {};
     for (const [id, manifest] of Object.entries(importedAddons)) {
+        if (NATIVISED_ADDONS.has(id)) {
+            continue;
+        }
         if (manifest.unsupported) {
             unsupported[id] = manifest;
         } else {
@@ -94,45 +104,10 @@ const filterAddonsBySupport = () => {
 };
 const {supported: supportedAddons, unsupported: unsupportedAddons} = filterAddonsBySupport();
 
-const groupAddons = () => {
-    const groups = {
-        new: {
-            label: settingsTranslations.groupNew,
-            open: true,
-            addons: []
-        },
-        others: {
-            label: settingsTranslations.groupOthers,
-            open: true,
-            addons: []
-        },
-        danger: {
-            label: settingsTranslations.groupDanger,
-            open: false,
-            addons: []
-        }
-    };
-    const manifests = Object.values(supportedAddons);
-    for (let index = 0; index < manifests.length; index++) {
-        const manifest = manifests[index];
-        if (manifest.tags.includes('new')) {
-            groups.new.addons.push(index);
-        } else if (manifest.tags.includes('danger') || manifest.noCompiler) {
-            groups.danger.addons.push(index);
-        } else {
-            groups.others.addons.push(index);
-        }
-    }
-    return groups;
-};
-
 const getAllTags = () => {
     const tags = new Set();
-    for (const [id, manifest] of Object.entries(supportedAddons)) {
-        if (!Array.isArray(manifest.tags)) {
-            console.error('[addon-settings] manifest missing tags array:', id, manifest);
-            continue;
-        }
+    for (const manifest of Object.values(supportedAddons)) {
+        if (!Array.isArray(manifest.tags)) continue;
         for (const tag of manifest.tags) {
             tags.add(tag);
         }
@@ -140,148 +115,6 @@ const getAllTags = () => {
     return Array.from(tags).sort();
 };
 const allTags = getAllTags();
-
-// 多级下拉菜单组件
-class MultiLevelDropdown extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            open: false,
-            selectedEditor: this.props.selectedEditor || 'remixwarp',
-            selectedCategory: this.props.selectedCategory || 'all'
-        };
-        this.handleToggleDropdown = this.handleToggleDropdown.bind(this);
-        this.handleEditorSelect = this.handleEditorSelect.bind(this);
-        this.handleCategorySelect = this.handleCategorySelect.bind(this);
-        this.handleContainerClick = this.handleContainerClick.bind(this);
-    }
-    
-    componentDidUpdate(prevProps) {
-        if (prevProps.selectedEditor !== this.props.selectedEditor) {
-            this.setState({ selectedEditor: this.props.selectedEditor });
-        }
-        if (prevProps.selectedCategory !== this.props.selectedCategory) {
-            this.setState({ selectedCategory: this.props.selectedCategory });
-        }
-    }
-    
-    handleContainerClick(e) {
-        e.stopPropagation();
-    }
-    
-    handleToggleDropdown(e) {
-        e.stopPropagation();
-        this.setState(prevState => ({
-            open: !prevState.open
-        }));
-    }
-    
-    handleEditorSelect(editorId) {
-        this.setState({
-            selectedEditor: editorId,
-            selectedCategory: 'all'
-        });
-        if (this.props.onEditorSelect) {
-            this.props.onEditorSelect(editorId);
-        }
-    }
-    
-    handleCategorySelect(categoryId) {
-        this.setState({
-            selectedCategory: categoryId
-        });
-        if (this.props.onCategorySelect) {
-            this.props.onCategorySelect(categoryId);
-        }
-    }
-    
-    render() {
-        const { open, selectedEditor, selectedCategory } = this.state;
-        const editors = [
-            { id: 'remixwarp', name: 'PineEditor' },
-            { id: '02engine', name: '02Engine' },
-            { id: 'astraeditor', name: 'AstraEditor' },
-            { id: 'turbowarp', name: 'TurboWarp' },
-            { id: 'bilup', name: 'Bilup' }
-        ];
-        
-        const categories = [
-        { id: 'all', name: '全部插件' },
-        { id: 'new', name: '新插件' },
-        { id: 'theme', name: '主题' },
-        { id: 'editor', name: '编辑器' },
-        { id: 'debug', name: '调试' },
-        { id: 'utility', name: '实用工具' },
-        { id: 'sprites', name: '角色' },
-        { id: 'stage', name: '舞台' },
-        { id: 'workflow', name: '工作流' },
-        { id: 'ui', name: '界面' },
-        { id: 'toolbox', name: '工具箱' }
-    ];
-        
-        return (
-            <div className={styles.dropdownContainer} onClick={this.handleContainerClick}>
-                <div className={styles.dropdownHeader} onClick={this.handleToggleDropdown}>
-                    <span className={styles.dropdownTitle}>{EDITOR_NAME}</span>
-                    <span className={styles.dropdownArrow}>{open ? '▼' : '▶'}</span>
-                </div>
-                {open && (
-                    <div className={styles.dropdownMenu}>
-                        {/* 第一级：编辑器选择 */}
-                        <div className={styles.dropdownLevel}>
-                            {editors.map(editor => (
-                                <div key={editor.id} className={styles.dropdownItem}>
-                                    <button
-                                        className={classNames(styles.dropdownButton, {
-                                            [styles.dropdownButtonActive]: selectedEditor === editor.id
-                                        })}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            this.handleEditorSelect(editor.id);
-                                        }}
-                                    >
-                                        {editor.name}
-                                    </button>
-                                    {selectedEditor === editor.id && (
-                                        <div className={styles.dropdownSubmenu}>
-                                            {/* 第二级：分类选择 */}
-                                            <div className={styles.dropdownLevel}>
-                                                {categories.map(category => (
-                                                    <div key={category.id} className={styles.dropdownItem}>
-                                                        <button
-                                                            className={classNames(styles.dropdownButton, {
-                                                                [styles.dropdownButtonActive]: selectedCategory === category.id
-                                                            })}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                this.handleCategorySelect(category.id);
-                                                            }}
-                                                        >
-                                                            {category.name}
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    }
-}
-MultiLevelDropdown.propTypes = {
-    selectedTags: PropTypes.instanceOf(Set).isRequired,
-    onTagToggle: PropTypes.func.isRequired,
-    onClearAll: PropTypes.func.isRequired,
-    selectedEditor: PropTypes.string,
-    selectedCategory: PropTypes.string,
-    onEditorSelect: PropTypes.func,
-    onCategorySelect: PropTypes.func
-};
 
 const getInitialSearch = () => {
     const hash = location.hash.substring(1);
@@ -449,6 +282,16 @@ const Tags = ({manifest}) => (
         {manifest.tags.includes('danger') && (
             <span className={classNames(styles.tag, styles.tagDanger)}>
                 {settingsTranslations.tagDanger}
+            </span>
+        )}
+        {manifest.tags.includes('astraeditor') && (
+            <span className={classNames(styles.tag, styles.tagAstraEditor)}>
+                {settingsTranslations.tagAstraEditor}
+            </span>
+        )}
+        {manifest.tags.includes('poorlang') && (
+            <span className={classNames(styles.tag, styles.tagPoorlang)}>
+                {settingsTranslations.tagPoorlang}
             </span>
         )}
     </span>
@@ -624,22 +467,12 @@ const Setting = ({
             {(setting.type === 'string' || setting.type === 'untranslated') && (
                 <React.Fragment>
                     {label}
-                    {setting.multiline ? (
-                        <textarea
-                            id={uniqueId}
-                            className={styles.textarea}
-                            value={value}
-                            onChange={e => SettingsStore.setAddonSetting(addonId, settingId, e.target.value)}
-                            rows={setting.rows || 5}
-                        />
-                    ) : (
-                        <TextInput
-                            id={uniqueId}
-                            type="text"
-                            value={value}
-                            onChange={newValue => SettingsStore.setAddonSetting(addonId, settingId, newValue)}
-                        />
-                    )}
+                    <TextInput
+                        id={uniqueId}
+                        type="text"
+                        value={value}
+                        onChange={newValue => SettingsStore.setAddonSetting(addonId, settingId, newValue)}
+                    />
                     <ResetButton
                         addonId={addonId}
                         settingId={settingId}
@@ -759,60 +592,27 @@ Presets.propTypes = {
     }))
 };
 
-// 查找与指定插件不兼容且已开启的插件
-const findIncompatibleAddons = (id, allSettings) => {
-    const manifest = importedAddons[id];
-    if (!manifest || !Array.isArray(manifest.incompatibleWith)) {
-        return [];
-    }
-    return manifest.incompatibleWith
-        .filter(conflictId => {
-            const conflictSettings = allSettings && allSettings[conflictId];
-            return conflictSettings && conflictSettings.enabled;
-        })
-        .map(conflictId => ({
-            id: conflictId,
-            name: addonTranslations[`${conflictId}/@name`] ||
-                (importedAddons[conflictId] && importedAddons[conflictId].name) ||
-                conflictId
-        }));
-};
-
 const Addon = ({
     id,
     settings,
     manifest,
-    extended,
-    allSettings
-}) => {
-    const [showConflictWarning, setShowConflictWarning] = React.useState(false);
-    const incompatibleAddons = findIncompatibleAddons(id, allSettings);
-
-    const handleToggle = value => {
-        // 尝试开启插件时检查不兼容性
-        if (value) {
-            const conflicts = findIncompatibleAddons(id, allSettings);
-            if (conflicts.length > 0) {
-                // 存在不兼容且已开启的插件，阻止开启并显示红色警告
-                setShowConflictWarning(true);
-                return;
-            }
-            if (manifest.tags.includes('danger') && !confirm(settingsTranslations.enableDangerous)) {
-                return;
-            }
-        }
-        setShowConflictWarning(false);
-        SettingsStore.setAddonEnabled(id, value);
-    };
-
-    return (
+    extended
+}) => (
     <div className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}>
         <div className={styles.addonHeader}>
             <label className={styles.addonTitle}>
                 <div className={styles.addonSwitch}>
                     <Switch
                         value={settings.enabled}
-                        onChange={handleToggle}
+                        onChange={value => {
+                            if (
+                                !value ||
+                                !manifest.tags.includes('danger') ||
+                                confirm(settingsTranslations.enableDangerous)
+                            ) {
+                                SettingsStore.setAddonEnabled(id, value);
+                            }
+                        }}
                     />
                 </div>
                 {manifest.tags.includes('theme') ? (
@@ -862,20 +662,6 @@ const Addon = ({
                 )}
             </div>
         </div>
-        {showConflictWarning && (
-            <div className={styles.conflictWarning}>
-                <span className={styles.conflictWarningText}>
-                    该插件与
-                    {incompatibleAddons.map((conflict, index) => (
-                        <span key={conflict.id}>
-                            <strong>{conflict.name}</strong>
-                            {index < incompatibleAddons.length - 1 ? '、' : ''}
-                        </span>
-                    ))}
-                    插件不兼容，无法同时开启，已停止选择该插件。
-                </span>
-            </div>
-        )}
         {settings.enabled && (
             <div className={styles.addonDetails}>
                 <div className={styles.description}>
@@ -925,8 +711,7 @@ const Addon = ({
             </div>
         )}
     </div>
-    );
-};
+);
 Addon.propTypes = {
     id: PropTypes.string,
     settings: PropTypes.shape({
@@ -945,12 +730,79 @@ Addon.propTypes = {
         })),
         presets: PropTypes.arrayOf(PropTypes.shape({})),
         tags: PropTypes.arrayOf(PropTypes.string),
-        noCompiler: PropTypes.bool,
-        incompatibleWith: PropTypes.arrayOf(PropTypes.string)
+        noCompiler: PropTypes.bool
     }),
-    extended: PropTypes.bool,
-    // eslint-disable-next-line react/forbid-prop-types
-    allSettings: PropTypes.object
+    extended: PropTypes.bool
+};
+
+// 自定义插件卡片：结构仿照 Addon，但带删除按钮、信任确认走父级 onToggle
+const CustomPluginCard = ({id, manifest, settings, onToggle, onDelete}) => (
+    <div className={classNames(styles.addon, styles['custom-addon'])}>
+        <div className={styles.addonHeader}>
+            <label className={styles.addonTitle}>
+                <div className={styles.addonSwitch}>
+                    <Switch
+                        value={settings.enabled}
+                        onChange={value => onToggle(id, value)}
+                    />
+                </div>
+                <img
+                    className={styles.extensionImage}
+                    src={extensionImage}
+                    draggable={false}
+                    alt=""
+                />
+                <div className={styles.addonTitleText}>
+                    {manifest.name}
+                </div>
+            </label>
+            <Tags manifest={manifest} />
+            <div className={styles.addonOperations}>
+                <button
+                    className={styles['custom-delete-button']}
+                    onClick={() => onDelete(id)}
+                    title={settingsTranslations.customPluginsDelete}
+                >
+                    {'×'}
+                </button>
+            </div>
+        </div>
+        {settings.enabled && (
+            <div className={styles.addonDetails}>
+                <div className={styles.description}>
+                    {manifest.description || settingsTranslations.customPluginsNoDescription}
+                </div>
+                {manifest.settings && (
+                    <div className={styles.settingContainer}>
+                        {manifest.settings.map(setting => (
+                            <Setting
+                                key={setting.id}
+                                addonId={id}
+                                setting={setting}
+                                value={settings[setting.id]}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+    </div>
+);
+CustomPluginCard.propTypes = {
+    id: PropTypes.string,
+    manifest: PropTypes.shape({
+        name: PropTypes.string,
+        description: PropTypes.string,
+        tags: PropTypes.arrayOf(PropTypes.string),
+        settings: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.string
+        }))
+    }),
+    settings: PropTypes.shape({
+        enabled: PropTypes.bool
+    }),
+    onToggle: PropTypes.func,
+    onDelete: PropTypes.func
 };
 
 const Dirty = props => (
@@ -999,7 +851,7 @@ UnsupportedAddons.propTypes = {
     }))
 };
 
-const InternalAddonList = ({addons, extended, allSettings}) => (
+const InternalAddonList = ({addons, extended}) => (
     addons.map(({id, manifest, state}) => (
         <Addon
             key={id}
@@ -1007,7 +859,6 @@ const InternalAddonList = ({addons, extended, allSettings}) => (
             settings={state}
             manifest={manifest}
             extended={extended}
-            allSettings={allSettings}
         />
     ))
 );
@@ -1049,7 +900,6 @@ class AddonGroup extends React.Component {
                     <InternalAddonList
                         addons={this.props.addons}
                         extended={this.props.extended}
-                        allSettings={this.props.allSettings}
                     />
                 )}
             </div>
@@ -1064,9 +914,7 @@ AddonGroup.propTypes = {
         state: PropTypes.shape({}).isRequired,
         manifest: PropTypes.shape({}).isRequired
     })).isRequired,
-    extended: PropTypes.bool.isRequired,
-    // eslint-disable-next-line react/forbid-prop-types
-    allSettings: PropTypes.object
+    extended: PropTypes.bool.isRequired
 };
 
 const addonToSearchItem = ({id, manifest}) => {
@@ -1098,10 +946,12 @@ const addonToSearchItem = ({id, manifest}) => {
             addText(0.1, addonTranslations[`${id}/@preset-description-${preset.id}`]);
         }
     }
-    for (const tag of manifest.tags) {
-        const key = `tags.${tag}`;
-        if (settingsTranslations[key]) {
-            addText(0.25, settingsTranslations[key]);
+    if (Array.isArray(manifest.tags)) {
+        for (const tag of manifest.tags) {
+            const key = `tags.${tag}`;
+            if (settingsTranslations[key]) {
+                addText(0.25, settingsTranslations[key]);
+            }
         }
     }
     if (manifest.info) {
@@ -1129,81 +979,11 @@ class AddonList extends React.Component {
             )
         );
     }
-    
-    filterAddonsByEditor (addons) {
-        if (!this.props.selectedEditors || this.props.selectedEditors.length === 0) {
-            return [];
-        }
-        
-        // 编辑器对应的插件标签
-        const editorTags = {
-            // TW与BL都有的存入TW
-            turbowarp: ['cat-blocks', 'editor-devtools', 'find-bar', 'middle-click-popup', 'jump-to-def', 'reorder-custom-inputs', 'editor-searchable-dropdowns', 'data-category-tweaks-v2', 'block-palette-icons', 'hide-flyout', 'mediarecorder', 'drag-drop', 'debugger', 'pause', 'mute-project', 'vol-slider', 'clones', 'mouse-pos', 'color-picker', 'remove-sprite-confirm', 'block-count', 'onion-skinning', 'paint-snap', 'default-costume-editor-color', 'bitmap-copy', '2d-color-picker', 'paint-skew', 'better-img-uploads', 'pick-colors-from-stage', 'custom-block-shape', 'editor-square-inputs', 'zebra-striping', 'custom-menu-bar', 'editor-theme3', 'custom-block-text', 'editor-colored-context-menus', 'editor-stage-left', 'editor-buttons-reverse-order', 'variable-manager', 'search-sprites', 'sprite-properties', 'gamepad', 'editor-sounds', 'folders', 'block-switching', 'load-extensions', 'custom-zoom', 'copy-reporter', 'initialise-sprite-position', 'blocks2image', 'remove-curved-stage-border', 'transparent-orphans', 'paint-by-default', 'block-cherry-picking', 'hide-new-variables', 'editor-extra-keys', 'hide-delete-button', 'no-script-bumping', 'disable-stage-drag-select', 'move-to-top-bottom', 'move-to-top-layer', 'disable-paste-offset', 'block-duplicate', 'rename-broadcasts', 'swap-local-global', 'editor-comment-previews', 'columns', 'number-pad', 'editor-number-arrow-keys', 'script-snap', 'fullscreen', 'hide-stage', 'tw-straighten-comments', 'tw-remove-backpack', 'tw-remove-feedback', 'tw-disable-cloud-variables', 'editor-stepping', 'canvas-screenshot', 'santa'],
-            
-            // BL特有的插件
-            bilup: ['autosave', 'no-category-text', 'green-flag-order', 'remove-extension-button', 'tab-styles', 'sprite-folders', 'project-size-display', 'novatheai'],
-            
-            // RW与BL对比多出的存入RW
-            remixwarp: ['calculator', 'daily-quote', 'stage-camera', 'window-theme', 'cat-blocks-extended', 'cn-code', 'keymap-cheatsheet', 'mini-map', 'project-health-dashboard', 'lint-system', 'script-tabs'],
-            
-            // AE与TW对比多出的存入AE
-            astraeditor: ['Terminal', 'astras-copilot', 'my-blocks-plus', 'hide-menubar', 'simple-project-analyzer', 'todo-list', 'block-pins', 'tw-comment-markdown-editor', 'bookmark', 'background'],
-            
-            // 02与TW对比多出的存入02
-            '02engine': ['coder-style', 'comment-vscode-sync', '02agent']
-        };
-        
-        // 收集所有选中编辑器的插件ID
-        const selectedAddonIds = new Set();
-        this.props.selectedEditors.forEach(editorId => {
-            const addonIds = editorTags[editorId] || [];
-            addonIds.forEach(id => selectedAddonIds.add(id));
-        });
-        
-        return addons.filter(addon => selectedAddonIds.has(addon.id));
-    }
-    
-    filterAddonsByCategory (addons) {
-        if (!this.props.selectedEditors || this.props.selectedEditors.length === 0) {
-            return [];
-        }
-        
-        // 收集所有选中编辑器的分类
-        const selectedCategories = new Set();
-        this.props.selectedEditors.forEach(editorId => {
-            const category = this.props.editorCategories[editorId];
-            if (category && category !== 'all') {
-                selectedCategories.add(category);
-            }
-        });
-        
-        // 如果所有选中的编辑器都选择了'全部插件'分类，或者没有选中任何分类，则返回所有插件
-        if (selectedCategories.size === 0) {
-            return addons;
-        }
-        
-        // 过滤插件，只要插件的标签包含任何一个选中的分类，就保留它
-        return addons.filter(addon => {
-            if (selectedCategories.has('new')) {
-                return addon.manifest.tags.includes('new');
-            }
-            return Array.from(selectedCategories).some(category => 
-                addon.manifest.tags.includes(category)
-            );
-        });
-    }
-    
     render () {
         let filteredAddons = this.props.addons;
         
         // Apply tag filtering first
         filteredAddons = this.filterAddonsByTags(filteredAddons);
-        
-        // Apply editor filtering
-        filteredAddons = this.filterAddonsByEditor(filteredAddons);
-        
-        // Apply category filtering
-        filteredAddons = this.filterAddonsByCategory(filteredAddons);
         
         if (this.props.search) {
             // Rebuild search index with filtered addons
@@ -1223,7 +1003,6 @@ class AddonList extends React.Component {
                     <InternalAddonList
                         addons={addons}
                         extended={this.props.extended}
-                        allSettings={this.props.allSettings}
                     />
                 </div>
             );
@@ -1268,7 +1047,6 @@ class AddonList extends React.Component {
                             open={open}
                             addons={addons}
                             extended={this.props.extended}
-                            allSettings={this.props.allSettings}
                         />
                     )
                 ))}
@@ -1284,11 +1062,17 @@ AddonList.propTypes = {
     })).isRequired,
     search: PropTypes.string.isRequired,
     selectedTags: PropTypes.instanceOf(Set).isRequired,
-    selectedEditors: PropTypes.arrayOf(PropTypes.string).isRequired,
-    editorCategories: PropTypes.objectOf(PropTypes.string).isRequired,
-    extended: PropTypes.bool.isRequired,
-    // eslint-disable-next-line react/forbid-prop-types
-    allSettings: PropTypes.object
+    extended: PropTypes.bool.isRequired
+};
+
+// 某些受限环境（如沙箱 iframe）会屏蔽 confirm 并返回 false / 抛错，导致导入、删除等操作静默中断。
+// 此处兜底：confirm 不可用时放行操作（信任/删除确认由调用方的文案负责）。
+const safeConfirm = message => {
+    try {
+        return confirm(message);
+    } catch (e) {
+        return true;
+    }
 };
 
 class AddonSettingsComponent extends React.Component {
@@ -1306,9 +1090,10 @@ class AddonSettingsComponent extends React.Component {
         this.searchRef = this.searchRef.bind(this);
         this.handleTagFilter = this.handleTagFilter.bind(this);
         this.handleClearAll = this.handleClearAll.bind(this);
-        this.handleEditorSelect = this.handleEditorSelect.bind(this);
-        this.handleCategorySelect = this.handleCategorySelect.bind(this);
-        this.handleToggleCategoryMenu = this.handleToggleCategoryMenu.bind(this);
+        this.handleImportCustomPluginFile = this.handleImportCustomPluginFile.bind(this);
+        this.handleImportCustomPluginUrl = this.handleImportCustomPluginUrl.bind(this);
+        this.handleToggleCustomPlugin = this.handleToggleCustomPlugin.bind(this);
+        this.handleDeleteCustomPlugin = this.handleDeleteCustomPlugin.bind(this);
         this.searchBar = null;
         this.state = {
             loading: false,
@@ -1316,34 +1101,33 @@ class AddonSettingsComponent extends React.Component {
             search: getInitialSearch(),
             extended: false,
             selectedTags: new Set(),
-            selectedEditors: ['remixwarp', '02engine', 'astraeditor', 'turbowarp', 'bilup'], // 默认选择全部编辑器
-            editorCategories: {
-                remixwarp: 'all',
-                '02engine': 'all',
-                astraeditor: 'all',
-                turbowarp: 'all',
-                bilup: 'all'
-            }, // 每个编辑器的分类选择
-            openCategoryMenus: {
-                remixwarp: false,
-                '02engine': false,
-                astraeditor: false,
-                turbowarp: false,
-                bilup: false
-            }, // 控制每个编辑器的分类菜单是否打开
-            align: 'left', // 对齐方式，默认靠左对齐
+            customPlugins: [],
             ...this.readFullAddonState()
         };
         if (Channels.changeChannel) {
             Channels.changeChannel.addEventListener('message', () => {
-                SettingsStore.readLocalStorage();
-                this.setState(this.readFullAddonState());
+                // 先同步自定义插件注册表，再重读本地存储与完整状态
+                CustomPlugins.refreshFromDB().then(() => {
+                    SettingsStore.readLocalStorage();
+                    this.setState({
+                        customPlugins: CustomPlugins.getAll(),
+                        ...this.readFullAddonState()
+                    });
+                });
             });
         }
     }
     componentDidMount () {
         SettingsStore.addEventListener('setting-changed', this.handleSettingStoreChanged);
         document.body.addEventListener('keydown', this.handleKeyDown);
+        // 启动时从 IndexedDB 恢复自定义插件列表，再重读本地存储恢复其开关状态
+        CustomPlugins.refreshFromDB().then(() => {
+            SettingsStore.readLocalStorage();
+            this.setState({
+                customPlugins: CustomPlugins.getAll(),
+                ...this.readFullAddonState()
+            });
+        });
     }
     componentDidUpdate (prevProps, prevState) {
         if (this.state.search !== prevState.search) {
@@ -1503,56 +1287,75 @@ class AddonSettingsComponent extends React.Component {
             selectedTags: new Set()
         });
     }
-    
-    handleEditorSelect (editorId) {
-        this.setState(prevState => {
-            const isSelected = prevState.selectedEditors.includes(editorId);
-            let newSelectedEditors;
-            let newEditorCategories;
-            
-            if (isSelected) {
-                // 取消选择编辑器
-                newSelectedEditors = prevState.selectedEditors.filter(id => id !== editorId);
-                newEditorCategories = { ...prevState.editorCategories };
-                delete newEditorCategories[editorId];
-            } else {
-                // 添加选择编辑器
-                newSelectedEditors = [...prevState.selectedEditors, editorId];
-                newEditorCategories = {
-                    ...prevState.editorCategories,
-                    [editorId]: 'all' // 默认选择全部插件分类
-                };
+    // ---- 自定义插件 ----
+    // 通用导入流程：校验代码格式 -> 信任确认 -> 注册 -> 通知主窗口
+    importCustomPlugin (code, sourceName) {
+        return (async () => {
+            if (!safeConfirm(settingsTranslations.customPluginsTrust)) {
+                return;
             }
-            
-            return {
-                selectedEditors: newSelectedEditors,
-                editorCategories: newEditorCategories,
-                openCategoryMenus: {
-                    ...prevState.openCategoryMenus,
-                    [editorId]: true // 选择编辑器时自动打开其分类菜单
+            let parsed;
+            try {
+                parsed = parseCustomPlugin(code);
+            } catch (err) {
+                alert(`${settingsTranslations.customPluginsImportError} ${err.message}`);
+                return;
+            }
+            await CustomPlugins.add(parsed.manifest, code, true);
+            this.setState({customPlugins: CustomPlugins.getAll()});
+            // 通知主窗口同步（主窗口收到 changeChannel 后会自动 refreshFromDB）
+            postThrottledSettingsChange(SettingsStore.store);
+            console.info(`[Custom Plugins] 已导入自定义插件: ${sourceName}`);
+            alert(settingsTranslations.customPluginsImportSuccess);
+        })();
+    }
+    handleImportCustomPluginFile (e) {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => this.importCustomPlugin(reader.result, file.name);
+        reader.readAsText(file);
+        // 允许重复选择同一个文件
+        e.target.value = '';
+    }
+    handleImportCustomPluginUrl () {
+        const url = prompt(settingsTranslations.customPluginsUrlPrompt);
+        if (!url) {
+            return;
+        }
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-            };
+                return response.text();
+            })
+            .then(code => this.importCustomPlugin(code, url))
+            .catch(err => alert(`${settingsTranslations.customPluginsUrlError} ${err.message}`));
+    }
+    handleToggleCustomPlugin (id, enabled) {
+        // 首次启用需要用户确认信任（不信任则拒绝启用）
+        if (enabled && !CustomPlugins.isTrusted(id)) {
+            if (!safeConfirm(settingsTranslations.customPluginsTrust)) {
+                return;
+            }
+            CustomPlugins.setTrusted(id, true);
+        }
+        SettingsStore.setAddonEnabled(id, enabled);
+    }
+    handleDeleteCustomPlugin (id) {
+        if (!safeConfirm(settingsTranslations.customPluginsDeleteConfirm)) {
+            return;
+        }
+        // 先禁用再删除，避免残留运行实例
+        SettingsStore.setAddonEnabled(id, false);
+        CustomPlugins.remove(id).then(() => {
+            this.setState({customPlugins: CustomPlugins.getAll()});
+            postThrottledSettingsChange(SettingsStore.store);
         });
     }
-    
-    handleCategorySelect (editorId, categoryId) {
-        this.setState(prevState => ({
-            editorCategories: {
-                ...prevState.editorCategories,
-                [editorId]: categoryId
-            }
-        }));
-    }
-    
-    handleToggleCategoryMenu (editorId) {
-        this.setState(prevState => ({
-            openCategoryMenus: {
-                ...prevState.openCategoryMenus,
-                [editorId]: !prevState.openCategoryMenus[editorId]
-            }
-        }));
-    }
-    
     render () {
         const addonState = Object.entries(supportedAddons).map(([id, manifest]) => ({
             id,
@@ -1562,6 +1365,17 @@ class AddonSettingsComponent extends React.Component {
         const unsupported = Object.entries(unsupportedAddons).map(([id, manifest]) => ({
             id,
             manifest
+        }));
+        // 自定义插件状态（每个插件实时读取设置存储）
+        const customAddonState = this.state.customPlugins.map(plugin => ({
+            ...plugin,
+            settings: {
+                enabled: SettingsStore.getAddonEnabled(plugin.id),
+                ...(plugin.manifest.settings || []).reduce((acc, setting) => {
+                    acc[setting.id] = SettingsStore.getAddonSetting(plugin.id, setting.id);
+                    return acc;
+                }, {})
+            }
         }));
         return (
             <div className={styles.container}>
@@ -1599,216 +1413,108 @@ class AddonSettingsComponent extends React.Component {
                         />
                     )}
                 </div>
-                <div className={styles.mainContent} style={{ flexDirection: this.state.align === 'left' ? 'row' : 'row-reverse' }}>
-                    <div className={styles.sidebar}>
-                        <div className={styles.editorMenu}>
-                            {/* 对齐按钮 */}
-                            <div className={styles.alignButtons}>
-                                <div className={styles.alignButtonGroup}>
-                                    <button
-                                        className={classNames(styles.alignButton, {
-                                            [styles.alignButtonActive]: this.state.align === 'left'
-                                        })}
-                                        onClick={() => this.setState({ align: 'left' })}
-                                        title="靠左对齐"
-                                    >
-                                        ←
-                                    </button>
-                                    <button
-                                        className={classNames(styles.alignButton, {
-                                            [styles.alignButtonActive]: this.state.align === 'right'
-                                        })}
-                                        onClick={() => this.setState({ align: 'right' })}
-                                        title="靠右对齐"
-                                    >
-                                        →
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <h3>编辑器</h3>
-                            <div className={classNames(styles.editorButtons, {
-                                [styles.alignLeft]: this.state.align === 'left',
-                                [styles.alignRight]: this.state.align === 'right'
-                            })}>
-                                {/* 全部编辑器菜单项 */}
-                                <div key="all" className={classNames(styles.editorButtonContainer, {
-                                    [styles.alignLeft]: this.state.align === 'left',
-                                    [styles.alignRight]: this.state.align === 'right'
-                                })}>
-                                    <div className={classNames(styles.editorButtonWrapper, {
-                                        [styles.alignLeft]: this.state.align === 'left',
-                                        [styles.alignRight]: this.state.align === 'right'
-                                    })}>
-                                        <button
-                                            className={classNames(styles.editorButton, {
-                                                [styles.editorButtonActive]: this.state.selectedEditors.length === 5
-                                            })}
-                                            onClick={() => {
-                                                // 切换选择所有编辑器
-                                                if (this.state.selectedEditors.length === 5) {
-                                                    // 当前已选择所有编辑器，取消选择
-                                                    this.setState({
-                                                        selectedEditors: [],
-                                                        editorCategories: {},
-                                                        openCategoryMenus: {
-                                                            remixwarp: false,
-                                                            '02engine': false,
-                                                            astraeditor: false,
-                                                            turbowarp: false,
-                                                            bilup: false
-                                                        }
-                                                    });
-                                                } else {
-                                                    // 当前未选择所有编辑器，选择所有
-                                                    this.setState({
-                                                        selectedEditors: ['remixwarp', '02engine', 'astraeditor', 'turbowarp', 'bilup'],
-                                                        editorCategories: {
-                                                            remixwarp: 'all',
-                                                            '02engine': 'all',
-                                                            astraeditor: 'all',
-                                                            turbowarp: 'all',
-                                                            bilup: 'all'
-                                                        },
-                                                        openCategoryMenus: {
-                                                            remixwarp: false,
-                                                            '02engine': false,
-                                                            astraeditor: false,
-                                                            turbowarp: false,
-                                                            bilup: false
-                                                        }
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            全部
-                                        </button>
-                                    </div>
-                                </div>
-                                {
-                                    [
-                                        { id: 'remixwarp', name: 'RemixWarp' },
-                                        { id: '02engine', name: '02Engine' },
-                                        { id: 'astraeditor', name: 'AstraEditor' },
-                                        { id: 'turbowarp', name: 'TurboWarp' },
-                                        { id: 'bilup', name: 'Bilup' }
-                                    ].map(editor => (
-                                        <div key={editor.id} className={classNames(styles.editorButtonContainer, {
-                                            [styles.alignLeft]: this.state.align === 'left',
-                                            [styles.alignRight]: this.state.align === 'right'
-                                        })}>
-                                            <div className={classNames(styles.editorButtonWrapper, {
-                                                [styles.alignLeft]: this.state.align === 'left',
-                                                [styles.alignRight]: this.state.align === 'right'
-                                            })}>
-                                                <button
-                                                    className={classNames(styles.editorButton, {
-                                                        [styles.editorButtonActive]: this.state.selectedEditors.includes(editor.id)
-                                                    })}
-                                                    onClick={() => this.handleEditorSelect(editor.id)}
-                                                >
-                                                    {editor.name}
-                                                </button>
-                                                <button
-                                                    className={styles.categoryToggleButton}
-                                                    onClick={() => this.handleToggleCategoryMenu(editor.id)}
-                                                >
-                                                    {this.state.openCategoryMenus[editor.id] ? '▼' : '▶'}
-                                                </button>
-                                            </div>
-                                            {this.state.openCategoryMenus[editor.id] && (
-                                                <div className={classNames(styles.categoryMenu, {
-                                                    [styles.alignLeft]: this.state.align === 'left',
-                                                    [styles.alignRight]: this.state.align === 'right'
-                                                })}>
-                                                    <h4>分类</h4>
-                                                    <div className={styles.categoryButtons}>
-                                                        {
-                                                            [
-                                                                { id: 'all', name: '全部插件' },
-                                                                { id: 'new', name: '新插件' },
-                                                                { id: 'theme', name: '主题' },
-                                                                { id: 'editor', name: '编辑器' },
-                                                                { id: 'debug', name: '调试' },
-                                                                { id: 'utility', name: '实用工具' },
-                                                                { id: 'sprites', name: '角色' },
-                                                                { id: 'stage', name: '舞台' },
-                                                                { id: 'workflow', name: '工作流' },
-                                                                { id: 'ui', name: '界面' },
-                                                                { id: 'toolbox', name: '工具箱' }
-                                                            ].map(category => (
-                                                                <button
-                                                                    key={category.id}
-                                                                    className={classNames(styles.categoryButton, {
-                                                                        [styles.categoryButtonActive]: this.state.editorCategories[editor.id] === category.id
-                                                                    })}
-                                                                    onClick={() => this.handleCategorySelect(editor.id, category.id)}
-                                                                >
-                                                                    {category.name}
-                                                                </button>
-                                                            ))
-                                                        }
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        </div>
-                    </div>
-                    <div className={styles.addons}>
-                        {!this.state.loading && (
-                            <div className={styles.section}>
-                                <AddonList
-                                    addons={addonState}
-                                    search={this.state.search}
-                                    selectedTags={this.state.selectedTags}
-                                    selectedEditors={this.state.selectedEditors}
-                                    editorCategories={this.state.editorCategories}
-                                    extended={this.state.extended}
-                                    allSettings={this.state}
-                                />
-                                <div className={styles.footerButtons}>
-                                    <button
-                                        className={classNames(styles.button, styles.resetAllButton)}
-                                        onClick={this.handleResetAll}
-                                    >
-                                        {settingsTranslations.resetAll}
-                                    </button>
-                                    <button
-                                        className={classNames(styles.button, styles.exportButton)}
-                                        onClick={this.handleExport}
-                                    >
-                                        {settingsTranslations.export}
-                                    </button>
-                                    <button
-                                        className={classNames(styles.button, styles.importButton)}
-                                        onClick={this.handleImport}
-                                    >
-                                        {settingsTranslations.import}
-                                    </button>
-                                </div>
-                                <footer className={styles.footer}>
-                                    {unsupported.length ? (
-                                        <UnsupportedAddons
-                                            addons={unsupported}
-                                        />
-                                    ) : null}
-                                    <span
-                                        className={styles.version}
-                                        onClick={this.handleClickVersion}
-                                    >
-                                        {this.state.extended ?
-                                            // Don't bother translating, pretty much no one will ever see this.
-                                            // eslint-disable-next-line max-len
-                                            `You have enabled debug mode. (Addons version ${upstreamMeta.commit})` :
-                                            `Addons version ${upstreamMeta.commit}`}
+                <div className={styles.addons}>
+                    {!this.state.loading && (
+                        <div className={styles.section}>
+                            <div className={styles['custom-plugins-section']}>
+                                <div className={styles['custom-plugins-header']}>
+                                    <span className={styles['custom-plugins-title']}>
+                                        {settingsTranslations.customPlugins}
                                     </span>
-                                </footer>
+                                    <span className={styles['custom-plugins-hint']}>
+                                        {settingsTranslations.customPluginsHint}
+                                    </span>
+                                </div>
+                                {customAddonState.length === 0 && (
+                                    <div className={styles['custom-plugins-empty']}>
+                                        {settingsTranslations.customPluginsEmpty}
+                                    </div>
+                                )}
+                                {customAddonState.map(plugin => (
+                                    <CustomPluginCard
+                                        key={plugin.id}
+                                        id={plugin.id}
+                                        manifest={plugin.manifest}
+                                        settings={plugin.settings}
+                                        onToggle={this.handleToggleCustomPlugin}
+                                        onDelete={this.handleDeleteCustomPlugin}
+                                    />
+                                ))}
+                                <div className={styles['custom-plugins-actions']}>
+                                    <button
+                                        className={classNames(styles.button, styles['custom-plugins-import-button'])}
+                                        onClick={() => this.fileInputRef.click()}
+                                    >
+                                        {settingsTranslations.customPluginsImportFile}
+                                    </button>
+                                    <button
+                                        className={classNames(styles.button, styles['custom-plugins-import-button'])}
+                                        onClick={this.handleImportCustomPluginUrl}
+                                    >
+                                        {settingsTranslations.customPluginsImportUrl}
+                                    </button>
+                                    <input
+                                        ref={el => {
+                                            this.fileInputRef = el;
+                                        }}
+                                        type="file"
+                                        accept=".js,.mjs"
+                                        hidden
+                                        onChange={this.handleImportCustomPluginFile}
+                                    />
+                                </div>
                             </div>
-                        )}
-                    </div>
+                            <TagFilter
+                                tags={allTags}
+                                selectedTags={this.state.selectedTags}
+                                onTagToggle={this.handleTagFilter}
+                                onClearAll={this.handleClearAll}
+                            />
+                            <AddonList
+                                addons={addonState}
+                                search={this.state.search}
+                                selectedTags={this.state.selectedTags}
+                                extended={this.state.extended}
+                            />
+                            <div className={styles.footerButtons}>
+                                <button
+                                    className={classNames(styles.button, styles.resetAllButton)}
+                                    onClick={this.handleResetAll}
+                                >
+                                    {settingsTranslations.resetAll}
+                                </button>
+                                <button
+                                    className={classNames(styles.button, styles.exportButton)}
+                                    onClick={this.handleExport}
+                                >
+                                    {settingsTranslations.export}
+                                </button>
+                                <button
+                                    className={classNames(styles.button, styles.importButton)}
+                                    onClick={this.handleImport}
+                                >
+                                    {settingsTranslations.import}
+                                </button>
+                            </div>
+                            <footer className={styles.footer}>
+                                {unsupported.length ? (
+                                    <UnsupportedAddons
+                                        addons={unsupported}
+                                    />
+                                ) : null}
+                                <span
+                                    className={styles.version}
+                                    onClick={this.handleClickVersion}
+                                >
+                                    {this.state.extended ?
+                                        // Don't bother translating, pretty much no one will ever see this.
+                                        // eslint-disable-next-line max-len
+                                        `You have enabled debug mode. (Addons version ${upstreamMeta.commit})` :
+                                        `Addons version ${upstreamMeta.commit}`}
+                                </span>
+                            </footer>
+                        </div>
+                    )}
                 </div>
             </div>
         );

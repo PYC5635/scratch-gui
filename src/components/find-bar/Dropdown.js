@@ -3,9 +3,21 @@ import BlockInstance from '../../lib/find-bar/BlockInstance';
 import Carousel from './Carousel';
 import {getReactInternalKey} from './dom-utils';
 
+// Opcode -> scratch-blocks message key remapping for blocks whose opcode has
+// underscores that the message table does not.
+const operatorMap = {
+    'OPERATORS_LETTER_OF': 'OPERATORS_LETTEROF',
+    'OPERATORS_LETTERS_OF': 'OPERATORS_LETTERSOF',
+    'OPERATORS_INDEX_OF': 'OPERATORS_INDEXOF',
+    'OPERATORS_CHANGE_CASE': 'OPERATORS_CHANGECASE'
+};
+
 const normalizeType = type => {
     const upper = type.toUpperCase();
-    if (upper.startsWith('OPERATOR'))  return 'OPERATORS' + upper.slice(8);
+    if (upper.startsWith('OPERATOR')) {
+        const mapped = 'OPERATORS' + upper.slice(8);
+        return operatorMap[mapped] || mapped;
+    }
     if (upper === 'SOUND_SETEFFECTTO') return 'SOUND_SETEFFECTO';
     const controlMap = {
         'CONTROL_WAIT_UNTIL': 'CONTROL_WAITUNTIL',
@@ -16,13 +28,14 @@ const normalizeType = type => {
         'CONTROL_DELETE_THIS_CLONE': 'CONTROL_DELETETHISCLONE',
         'CONTROL_INCR_COUNTER': 'CONTROL_INCRCOUNTER',
         'CONTROL_CLEAR_COUNTER': 'CONTROL_CLEARCOUNTER',
-        'CONTROL_ALL_AT_ONCE': 'CONTROL_ALLATONCE'
+        'CONTROL_ALL_AT_ONCE': 'CONTROL_ALLATONCE',
+        'CONTROL_GET_COUNTER': 'CONTROL_COUNTER'
     };
     if (controlMap[upper]) return controlMap[upper];
     return upper;
 };
 
-const normalizeMessagePlaceholders = text => String(text).replace(/%\d+|%b|%s/g, '()');
+const normalizeMessagePlaceholders = text => String(text).replace(/%\d+/g, '()');
 
 export default class Dropdown {
     constructor ({ScratchBlocks, utils, vm, msg}) {
@@ -39,41 +52,22 @@ export default class Dropdown {
         this._cachedVariableUses = new Map();
         this._cachedProcedureCalls = new Map();
         this._cachedEventCalls = new Map();
-        this._cacheWorkspaceVersion = null;
-    }
-
-    get workspace () {
-        return this.ScratchBlocks.getMainWorkspace();
-    }
-
-    _getWorkspaceVersion () {
-        const workspace = this.workspace;
-        if (!workspace) return null;
-        return workspace.id || (workspace.getAllBlocks && JSON.stringify(workspace.getAllBlocks().map(b => b.id)));
-    }
-
-    _shouldInvalidateCache () {
-        const currentVersion = this._getWorkspaceVersion();
-        if (currentVersion !== this._cacheWorkspaceVersion) {
-            this._cacheWorkspaceVersion = currentVersion;
-            this._cachedVariableUses.clear();
-            this._cachedProcedureCalls.clear();
-            this._cachedEventCalls.clear();
-            return true;
-        }
-        return false;
-    }
-
-    _invalidateCache () {
-        this._cachedVariableUses.clear();
-        this._cachedProcedureCalls.clear();
-        this._cachedEventCalls.clear();
-        this._cacheWorkspaceVersion = null;
     }
 
     createDom () {
         this.el = document.createElement('ul');
         this.el.className = 'sa-find-dropdown';
+        // Event delegation instead of one listener per item: big projects can
+        // build hundreds of entries and individual listeners add up quickly.
+        this.el.addEventListener('mousedown', e => {
+            const item = e.target && e.target.closest ? e.target.closest('li') : null;
+            if (item && this.items.indexOf(item) !== -1) {
+                this.onItemClick(item);
+                e.preventDefault();
+                return false;
+            }
+            return undefined;
+        });
         return this.el;
     }
 
@@ -120,15 +114,10 @@ export default class Dropdown {
 
     addItem (proc, messagesList, colours) {
         const item = document.createElement('li');
+        item.innerText = proc.procCode;
         item.data = proc;
+        item.displayName = this.translateProcCode(proc, messagesList);
         const name = normalizeType(proc.procCode);
-        const msgAny = messagesList[2];
-        const blockSwitchingKey = `block-switching/${proc.procCode}`;
-        let displayName = msgAny ? msgAny(blockSwitchingKey) : null;
-        if (!displayName) {
-            displayName = messagesList[0][name] || messagesList[1][name] || proc.procCode;
-        }
-        item.displayName = normalizeMessagePlaceholders(displayName);
 
         const colorIds = {
             receive: 'events',
@@ -140,20 +129,12 @@ export default class Dropdown {
             LIST: 'data-lists',
             costume: 'looks',
             sound: 'sounds',
-            control: 'control',
-            operators: 'operators',
-            sounds: 'sounds',
-            block: 'more',
-            flag: 'events'
+            block: 'more'
         };
 
         if (proc.cls === 'flag') {
             item.className = 'sa-find-flag';
-            // 添加绿旗表情符号
-            const textNode = document.createTextNode('当 🟩 被点击');
-            item.appendChild(textNode);
         } else {
-            item.innerText = item.displayName;
             let colorId = colorIds[proc.cls];
             if (!colorId) {
                 const code = proc.procCode.split('_', 1)[0];
@@ -171,7 +152,7 @@ export default class Dropdown {
                 ].includes(code)) {
                     colorId = code;
                     if (colorId === 'sound') colorId = 'sounds';
-                } else if (code === 'operator' || code === 'operators') {
+                } else if (code === 'operator') {
                     colorId = 'operators';
                 } else {
                     colorId = 'more';
@@ -185,15 +166,55 @@ export default class Dropdown {
             }
         }
 
-        item.addEventListener('mousedown', e => {
-            this.onItemClick(item);
-            e.preventDefault();
-            return false;
-        });
-
         this.items.push(item);
         this.el.appendChild(item);
         return item;
+    }
+
+    /**
+     * Resolve the translated name shown for a search result.
+     * scratch-blocks core messages take priority (they are complete for the
+     * core category blocks); the translated block JSON covers extension blocks
+     * that are not present in ScratchBlocks.Msg.
+     */
+    translateBlockName (name, messagesList) {
+        if (!name) return null;
+        return messagesList[0][name] || messagesList[1][name] || null;
+    }
+
+    /**
+     * Compute the display name of a search result.
+     * @param {object} proc - the BlockItem being rendered.
+     * @param {Array} messagesList - [ScratchBlocks.Msg, translatedBlockJson].
+     * @returns {string} the translated (or fallback) display text.
+     */
+    translateProcCode (proc, messagesList) {
+        const procCode = proc.procCode;
+        const name = normalizeType(procCode);
+
+        if (proc.isTextInputEntry) {
+            // Entries look like "motion_movesteps: 10". Translate the opcode
+            // prefix and keep the user-entered value, so the row shows the
+            // localized block name instead of the raw English opcode.
+            const colonIndex = procCode.indexOf(':');
+            if (colonIndex !== -1) {
+                const opcodePart = procCode.substring(0, colonIndex).trim();
+                const valuePart = procCode.substring(colonIndex + 1).trim();
+                const translated = this.translateBlockName(normalizeType(opcodePart), messagesList);
+                if (translated) {
+                    return normalizeMessagePlaceholders(`${translated}: ${valuePart}`);
+                }
+            }
+        }
+
+        if (name === 'CONTROL_IF_ELSE') {
+            return normalizeMessagePlaceholders(
+                normalizeMessagePlaceholders(this.translateBlockName('CONTROL_IF', messagesList)) + ' %2 ' +
+                normalizeMessagePlaceholders(this.translateBlockName('CONTROL_ELSE', messagesList)) + ' %3 '
+            );
+        }
+
+        return normalizeMessagePlaceholders(this.translateBlockName(name, messagesList) || procCode);
     }
 
     onItemClick (item, instanceBlock) {
@@ -204,17 +225,6 @@ export default class Dropdown {
         if (this.selected !== item) {
             item.classList.add('sel');
             this.selected = item;
-        }
-
-        if (item.data.targetId && item.data.targetId !== this.utils.getEditingTarget().id) {
-            const target = this.vm.runtime.getTargetById(item.data.targetId);
-            if (target) {
-                this.vm.setEditingTarget(target.id);
-                setTimeout(() => {
-                    this.navigateToBlock(item, instanceBlock);
-                }, 100);
-                return;
-            }
         }
 
         this.navigateToBlock(item, instanceBlock);
@@ -271,10 +281,7 @@ export default class Dropdown {
         }
 
         if (item.data.clones) {
-            const blocks = [this.workspace.getBlockById(item.data.labelID)];
-            for (const cloneID of item.data.clones) {
-                blocks.push(this.workspace.getBlockById(cloneID));
-            }
+            const blocks = [item.data.labelID, ...item.data.clones].map(id => ({id}));
             this.carousel.build(item, blocks, instanceBlock);
             return;
         }
@@ -284,23 +291,22 @@ export default class Dropdown {
     }
 
     getVariableUsesById (id) {
-        this._shouldInvalidateCache();
-
         if (this._cachedVariableUses.has(id)) {
             return this._cachedVariableUses.get(id);
         }
 
         const uses = [];
-        const topBlocks = this.workspace.getTopBlocks();
-        for (const topBlock of topBlocks) {
-            const kids = topBlock.getDescendants();
-            for (const block of kids) {
-                const blockVariables = block.getVarModels && block.getVarModels();
-                if (blockVariables) {
-                    for (const blockVar of blockVariables) {
-                        if (blockVar.getId() === id) {
-                            uses.push(block);
-                        }
+        const target = this.utils.getEditingTarget();
+        const blocks = target && target.blocks && target.blocks._blocks;
+        if (blocks) {
+            for (const blockId of Object.keys(blocks)) {
+                const block = blocks[blockId];
+                const fields = block.fields;
+                if (!fields) continue;
+                for (const name of Object.keys(fields)) {
+                    if (fields[name].id === id) {
+                        uses.push(new BlockInstance(target, block));
+                        break;
                     }
                 }
             }
@@ -311,24 +317,27 @@ export default class Dropdown {
     }
 
     getCallsToProcedureById (id) {
-        this._shouldInvalidateCache();
-
         if (this._cachedProcedureCalls.has(id)) {
             return this._cachedProcedureCalls.get(id);
         }
 
-        const procBlock = this.workspace.getBlockById(id);
-        const label = procBlock.getChildren()[0];
-        const procCode = label.getProcCode();
-
-        const uses = [procBlock];
-        const topBlocks = this.workspace.getTopBlocks();
-        for (const topBlock of topBlocks) {
-            const kids = topBlock.getDescendants();
-            for (const block of kids) {
-                if (block.type === 'procedures_call') {
-                    if (block.getProcCode() === procCode) {
-                        uses.push(block);
+        const uses = [];
+        const target = this.utils.getEditingTarget();
+        const blocks = target && target.blocks && target.blocks._blocks;
+        const def = blocks && blocks[id];
+        if (def) {
+            uses.push(new BlockInstance(target, def));
+            const protoId = def.inputs && def.inputs.custom_block && def.inputs.custom_block.block;
+            const proto = protoId && blocks[protoId];
+            const procCode = proto && proto.mutation && proto.mutation.proccode;
+            if (procCode) {
+                for (const blockId of Object.keys(blocks)) {
+                    const block = blocks[blockId];
+                    if (
+                        block.opcode === 'procedures_call' &&
+                        block.mutation && block.mutation.proccode === procCode
+                    ) {
+                        uses.push(new BlockInstance(target, block));
                     }
                 }
             }
@@ -339,8 +348,6 @@ export default class Dropdown {
     }
 
     getCallsToEventsByName (name) {
-        this._shouldInvalidateCache();
-
         if (this._cachedEventCalls.has(name)) {
             return this._cachedEventCalls.get(name);
         }
@@ -390,6 +397,5 @@ export default class Dropdown {
         this._cachedVariableUses.clear();
         this._cachedProcedureCalls.clear();
         this._cachedEventCalls.clear();
-        this._cacheWorkspaceVersion = null;
     }
 }

@@ -1,3 +1,9 @@
+const pad2 = n => String(n).padStart(2, '0');
+const formatDateTime = ts => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
 const timeAgo = ms => {
     const mins = Math.floor((Date.now() - ms) / 60000);
     if (mins < 1) return 'just now';
@@ -18,4 +24,4 @@ const formatBytes = bytes => {
     return `${value} B`;
 };
 
-export {timeAgo, sameUser, formatBytes};
+export {formatDateTime, timeAgo, sameUser, formatBytes};

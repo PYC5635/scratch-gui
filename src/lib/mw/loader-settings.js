@@ -1,3 +1,4 @@
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 const STORAGE_KEY = 'mw:loader-settings';
 
 const DEFAULTS = {
@@ -16,7 +17,7 @@ let cached = null;
 
 const read = () => {
     try {
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        const stored = JSON.parse(getStorageItem(STORAGE_KEY));
         if (!stored || typeof stored !== 'object') return {...DEFAULTS};
         return {
             ...DEFAULTS,

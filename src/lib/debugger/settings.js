@@ -1,4 +1,5 @@
 import EventTarget from '../../addons/event-target.js';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 
 const STORAGE_PREFIX = 'mw:debugger:';
 
@@ -67,7 +68,12 @@ for (const definition of DEFINITIONS) {
 const events = new EventTarget();
 
 const getSetting = id => {
-    const stored = localStorage.getItem(STORAGE_PREFIX + id);
+    let stored = null;
+    try {
+        stored = getStorageItem(STORAGE_PREFIX + id);
+    } catch (e) {
+        stored = null;
+    }
     if (stored === 'true') return true;
     if (stored === 'false') return false;
     return defaults[id] || false;

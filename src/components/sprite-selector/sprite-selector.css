@@ -126,4 +126,41 @@
     filter: opacity(15%) brightness(0%);
 }
 
+/* Short viewports (mobile landscape, etc.): turn the sprite selector into a
+   compact horizontal strip so it stays usable next to the stage. */
+@media only screen and (max-height: 480px) {
+    .sprite-selector {
+        display: flex;
+        flex-direction: column;
+    }
 
+    .scroll-wrapper {
+        height: auto;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: hidden;
+        overflow-x: auto;
+        /* hide scrollbars for a cleaner strip on touch devices */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .scroll-wrapper::-webkit-scrollbar {
+        display: none;
+    }
+
+    .items-wrapper {
+        flex-wrap: nowrap;
+        align-items: center;
+        height: 100%;
+    }
+
+    .sprite-wrapper {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+        min-width: 3.5rem;
+        min-height: 3.5rem;
+        margin: calc($space / 2);
+    }
+}

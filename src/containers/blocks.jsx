@@ -7,7 +7,6 @@ import React from 'react';
 import {intlShape, injectIntl, defineMessages} from 'react-intl';
 import VMScratchBlocks from '../lib/blocks';
 import VM from 'scratch-vm';
-import initializeBlockDisableExtension from '../lib/block-disable-extensions';
 
 import log from '../lib/utils/log.js';
 import Prompt from './prompt.jsx';
@@ -48,11 +47,9 @@ import {
 } from '../reducers/editor-tab';
 import AddonHooks from '../addons/hooks.js';
 import LoadScratchBlocksHOC from '../lib/components/tw-load-scratch-blocks-hoc.jsx';
-import {findTopBlock} from '../lib/backpack/code-payload.js';
+import {offsetToPosition} from '../lib/backpack/code-payload.js';
 import {gentlyRequestPersistentStorage} from '../lib/utils/storage-request.js';
-import RestorePointAPI from '../lib/api/restore-points';
-import CollaborationService from '../lib/collaboration-service.js';
-import {unlockAchievement} from '../lib/achievements.js';
+import CollaborationService from '../lib/collaboration/index.js';
 
 // TW: Strings we add to scratch-blocks are localized here
 const messages = defineMessages({
@@ -82,17 +79,6 @@ const messages = defineMessages({
     }
 });
 
-const getProcedureReturnMessage = (intl) => {
-    const message = intl.formatMessage(messages.PROCEDURES_RETURN, {
-        v: '%1'
-    });
-    if (typeof message !== 'string' || !/%1/.test(message)) {
-        log.warn('PROCEDURES_RETURN translation is missing %1 placeholder; falling back to default.');
-        return 'return %1';
-    }
-    return message;
-};
-
 const addFunctionListener = (object, property, callback) => {
     const oldFn = object[property];
     object[property] = function (...args) {
@@ -105,6 +91,22 @@ const addFunctionListener = (object, property, callback) => {
 const DroppableBlocks = DropAreaHOC([
     DragConstants.BACKPACK_CODE
 ])(BlocksComponent);
+
+// Virtualized (deferred) workspace rendering is cheap enough that it pays off
+// well below the original 100-block threshold, so load any non-trivial project
+// through it. This avoids a one-time full synchronous render of every block,
+// which is what causes the visible freeze when opening big projects.
+const DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS = 40;
+
+/**
+ * Returns true when the workspace is mounted, alive, and not disposed.
+ * Every method that touches this.workspace MUST gate on this check to
+ * prevent crashes when the workspace has been destroyed asynchronously
+ * (tab switch, project load, unmount) before a callback fires.
+ */
+const workspaceIsAlive = (ctx) => {
+    return !ctx.unmounted && ctx.workspace && !ctx.workspace.isDisposed;
+};
 
 class Blocks extends React.Component {
     constructor (props) {
@@ -145,13 +147,7 @@ class Blocks extends React.Component {
             'onWorkspaceMetricsChange',
             'setBlocks',
             'setLocale',
-            'handleEnableProcedureReturns',
-            'handleAchievementWorkspaceEvent',
-            'handleProjectRunStart',
-            'handleProjectRunStop',
-            'handleDocumentCopy',
-            'handleDocumentPaste',
-            'handleVanillaPaletteChanged'
+            'handleEnableProcedureReturns'
         ]);
         this.ScratchBlocks.prompt = this.handlePromptStart;
         this.ScratchBlocks.statusButtonCallback = this.handleConnectionModalStart;
@@ -163,24 +159,9 @@ class Blocks extends React.Component {
         this.setFlyoutWidth = this.setFlyoutWidth.bind(this);
 
         this.handleAddonSettingChanged = this.handleAddonSettingChanged.bind(this);
+        this.handleVanillaPaletteChanged = this.handleVanillaPaletteChanged.bind(this);
         this.applyPaletteResizeEnabledState = this.applyPaletteResizeEnabledState.bind(this);
         this.updateBlockColors = this.updateBlockColors.bind(this);
-
-        this.handlePaletteHoverEnter = this.handlePaletteHoverEnter.bind(this);
-        this.handlePaletteHoverLeave = this.handlePaletteHoverLeave.bind(this);
-        this.attachPaletteHoverListeners = this.attachPaletteHoverListeners.bind(this);
-        this.detachPaletteHoverListeners = this.detachPaletteHoverListeners.bind(this);
-
-        // Hat block comment reminder feature
-        this.hatBlockCommentReminderEnabled = localStorage.getItem('mw:hat-block-comment-reminder') !== 'false';
-        this.hatReminderCheckInterval = parseInt(localStorage.getItem('mw:hat-reminder-check-interval'), 10) || 500;
-        this.hatReminderBlockThreshold = parseInt(localStorage.getItem('mw:hat-reminder-block-threshold'), 10) || 10;
-        this.hatReminderCommentText = localStorage.getItem('mw:hat-reminder-comment-text') || '记得写注释，不然别人和自己以后都看不懂！（可在高级设置-实验性中修改相关设置）';
-        this._hatReminderChecking = false;
-        this._checkHatBlockReminders = debounce(this._checkHatBlockRemindersImpl.bind(this), this.hatReminderCheckInterval);
-        this._handleHatReminderSettingChanged = this._handleHatReminderSettingChanged.bind(this);
-        this._onWorkspaceChangeForReminder = this._onWorkspaceChangeForReminder.bind(this);
-        this._handleHatReminderClosed = this._handleHatReminderClosed.bind(this);
 
         this.state = {
             prompt: null,
@@ -191,140 +172,23 @@ class Blocks extends React.Component {
         this.paletteResizeSession = null;
         this.paletteResizeRaf = null;
 
-        this.paletteHoverCount = 0;
-        this._paletteHoverEls = null;
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.onWorkspaceMetricsChange = debounce(this.onWorkspaceMetricsChange, 100);
         this.toolboxUpdateQueue = [];
-        this.achievementState = {
-            hasAddedBlock: false,
-            dragCounts: new Map(),
-            isProjectRunning: false,
-            pastePairs: 0,
-            recentCopyAt: 0,
-            undoTimes: [],
-            commentCreatedAt: new Map()
-        };
-
+        this.deferredWorkspaceLoad = null;
+        this.toolboxStateUpdateTimeout = null;
+        this.workspaceVisibilityRaf = null;
+        this.workspaceResizeRaf = null;
+        this.blocksResizeObserver = null;
+        this.lastBlocksWidth = null;
+        this.lastBlocksHeight = null;
+        this._toolboxXMLCache = null;
     }
     componentDidMount () {
         SettingsStore.addEventListener('setting-changed', this.handleAddonSettingChanged);
         window.addEventListener(VANILLA_PALETTE_CHANGED, this.handleVanillaPaletteChanged);
 
         this.ScratchBlocks = VMScratchBlocks(this.props.vm, this.props.useCatBlocks);
-
-        // Monkey-patch ScratchBlockComment for hat reminder features
-        const ScratchBlockComment = this.ScratchBlocks.ScratchBlockComment;
-        const ScratchBubble = this.ScratchBlocks.ScratchBubble;
-        if (ScratchBlockComment && !ScratchBlockComment.prototype._hatReminderPatched) {
-            ScratchBlockComment.prototype._hatReminderPatched = true;
-
-            // Capture VM reference and project title for creating restore points
-            // before the "清空" (clear) button action.
-            const blocksVm = this.props.vm;
-            const projectTitle = this.props.projectTitle;
-
-            const originalCreateEditor = ScratchBlockComment.prototype.createEditor_;
-            if (typeof originalCreateEditor === 'function') {
-                ScratchBlockComment.prototype.createEditor_ = function () {
-                    const result = originalCreateEditor.call(this);
-                    // After original createEditor_ runs, this.textarea_ is already
-                    // a child of the XHTML <body> inside the SVG <foreignObject>.
-                    // Using textarea_.parentElement avoids SVG namespace issues that
-                    // cause foreignObject_.querySelector('body') /
-                    // foreignObject_.querySelector('.scratchCommentBody') to return null.
-                    const body = this.textarea_ && this.textarea_.parentElement;
-                    if (body && !body.querySelector('button.sc-clear-btn')) {
-                        const HTML_NS = 'http://www.w3.org/1999/xhtml';
-                        const buttonDiv = document.createElementNS(HTML_NS, 'div');
-                        buttonDiv.className = 'hat-reminder-clear-btn-wrapper';
-                        buttonDiv.style.cssText = 'margin: 4px 12px 8px; text-align: right;';
-                        const clearBtn = document.createElementNS(HTML_NS, 'button');
-                        clearBtn.className = 'sc-clear-btn';
-                        clearBtn.textContent = '清空';
-                        clearBtn.style.cssText = 'padding: 2px 10px; font-size: 12px; cursor: pointer; border: none; background: #ff8c1a; color: white; border-radius: 4px;';
-                        const statusSpan = document.createElementNS(HTML_NS, 'span');
-                        statusSpan.className = 'sc-clear-status';
-                        statusSpan.style.cssText = 'display: none; font-size: 11px; color: #888; margin-right: 8px; white-space: nowrap;';
-                        this.clearStatusSpan_ = statusSpan;
-
-                        clearBtn.addEventListener('click', async e => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            if (this.text_ && this.text_.length > 0) {
-                                // Create an immediate restore point BEFORE clearing
-                                // the comment, so the user can recover if needed.
-                                try {
-                                    await RestorePointAPI.createRestorePoint(
-                                        blocksVm,
-                                        projectTitle || '',
-                                        RestorePointAPI.TYPE_AUTOMATIC
-                                    );
-                                } catch (err) {
-                                    // Silently ignore restore point creation errors
-                                    // so the clear action still proceeds.
-                                }
-                                // setText fires a CommentChange event, which creates
-                                // an undo checkpoint in the workspace undo stack and
-                                // triggers PROJECT_CHANGED for restore point creation.
-                                this.setText('');
-
-                                // Show status notification in the bottom-right area
-                                // (same area used for real-time collaboration info)
-                                if (this.clearStatusSpan_) {
-                                    this.clearStatusSpan_.textContent = '已清空文本，清空前的项目已自动保存在还原点中';
-                                    this.clearStatusSpan_.style.display = 'inline';
-                                    if (this._clearStatusTimer) {
-                                        clearTimeout(this._clearStatusTimer);
-                                    }
-                                    this._clearStatusTimer = setTimeout(() => {
-                                        if (this.clearStatusSpan_) {
-                                            this.clearStatusSpan_.style.display = 'none';
-                                        }
-                                    }, 5000);
-                                }
-                            }
-                        });
-                        buttonDiv.appendChild(statusSpan);
-                        buttonDiv.appendChild(clearBtn);
-                        body.appendChild(buttonDiv);
-                        this.clearButtonDiv_ = buttonDiv;
-                    }
-                    return result;
-                };
-            }
-
-            const originalResizeBubble = ScratchBlockComment.prototype.resizeBubble_;
-            if (typeof originalResizeBubble === 'function' && ScratchBubble) {
-                ScratchBlockComment.prototype.resizeBubble_ = function () {
-                    originalResizeBubble.call(this);
-                    if (this.clearButtonDiv_ && this.bubble_) {
-                        const size = this.bubble_.getBubbleSize();
-                        const doubleBorderWidth = 2 * ScratchBubble.BORDER_WIDTH;
-                        const textOffset = ScratchBlockComment.TEXTAREA_OFFSET * 2;
-                        const buttonHeight = 30;
-                        this.textarea_.style.height = (size.height - doubleBorderWidth -
-                            ScratchBubble.TOP_BAR_HEIGHT - textOffset - buttonHeight) + 'px';
-                    }
-                };
-            }
-
-            const originalDispose = ScratchBlockComment.prototype.dispose;
-            if (typeof originalDispose === 'function') {
-                ScratchBlockComment.prototype.dispose = function () {
-                    if (this.isHatReminder_ && this.block_) {
-                        window.dispatchEvent(new CustomEvent('hatreminder:closed', {
-                            detail: {blockId: this.block_.id}
-                        }));
-                    }
-                    originalDispose.call(this);
-                };
-            }
-        }
-
-        // Listen for hat reminder close events
-        window.addEventListener('hatreminder:closed', this._handleHatReminderClosed);
-
         this.ScratchBlocks.prompt = this.handlePromptStart;
         this.ScratchBlocks.statusButtonCallback = this.handleConnectionModalStart;
         this.ScratchBlocks.recordSoundCallback = this.handleOpenSoundRecorder;
@@ -333,10 +197,21 @@ class Blocks extends React.Component {
 
         this.ScratchBlocks.FieldColourSlider.activateEyedropper_ = this.props.onActivateColorPicker;
         this.ScratchBlocks.Procedures.externalProcedureDefCallback = this.props.onActivateCustomProcedures;
+        // Global (cross-target) procedures are defined in the stage. When one
+        // is edited from any target, the new mutation must be pushed back into
+        // the VM's stage blocks and broadcast so every flyout/workspace picks
+        // it up (the prototype lives in the stage, not the current workspace).
+        this.ScratchBlocks.Procedures.externalGlobalProcedureEditCallback =
+            (procCode, mutation) => {
+                const xml = this.ScratchBlocks.Xml.domToText(mutation);
+                this.props.vm.updateGlobalProcedure(procCode, xml);
+            };
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
 
         const Msg = this.ScratchBlocks.Msg;
-        Msg.PROCEDURES_RETURN = getProcedureReturnMessage(this.props.intl);
+        Msg.PROCEDURES_RETURN = this.props.intl.formatMessage(messages.PROCEDURES_RETURN, {
+            v: '%1'
+        });
         Msg.PROCEDURES_TO_REPORTER = this.props.intl.formatMessage(messages.PROCEDURES_TO_REPORTER);
         Msg.PROCEDURES_TO_STATEMENT = this.props.intl.formatMessage(messages.PROCEDURES_TO_STATEMENT);
         Msg.PROCEDURES_DOCS = this.props.intl.formatMessage(messages.PROCEDURES_DOCS);
@@ -361,15 +236,34 @@ class Blocks extends React.Component {
         );
         
         const startTime = performance.now();
-        this.workspace = this.ScratchBlocks.inject(this.blocks, workspaceConfig);
+        try {
+            this.workspace = this.ScratchBlocks.inject(this.blocks, workspaceConfig);
+        } catch (injectError) {
+            // ScratchBlocks.inject() can fail if the DOM container is in an
+            // unexpected state (e.g. resized to 0x0 while the tab was hidden,
+            // or a race with the CSS transition that hides the blocks area).
+            // Log the error so it is debuggable, but don't crash the entire
+            // editor; the blocks area will be re-mounted when the user
+            // re-selects the blocks tab.
+            console.error('[Blocks] Failed to inject ScratchBlocks workspace:', injectError);
+            this.workspace = null;
+            return;
+        }
         const injectTime = performance.now() - startTime;
-        console.log(`🧩 Blocks workspace injected in ${injectTime.toFixed(2)}ms`);
+        if (process.env.DEBUG) console.log(`🧩 Blocks workspace injected in ${injectTime.toFixed(2)}ms`);
         AddonHooks.blocklyWorkspace = this.workspace;
 
         // Register buttons under new callback keys for creating variables,
         // lists, and procedures from extensions.
 
-        const toolboxWorkspace = this.workspace.getFlyout().getWorkspace();
+        let toolboxWorkspace;
+        try {
+            toolboxWorkspace = this.workspace.getFlyout().getWorkspace();
+        } catch (e) {
+            // Flyout may not be available yet; callbacks will be registered
+            // on the next workspace update.
+            console.warn('[Blocks] Could not get flyout workspace for button callbacks:', e);
+        }
 
         try {
             const initialFlyoutWidth = this.workspace.getFlyout().getWidth();
@@ -388,22 +282,24 @@ class Blocks extends React.Component {
             this.ScratchBlocks.Procedures.createProcedureDefCallback_(this.workspace);
         };
 
-        toolboxWorkspace.registerButtonCallback('MAKE_A_VARIABLE', varListButtonCallback(''));
-        toolboxWorkspace.registerButtonCallback('MAKE_A_LIST', varListButtonCallback('list'));
-        toolboxWorkspace.registerButtonCallback('MAKE_A_PROCEDURE', procButtonCallback);
-        toolboxWorkspace.registerButtonCallback('EXTENSION_CALLBACK', block => {
-            this.props.vm.handleExtensionButtonPress(block.callbackData_);
-        });
-        toolboxWorkspace.registerButtonCallback('OPEN_ASSETS_MODAL', () => {
-            this.props.onOpenAssetsModal();
-        });
-        toolboxWorkspace.registerButtonCallback('OPEN_EXTENSION_DOCS', block => {
-            const docsURI = block.callbackData_;
-            const url = new URL(docsURI);
-            if (url.protocol === 'http:' || url.protocol === 'https:') {
-                window.open(docsURI, '_blank');
-            }
-        });
+        if (toolboxWorkspace) {
+            toolboxWorkspace.registerButtonCallback('MAKE_A_VARIABLE', varListButtonCallback(''));
+            toolboxWorkspace.registerButtonCallback('MAKE_A_LIST', varListButtonCallback('list'));
+            toolboxWorkspace.registerButtonCallback('MAKE_A_PROCEDURE', procButtonCallback);
+            toolboxWorkspace.registerButtonCallback('OPEN_ASSETS_MODAL', () => {
+                this.props.onOpenAssetsModal();
+            });
+            toolboxWorkspace.registerButtonCallback('EXTENSION_CALLBACK', block => {
+                this.props.vm.handleExtensionButtonPress(block.callbackData_);
+            });
+            toolboxWorkspace.registerButtonCallback('OPEN_EXTENSION_DOCS', block => {
+                const docsURI = block.callbackData_;
+                const url = new URL(docsURI);
+                if (url.protocol === 'http:' || url.protocol === 'https:') {
+                    window.open(docsURI, '_blank');
+                }
+            });
+        }
 
         // Store the xml of the toolbox that is actually rendered.
         // This is used in componentDidUpdate instead of prevProps, because
@@ -415,7 +311,9 @@ class Blocks extends React.Component {
         // componentDidUpdate so the toolbox will still correctly be updated
         this.setToolboxRefreshEnabled = this.workspace.setToolboxRefreshEnabled.bind(this.workspace);
         this.workspace.setToolboxRefreshEnabled = () => {
-            this.setToolboxRefreshEnabled(false);
+            if (this.setToolboxRefreshEnabled) {
+                this.setToolboxRefreshEnabled(false);
+            }
         };
 
         // @todo change this when blockly supports UI events
@@ -444,59 +342,20 @@ class Blocks extends React.Component {
             this.handleExtensionAdded(category);
         }
 
-        // Hat block comment reminder: listen for setting changes
-        window.addEventListener('mw-settings-changed', this._handleHatReminderSettingChanged);
-
-        // Hat block comment reminder: listen for workspace changes
-        this.workspace.addChangeListener(this._onWorkspaceChangeForReminder);
-        this.workspace.addChangeListener(this.handleAchievementWorkspaceEvent);
-        this.props.vm.addListener('PROJECT_RUN_START', this.handleProjectRunStart);
-        this.props.vm.addListener('PROJECT_RUN_STOP', this.handleProjectRunStop);
-        document.addEventListener('copy', this.handleDocumentCopy);
-        document.addEventListener('paste', this.handleDocumentPaste);
-        this.noBlockAddedTimer = setTimeout(() => {
-            if (!this.achievementState.hasAddedBlock) {
-                unlockAchievement('buddhist-developer');
-            }
-        }, 10 * 60 * 1000);
-
-        if (typeof this.props.vm.postUndo === 'function') {
-            this.originalPostUndo = this.props.vm.postUndo;
-            this.props.vm.postUndo = (...args) => {
-                const now = Date.now();
-                this.achievementState.undoTimes = this.achievementState.undoTimes
-                    .filter(time => now - time <= 3000);
-                this.achievementState.undoTimes.push(now);
-                if (this.achievementState.undoTimes.length >= 3) {
-                    unlockAchievement('use-draft');
-                }
-                return this.originalPostUndo.apply(this.props.vm, args);
-            };
-        }
-
-        // Run initial check
-        if (this.hatBlockCommentReminderEnabled) {
-            this._checkHatBlockReminders();
-        }
-
-        // Initialize Copy JS Code context menu for blocks
-        initializeBlockDisableExtension(this.props.vm);
-
         gentlyRequestPersistentStorage();
 
-        // 拆分模式：若本工作区锁定到一个角色/背景，但当前显示的目标还不是它
-        // （例如锁定目标不是全局编辑目标，尚未加载过），则加载其自身积木 XML，
-        // 保证两列分别显示各自角色，互不影响。
-        if (this.props.workspaceTargetId && this.props.isVisible && this.workspace) {
-            if (this._loadedTargetId !== this.props.workspaceTargetId) {
-                this.loadLockedTargetWorkspace();
-            }
-        }
-
-        // Defer attaching hover listeners until ScratchBlocks has finished injecting its DOM.
         setTimeout(() => {
-            if (!this.unmounted) this.attachPaletteHoverListeners();
+            if (!workspaceIsAlive(this)) return;
+            if (this.ScratchBlocks.Field && this.ScratchBlocks.Field.prewarmFontCache) {
+                this.ScratchBlocks.Field.prewarmFontCache();
+            }
         }, 0);
+
+        // Keep Blockly's layout in sync with the actual container size. Window
+        // resize events miss many real changes (CSS transitions, flex layout
+        // shifts from stage resizing, tab switches, addons resizing the pane),
+        // any of which can leave the blocks area misaligned or clipped.
+        this.setupBlocksResizeObserver();
     }
     shouldComponentUpdate (nextProps, nextState) {
         return (
@@ -515,14 +374,9 @@ class Blocks extends React.Component {
         );
     }
     componentDidUpdate (prevProps) {
-        // 拆分模式：若本工作区锁定到一个角色/背景，但当前显示的目标还不是它
-        // （例如锁定目标不是全局编辑目标，尚未加载过），则加载其自身积木 XML，
-        // 保证两列分别显示各自角色，互不影响。
-        if (this.props.workspaceTargetId && this.props.isVisible && this.workspace) {
-            if (this._loadedTargetId !== this.props.workspaceTargetId) {
-                this.loadLockedTargetWorkspace();
-            }
-        }
+        // If workspace injection failed in componentDidMount, there is nothing
+        // to update. The component will re-mount on the next tab switch.
+        if (!this.workspace) return;
 
         // Update block colors when theme changes (check properties, not just reference)
         const prevTheme = prevProps.theme;
@@ -538,7 +392,8 @@ class Blocks extends React.Component {
             prevTheme.name !== currentTheme.name;
 
         if (themeChanged) {
-            this.updateBlockColors(currentTheme);
+            const blocksThemeChanged = !prevTheme || !currentTheme || prevTheme.blocks !== currentTheme.blocks;
+            this.updateBlockColors(currentTheme, blocksThemeChanged);
         }
 
         // If any modals are open, call hideChaff to close z-indexed field editors
@@ -551,15 +406,6 @@ class Blocks extends React.Component {
         // Do not check against prevProps.toolboxXML because that may not have been rendered.
         if (this.props.isVisible && this.props.toolboxXML !== this._renderedToolboxXML) {
             this.requestToolboxUpdate();
-        }
-
-        // 拆分模式：若本工作区锁定到一个角色/背景，但当前显示的目标还不是它
-        // （例如锁定目标不是全局编辑目标，尚未加载过），则加载其自身积木 XML，
-        // 保证两列分别显示各自角色，互不影响。
-        if (this.props.workspaceTargetId && this.props.isVisible && this.workspace) {
-            if (this._loadedTargetId !== this.props.workspaceTargetId) {
-                this.loadLockedTargetWorkspace();
-            }
         }
 
         if (this.props.isVisible === prevProps.isVisible) {
@@ -581,79 +427,75 @@ class Blocks extends React.Component {
 
                 // Check for pending procedure returns request
                 if (this.props.vm && this.props.vm._pendingProcedureReturns) {
-                    console.log('Blocks: Detected pending procedure returns request, enabling...');
+                    if (process.env.DEBUG) {
+                        console.log('Blocks: Detected pending procedure returns request, enabling...');
+                    }
                     this.props.vm._pendingProcedureReturns = false;
 
                     // Enable procedure returns after workspace is ready
                     setTimeout(() => {
+                        if (!workspaceIsAlive(this)) return;
                         this.handleEnableProcedureReturns();
 
                         // Also handle pending category selection
                         if (this.props.vm._pendingCategorySelection) {
                             const categoryId = this.props.vm._pendingCategorySelection;
                             this.props.vm._pendingCategorySelection = null;
-                            console.log('Blocks: Selecting pending category:', categoryId);
+                            if (process.env.DEBUG) console.log('Blocks: Selecting pending category:', categoryId);
                             this.handleCategorySelected(categoryId);
                         }
                     }, 100);
                 }
                 
-                // Defer expensive operations to next tick
-                setTimeout(() => {
-                    if (this.workspace) {
-                        this.workspace.resize();
-                    }
-                }, 0);
             }
-            if (prevProps.locale !== this.props.locale || this.props.locale !== this.props.vm.getLocale()) {
+            const localeChanged = prevProps.locale !== this.props.locale ||
+                this.props.locale !== this.props.vm.getLocale();
+            if (localeChanged) {
                 // call setLocale if the locale has changed, or changed while the blocks were hidden.
                 // vm.getLocale() will be out of sync if locale was changed while not visible
                 this.setLocale();
-            } else {
-                // Defer workspace refresh to next tick for better performance
-                setTimeout(() => {
-                    if (this.workspace && !this.unmounted) {
-                        this.workspace.refreshToolboxSelection_();
-                        this.workspace.resize();
-                    }
-                }, 0);
             }
 
-            window.dispatchEvent(new Event('resize'));
+            // Visibility changes used to resize Blockly up to three times. Refresh
+            // and lay it out once, immediately before the next paint.
+            window.cancelAnimationFrame(this.workspaceVisibilityRaf);
+            this.workspaceVisibilityRaf = window.requestAnimationFrame(() => {
+                this.workspaceVisibilityRaf = null;
+                if (workspaceIsAlive(this)) {
+                    if (!localeChanged) {
+                        this.workspace.refreshToolboxSelection_();
+                    }
+                    this.resizeBlocksWorkspace();
+                }
+            });
         } else {
+            window.cancelAnimationFrame(this.workspaceVisibilityRaf);
+            this.workspaceVisibilityRaf = null;
             this.workspace.setVisible(false);
         }
     }
     componentWillUnmount () {
         SettingsStore.removeEventListener('setting-changed', this.handleAddonSettingChanged);
         window.removeEventListener(VANILLA_PALETTE_CHANGED, this.handleVanillaPaletteChanged);
-        this.detachPaletteHoverListeners();
         this.detachVM();
         this.unmounted = true;
-
-        // Remove hat block reminder listeners
-        window.removeEventListener('mw-settings-changed', this._handleHatReminderSettingChanged);
-        window.removeEventListener('hatreminder:closed', this._handleHatReminderClosed);
-        if (this.workspace && this._onWorkspaceChangeForReminder) {
-            this.workspace.removeChangeListener(this._onWorkspaceChangeForReminder);
-        }
+        this.cancelDeferredWorkspaceLoad();
+        // Guard: workspace may not have been created if componentDidMount
+        // threw before ScratchBlocks.inject() completed.
         if (this.workspace) {
-            this.workspace.removeChangeListener(this.handleAchievementWorkspaceEvent);
+            this.workspace.dispose();
         }
-        this.props.vm.removeListener('PROJECT_RUN_START', this.handleProjectRunStart);
-        this.props.vm.removeListener('PROJECT_RUN_STOP', this.handleProjectRunStop);
-        document.removeEventListener('copy', this.handleDocumentCopy);
-        document.removeEventListener('paste', this.handleDocumentPaste);
-        if (this.noBlockAddedTimer) clearTimeout(this.noBlockAddedTimer);
-        if (this.originalPostUndo && this.props.vm.postUndo) {
-            this.props.vm.postUndo = this.originalPostUndo;
-        }
-        if (this._checkHatBlockReminders && this._checkHatBlockReminders.cancel) {
-            this._checkHatBlockReminders.cancel();
-        }
-
-        this.workspace.dispose();
         clearTimeout(this.toolboxUpdateTimeout);
+        clearTimeout(this.toolboxStateUpdateTimeout);
+        window.cancelAnimationFrame(this.workspaceVisibilityRaf);
+        if (this.workspaceResizeRaf) {
+            window.cancelAnimationFrame(this.workspaceResizeRaf);
+            this.workspaceResizeRaf = null;
+        }
+        if (this.blocksResizeObserver) {
+            this.blocksResizeObserver.disconnect();
+            this.blocksResizeObserver = null;
+        }
 
         // Cancel any pending debounced calls
         this.onTargetsUpdate.cancel();
@@ -667,79 +509,6 @@ class Blocks extends React.Component {
         collaborationService.detachFromWorkspace();
 
         AddonHooks.blocklyWorkspace = null;
-    }
-
-    attachPaletteHoverListeners () {
-        if (!this.blocks) return;
-        if (!this.workspace || !this.workspace.getFlyout) return;
-
-        // toolbox div and flyout svg are siblings inside the injection container.
-        const toolboxDiv = this.blocks.querySelector('.blocklyToolboxDiv');
-        const flyoutSvgGroup = this.blocks.querySelector('.blocklyFlyout');
-        const els = [toolboxDiv, flyoutSvgGroup].filter(Boolean);
-        if (els.length === 0) return;
-
-        // Avoid double-binding.
-        if (this._paletteHoverEls) return;
-
-        for (const el of els) {
-            el.addEventListener('mouseenter', this.handlePaletteHoverEnter);
-            el.addEventListener('mouseleave', this.handlePaletteHoverLeave);
-        }
-        this._paletteHoverEls = els;
-
-        try {
-            const flyout = this.workspace && this.workspace.getFlyout && this.workspace.getFlyout();
-            if (flyout && typeof flyout.twSetClippingEnabled === 'function') {
-                flyout.twSetClippingEnabled(true);
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    detachPaletteHoverListeners () {
-        if (!this._paletteHoverEls) return;
-        for (const el of this._paletteHoverEls) {
-            el.removeEventListener('mouseenter', this.handlePaletteHoverEnter);
-            el.removeEventListener('mouseleave', this.handlePaletteHoverLeave);
-        }
-        this._paletteHoverEls = null;
-        this.paletteHoverCount = 0;
-        // Default to no clipping when not hovered.
-        try {
-            const flyout = this.workspace && this.workspace.getFlyout && this.workspace.getFlyout();
-            if (flyout && typeof flyout.twSetClippingEnabled === 'function') {
-                flyout.twSetClippingEnabled(true);
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    handlePaletteHoverEnter () {
-        this.paletteHoverCount += 1;
-        try {
-            const flyout = this.workspace && this.workspace.getFlyout && this.workspace.getFlyout();
-            if (flyout && typeof flyout.twSetClippingEnabled === 'function') {
-                flyout.twSetClippingEnabled(false);
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    handlePaletteHoverLeave () {
-        this.paletteHoverCount = Math.max(0, this.paletteHoverCount - 1);
-        if (this.paletteHoverCount !== 0) return;
-        try {
-            const flyout = this.workspace && this.workspace.getFlyout && this.workspace.getFlyout();
-            if (flyout && typeof flyout.twSetClippingEnabled === 'function') {
-                flyout.twSetClippingEnabled(true);
-            }
-        } catch (e) {
-            // ignore
-        }
     }
 
     setFlyoutWidth (flyoutWidth) {
@@ -949,25 +718,39 @@ class Blocks extends React.Component {
     requestToolboxUpdate () {
         clearTimeout(this.toolboxUpdateTimeout);
         this.toolboxUpdateTimeout = setTimeout(() => {
+            if (!workspaceIsAlive(this)) return;
             this.updateToolbox();
         }, 0);
     }
     setLocale () {
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
-        this.ScratchBlocks.Msg.PROCEDURES_RETURN = getProcedureReturnMessage(this.props.intl);
         this.props.vm.setLocale(this.props.locale, this.props.messages)
             .then(() => {
-                if (this.unmounted) return;
-                this.workspace.getFlyout().setRecyclingEnabled(false);
-                this.props.vm.refreshWorkspace();
-                this.requestToolboxUpdate();
-                this.withToolboxUpdates(() => {
-                    this.workspace.getFlyout().setRecyclingEnabled(true);
-                });
+                // The workspace may have been disposed or destroyed while the
+                // locale was being applied asynchronously (tab switch, project
+                // load, or component unmount). Guard against stale callbacks.
+                if (!workspaceIsAlive(this)) return;
+                try {
+                    this.workspace.getFlyout().setRecyclingEnabled(false);
+                    this.props.vm.refreshWorkspace();
+                    this.requestToolboxUpdate();
+                    // The initial toolbox in the redux store is generated before
+                    // scratch-blocks finishes loading, so block text (operators,
+                    // strings, etc.) falls back to English. Rebuild it now that
+                    // the translated block messages are available.
+                    this.requestToolboxStateUpdate();
+                    this.withToolboxUpdates(() => {
+                        this.workspace.getFlyout().setRecyclingEnabled(true);
+                    });
+                } catch (e) {
+                    // The workspace may have been disposed while the locale was
+                    // being applied. Don't let a stray error crash the editor.
+                    log.error(e);
+                }
             });
     }
 
-    updateBlockColors (theme) {
+    updateBlockColors (theme, blocksThemeChanged) {
         if (!this.workspace || !this.ScratchBlocks) return;
 
         const newColors = theme.getBlockColors();
@@ -978,24 +761,26 @@ class Blocks extends React.Component {
                 this.ScratchBlocks.Colours.overrideColours(newColors);
             }
 
+            if (this.ScratchBlocks.Css && this.ScratchBlocks.Css.inject) {
+                this.ScratchBlocks.Css.inject(true, this.ScratchBlocks.Css.mediaPath_ || '');
+            }
+
             // Update flyout background constant (Blockly sets this, not CSS)
             const flyout = this.workspace.getFlyout && this.workspace.getFlyout();
             if (flyout && newColors.flyout && typeof flyout.setBackgroundColour_ === 'function') {
                 flyout.setBackgroundColour_(newColors.flyout);
             }
 
-            // Force update of all cached color lookups
-            if (this.ScratchBlocks.workspace && this.ScratchBlocks.workspace.Workspace) {
-                // Force Blockly to recalculate theme colors
-                if (this.workspace.getAllBlocks) {
-                    const blocks = this.workspace.getAllBlocks();
-                    blocks.forEach(block => {
-                        if (block.updateColour) {
-                            block.updateColour();
-                        }
-                    });
-                }
+            if (blocksThemeChanged && this.workspace.getAllBlocks) {
+                const blocks = this.workspace.getAllBlocks();
+                blocks.forEach(block => {
+                    if (block.updateColour) {
+                        block.updateColour();
+                    }
+                });
             }
+
+            this.recolorFlyoutBlocks();
 
             // Update workspace-specific colors directly if available
             const workspace = this.workspace;
@@ -1004,12 +789,6 @@ class Blocks extends React.Component {
                 const blocksSvg = this.blocks && this.blocks.querySelector('svg.blocklySvg');
                 if (blocksSvg && newColors.workspace) {
                     blocksSvg.style.backgroundColor = newColors.workspace;
-                }
-
-                // Update blocklyMainBackground fill color
-                const blocklyMainBackground = this.blocks && this.blocks.querySelector('.blocklyMainBackground');
-                if (blocklyMainBackground && newColors.workspace) {
-                    blocklyMainBackground.setAttribute('fill', newColors.workspace);
                 }
 
                 // Update grid color if available
@@ -1037,7 +816,10 @@ class Blocks extends React.Component {
 
             // Update flyout background element (the path element ScratchBlocks creates)
             if (newColors.flyout) {
-                const flyoutBackground = document.querySelector('svg.blocklyFlyout > path.blocklyFlyoutBackground, svg.blocklyFlyout > rect.blocklyFlyoutBackground');
+                const flyoutBackground = document.querySelector(
+                    'svg.blocklyFlyout > path.blocklyFlyoutBackground, ' +
+                    'svg.blocklyFlyout > rect.blocklyFlyoutBackground'
+                );
                 if (flyoutBackground) {
                     flyoutBackground.setAttribute('fill', newColors.flyout);
                 }
@@ -1066,22 +848,6 @@ class Blocks extends React.Component {
                 const labels = document.querySelectorAll('.blocklyTreeLabel, .blocklyFlyoutLabelText');
                 labels.forEach(label => {
                     label.style.fill = textColor;
-                });
-            }
-
-            // Update block text colors
-            if (newColors.text) {
-                const blockTexts = document.querySelectorAll('.blocklyText, .blocklyBasicField_label, .blocklyFieldLabel, .blocklyFieldDropdown');
-                blockTexts.forEach(text => {
-                    text.style.fill = newColors.text;
-                });
-            }
-            
-            // Update input field text colors
-            if (newColors.textFieldText) {
-                const inputFields = document.querySelectorAll('.blocklyFieldInput, .blocklyFieldNumber, .blocklyText.blocklyFieldInput, .blocklyText.blocklyFieldNumber');
-                inputFields.forEach(field => {
-                    field.style.fill = newColors.textFieldText;
                 });
             }
 
@@ -1115,7 +881,7 @@ class Blocks extends React.Component {
                 }
             });
 
-            if (this.workspace.getFlyout && this.workspace.setVisible) {
+            if (blocksThemeChanged && this.workspace.getFlyout && this.workspace.setVisible) {
                 this.workspace.setVisible(false);
                 this.workspace.setVisible(this.props.isVisible);
             }
@@ -1123,7 +889,7 @@ class Blocks extends React.Component {
             this.requestToolboxUpdate();
 
             setTimeout(() => {
-                if (this.workspace && !this.unmounted) {
+                if (workspaceIsAlive(this)) {
                     this.workspace.refreshToolboxSelection_();
                     if (typeof this.workspace.markDraggedBlockAsDirty === 'function') {
                         this.workspace.markDraggedBlockAsDirty();
@@ -1132,7 +898,9 @@ class Blocks extends React.Component {
                     // Update toolbox and flyout elements again after they re-render
                     if (newColors.toolbox) {
                         const toolboxSvg = document.querySelector('svg.blocklyToolbox');
-                        const toolboxBackground = document.querySelector('svg.blocklyToolbox > path.blocklyToolboxBackground');
+                        const toolboxBackground = document.querySelector(
+                            'svg.blocklyToolbox > path.blocklyToolboxBackground'
+                        );
                         if (toolboxSvg) {
                             toolboxSvg.style.setProperty('background-color', newColors.toolbox, 'important');
                         }
@@ -1142,7 +910,10 @@ class Blocks extends React.Component {
                     }
                     if (newColors.flyout) {
                         const flyoutSvg = document.querySelector('svg.blocklyFlyout');
-                        const flyoutBackground = document.querySelector('svg.blocklyFlyout > rect.blocklyFlyoutBackground, svg.blocklyFlyout > path.blocklyFlyoutBackground');
+                        const flyoutBackground = document.querySelector(
+                            'svg.blocklyFlyout > rect.blocklyFlyoutBackground, ' +
+                            'svg.blocklyFlyout > path.blocklyFlyoutBackground'
+                        );
                         if (flyoutSvg) {
                             flyoutSvg.style.setProperty('background-color', newColors.flyout, 'important');
                         }
@@ -1157,40 +928,12 @@ class Blocks extends React.Component {
                             label.style.setProperty('fill', textColor, 'important');
                         });
                     }
-                    if (newColors.text) {
-                        const blockTexts = document.querySelectorAll('.blocklyText, .blocklyBasicField_label, .blocklyFieldLabel, .blocklyFieldDropdown');
-                        blockTexts.forEach(text => {
-                            text.style.setProperty('fill', newColors.text, 'important');
-                        });
-                    }
-                    
-                    // Update input field text colors
-                    if (newColors.textFieldText) {
-                        const inputFields = document.querySelectorAll('.blocklyFieldInput, .blocklyFieldNumber, .blocklyText.blocklyFieldInput, .blocklyText.blocklyFieldNumber');
-                        inputFields.forEach(field => {
-                            field.style.setProperty('fill', newColors.textFieldText, 'important');
-                        });
-                    }
                     if (newColors.scrollbar) {
-                        const scrollbarElements = document.querySelectorAll('.blocklyScrollbarBackground, .blocklyScrollbarThumb');
+                        const scrollbarElements = document.querySelectorAll(
+                            '.blocklyScrollbarBackground, .blocklyScrollbarThumb'
+                        );
                         scrollbarElements.forEach(el => {
                             el.style.setProperty('fill', newColors.scrollbar, 'important');
-                        });
-                    }
-                    if (newColors.workspace) {
-                        // Update all workspace backgrounds (including right-side workspace)
-                        const workspaceSvgs = document.querySelectorAll('svg.blocklySvg');
-                        workspaceSvgs.forEach(svg => {
-                            svg.style.setProperty('background-color', newColors.workspace, 'important');
-                        });
-                        const mainBackgrounds = document.querySelectorAll('.blocklyMainBackground');
-                        mainBackgrounds.forEach(bg => {
-                            bg.setAttribute('fill', newColors.workspace);
-                        });
-                        // Update workspace zoom buttons background
-                        const zoomButtons = document.querySelectorAll('.blocklyZoom');
-                        zoomButtons.forEach(zoom => {
-                            zoom.style.setProperty('background-color', newColors.workspace, 'important');
                         });
                     }
                 }
@@ -1198,10 +941,12 @@ class Blocks extends React.Component {
 
             // Additional retry to ensure colors stick after all re-renders
             setTimeout(() => {
-                if (this.workspace && !this.unmounted) {
+                if (workspaceIsAlive(this)) {
                     if (newColors.toolbox) {
                         const toolboxSvg = document.querySelector('svg.blocklyToolbox');
-                        const toolboxBackground = document.querySelector('svg.blocklyToolbox > path.blocklyToolboxBackground');
+                        const toolboxBackground = document.querySelector(
+                            'svg.blocklyToolbox > path.blocklyToolboxBackground'
+                        );
                         if (toolboxSvg) {
                             toolboxSvg.style.setProperty('background-color', newColors.toolbox, 'important');
                         }
@@ -1211,29 +956,16 @@ class Blocks extends React.Component {
                     }
                     if (newColors.flyout) {
                         const flyoutSvg = document.querySelector('svg.blocklyFlyout');
-                        const flyoutBackground = document.querySelector('svg.blocklyFlyout > rect.blocklyFlyoutBackground, svg.blocklyFlyout > path.blocklyFlyoutBackground');
+                        const flyoutBackground = document.querySelector(
+                            'svg.blocklyFlyout > rect.blocklyFlyoutBackground, ' +
+                            'svg.blocklyFlyout > path.blocklyFlyoutBackground'
+                        );
                         if (flyoutSvg) {
                             flyoutSvg.style.setProperty('background-color', newColors.flyout, 'important');
                         }
                         if (flyoutBackground) {
                             flyoutBackground.setAttribute('fill', newColors.flyout);
                         }
-                    }
-                    if (newColors.workspace) {
-                        // Update all workspace backgrounds (including right-side workspace)
-                        const workspaceSvgs = document.querySelectorAll('svg.blocklySvg');
-                        workspaceSvgs.forEach(svg => {
-                            svg.style.setProperty('background-color', newColors.workspace, 'important');
-                        });
-                        const mainBackgrounds = document.querySelectorAll('.blocklyMainBackground');
-                        mainBackgrounds.forEach(bg => {
-                            bg.setAttribute('fill', newColors.workspace);
-                        });
-                        // Update workspace zoom buttons background
-                        const zoomButtons = document.querySelectorAll('.blocklyZoom');
-                        zoomButtons.forEach(zoom => {
-                            zoom.style.setProperty('background-color', newColors.workspace, 'important');
-                        });
                     }
                 }
             }, 300);
@@ -1245,15 +977,15 @@ class Blocks extends React.Component {
     updateToolbox () {
         this.toolboxUpdateTimeout = false;
 
+        // The toolbox may not be initialized yet, or the workspace may have been
+        // disposed while a toolbox update was queued. Guard against both so a
+        // stray update cannot crash the blocks area.
+        if (this.unmounted || !this.workspace || !this.workspace.toolbox_) return;
+
         const categoryId = this.workspace.toolbox_.getSelectedCategoryId();
         const offset = this.workspace.toolbox_.getCategoryScrollOffset();
-        // 拆分模式：每个工作区有自己的锁定目标，工具盒必须由自身
-        // getToolboxXML() 根据 workspaceTargetId 生成，而非使用全局
-        // Redux 状态 this.props.toolboxXML，否则左右两列会互相覆盖。
-        const toolboxXML = this.props.workspaceTargetId ?
-            this.getToolboxXML() : this.props.toolboxXML;
-        this.workspace.updateToolbox(toolboxXML);
-        this._renderedToolboxXML = toolboxXML;
+        this.workspace.updateToolbox(this.props.toolboxXML);
+        this._renderedToolboxXML = this.props.toolboxXML;
 
         // In order to catch any changes that mutate the toolbox during "normal runtime"
         // (variable changes/etc), re-enable toolbox refresh.
@@ -1268,14 +1000,27 @@ class Blocks extends React.Component {
             this.workspace.toolbox_.setFlyoutScrollPos(currentCategoryPos);
         }
 
+        this.recolorFlyoutBlocks();
+
         const queue = this.toolboxUpdateQueue;
         this.toolboxUpdateQueue = [];
         queue.forEach(fn => fn());
     }
 
+    recolorFlyoutBlocks () {
+        if (this.flyoutWorkspace && this.flyoutWorkspace.getAllBlocks) {
+            const flyoutBlocks = this.flyoutWorkspace.getAllBlocks();
+            flyoutBlocks.forEach(block => {
+                if (block.updateColour) {
+                    block.updateColour();
+                }
+            });
+        }
+    }
+
     withToolboxUpdates (fn) {
         // if there is a queued toolbox update, we need to wait
-        if (this.toolboxUpdateTimeout) {
+        if (this.toolboxStateUpdateTimeout || this.toolboxUpdateTimeout) {
             this.toolboxUpdateQueue.push(fn);
         } else {
             fn();
@@ -1283,27 +1028,20 @@ class Blocks extends React.Component {
     }
 
     attachVM () {
-        // 拆分模式：本工作区锁定到某个角色/背景时，积木必须创建到锁定目标上，
-        // 而非全局编辑目标（vm.editingTarget），否则背景积木会错误地落到角色里。
-        if (this.props.workspaceTargetId) {
-            this._lockedBlockListener = (e) => {
-                const originalTarget = this.props.vm.editingTarget;
-                const lockedTarget = this.props.vm.runtime.getTargetById(this.props.workspaceTargetId);
-                if (lockedTarget) {
-                    this.props.vm.editingTarget = lockedTarget;
-                }
-                this.props.vm.blockListener(e);
-                this.props.vm.editingTarget = originalTarget;
-            };
-            this.workspace.addChangeListener(this._lockedBlockListener);
-        } else {
-            this.workspace.addChangeListener(this.props.vm.blockListener);
+        this.workspace.addChangeListener(this.props.vm.blockListener);
+        try {
+            this.flyoutWorkspace = this.workspace
+                .getFlyout()
+                .getWorkspace();
+            this.flyoutWorkspace.addChangeListener(this.props.vm.flyoutBlockListener);
+            this.flyoutWorkspace.addChangeListener(this.props.vm.monitorBlockListener);
+        } catch (e) {
+            // Flyout may not be available yet (e.g. workspace was injected
+            // but the flyout is still initializing). The VM listeners will
+            // still be attached, and the flyout listeners will be re-attached
+            // on the next workspace update.
+            console.warn('[Blocks] Could not attach flyout listeners:', e);
         }
-        this.flyoutWorkspace = this.workspace
-            .getFlyout()
-            .getWorkspace();
-        this.flyoutWorkspace.addChangeListener(this.props.vm.flyoutBlockListener);
-        this.flyoutWorkspace.addChangeListener(this.props.vm.monitorBlockListener);
         this.props.vm.addListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.addListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.addListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -1320,6 +1058,8 @@ class Blocks extends React.Component {
         this.props.vm.addListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
     }
     detachVM () {
+        // VM listeners must always be cleaned up, even if the workspace was
+        // never created (componentDidMount threw before inject()).
         this.props.vm.removeListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.removeListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.removeListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -1334,6 +1074,9 @@ class Blocks extends React.Component {
         this.props.vm.removeListener('EXTENSIONS_REORDERED', this.handleExtensionsChanged);
         this.props.vm.removeListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.removeListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
+        // Workspace operations are only safe if the workspace was created.
+        if (!this.workspace) return;
+        this.workspace.removeChangeListener(this.props.vm.blockListener);
     }
 
     updateToolboxBlockValue (id, value) {
@@ -1349,22 +1092,64 @@ class Blocks extends React.Component {
     }
 
     onTargetsUpdate () {
-        // 拆分模式：使用锁定目标而非全局编辑目标，确保工具箱中的 x/y 值正确
-        const target = this.props.workspaceTargetId ?
-            this.props.vm.runtime.getTargetById(this.props.workspaceTargetId) :
-            this.props.vm.editingTarget;
-        if (target && this.workspace.getFlyout()) {
+        if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
             ['glide', 'move', 'set'].forEach(prefix => {
-                this.updateToolboxBlockValue(`${prefix}x`, Math.round(target.x).toString());
-                this.updateToolboxBlockValue(`${prefix}y`, Math.round(target.y).toString());
+                this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
+                this.updateToolboxBlockValue(`${prefix}y`, Math.round(this.props.vm.editingTarget.y).toString());
             });
         }
     }
+    // Build a <mutation> DOM element from a VM procedure mutation object so it can
+    // be handed to scratch-blocks for the "我的积木" flyout category.
+    procedureMutationToDom (mutation) {
+        const el = document.createElement('mutation');
+        el.setAttribute('proccode', String(mutation.proccode || ''));
+        el.setAttribute('argumentids', String(mutation.argumentids || '[]'));
+        el.setAttribute('argumentnames', String(mutation.argumentnames || '[]'));
+        el.setAttribute('argumentdefaults', String(mutation.argumentdefaults || '[]'));
+        el.setAttribute('warp', String(mutation.warp === undefined ? 'false' : mutation.warp));
+        if (mutation.global) {
+            el.setAttribute('global', 'true');
+        }
+        if (mutation.customcolor) {
+            el.setAttribute('customcolor', String(mutation.customcolor));
+        }
+        if (mutation.customFolder) {
+            el.setAttribute('customFolder', String(mutation.customFolder));
+        }
+        return el;
+    }
+    // Collect the global (cross-target) procedure definitions stored in the stage
+    // so they can be surfaced in every target's "我的积木" flyout.
+    getGlobalProcedureMutations () {
+        const stage = this.props.vm.runtime.getTargetForStage();
+        if (!stage || !stage.blocks || !stage.blocks._blocks) {
+            return [];
+        }
+        const mutations = [];
+        const blocks = stage.blocks._blocks;
+        for (const blockId in blocks) {
+            if (!Object.prototype.hasOwnProperty.call(blocks, blockId)) continue;
+            const block = blocks[blockId];
+            if (block.opcode !== 'procedures_prototype' || !block.mutation) continue;
+            const global = block.mutation.global;
+            if (global !== true && global !== 'true') continue;
+            mutations.push(this.procedureMutationToDom(block.mutation));
+        }
+        return mutations;
+    }
+    updateGlobalProcedures () {
+        if (!this.ScratchBlocks || !this.ScratchBlocks.Procedures ||
+            typeof this.ScratchBlocks.Procedures.setGlobalProcedureMutations !== 'function') {
+            return;
+        }
+        this.ScratchBlocks.Procedures.setGlobalProcedureMutations(
+            this.getGlobalProcedureMutations()
+        );
+    }
     onWorkspaceMetricsChange () {
-        // 拆分模式：使用锁定目标而非全局编辑目标，保存各自独立的工作区位置
-        const target = this.props.workspaceTargetId ?
-            this.props.vm.runtime.getTargetById(this.props.workspaceTargetId) :
-            this.props.vm.editingTarget;
+        if (!workspaceIsAlive(this)) return;
+        const target = this.props.vm.editingTarget;
         if (target && target.id) {
             this.props.updateMetrics({
                 targetID: target.id,
@@ -1374,145 +1159,153 @@ class Blocks extends React.Component {
             });
         }
     }
-    handleProjectRunStart () {
-        this.achievementState.isProjectRunning = true;
-        this.achievementState.dragCounts.clear();
-    }
-    handleProjectRunStop () {
-        this.achievementState.isProjectRunning = false;
-    }
-    handleAchievementWorkspaceEvent (event) {
-        if (!event) return;
-        const type = String(event.type || '').toUpperCase();
-        const isCommentEvent = type.includes('COMMENT');
-        const commentId = event.commentId ||
-            (event.comment && event.comment.id) ||
-            event.id;
-        if (isCommentEvent && type.includes('CREATE') && commentId) {
-            this.achievementState.commentCreatedAt.set(commentId, Date.now());
-        }
-        if (isCommentEvent && type.includes('DELETE') && commentId) {
-            const createdAt = this.achievementState.commentCreatedAt.get(commentId);
-            this.achievementState.commentCreatedAt.delete(commentId);
-            if (createdAt && Date.now() - createdAt <= 3000) {
-                unlockAchievement('hesitate');
-            }
-        }
-        if (type === 'CREATE') {
-            this.achievementState.hasAddedBlock = true;
-        }
-        if (type === 'DELETE') {
-            const oldXml = event.oldXml;
-            const deletedBlocks = oldXml && typeof oldXml.getElementsByTagName === 'function' ?
-                oldXml.getElementsByTagName('block').length : 0;
-            if (deletedBlocks > 20) {
-                unlockAchievement('now-good');
-            }
-        }
-        if (type === 'MOVE' && !this.achievementState.isProjectRunning && event.blockId) {
-            const count = (this.achievementState.dragCounts.get(event.blockId) || 0) + 1;
-            this.achievementState.dragCounts.set(event.blockId, count);
-            if (count >= 50) {
-                unlockAchievement('drag-master');
-            }
-        }
-    }
-    handleDocumentCopy () {
-        if (this.workspace && typeof this.workspace.getSelected === 'function' && this.workspace.getSelected()) {
-            this.achievementState.recentCopyAt = Date.now();
-        }
-    }
-    handleDocumentPaste () {
-        if (Date.now() - this.achievementState.recentCopyAt > 3000) return;
-        this.achievementState.recentCopyAt = 0;
-        this.achievementState.pastePairs += 1;
-        if (this.achievementState.pastePairs >= 20) {
-            unlockAchievement('copy-paste');
-        }
-    }
+    // The workspace records glow state by id whether or not the block is
+    // rendered, so a script that is offscreen still comes back glowing.
     onScriptGlowOn (data) {
-        if (this.workspace && this.workspace.getBlockById(data.id)) {
-            this.workspace.glowStack(data.id, true);
-        }
+        if (!workspaceIsAlive(this)) return;
+        this.workspace.glowStack(data.id, true);
     }
     onScriptGlowOff (data) {
-        if (this.workspace && this.workspace.getBlockById(data.id)) {
-            this.workspace.glowStack(data.id, false);
-        }
+        if (!workspaceIsAlive(this)) return;
+        this.workspace.glowStack(data.id, false);
     }
     onBlockGlowOn (data) {
-        if (this.workspace && this.workspace.getBlockById(data.id)) {
-            this.workspace.glowBlock(data.id, true);
-        }
+        if (!workspaceIsAlive(this)) return;
+        this.workspace.glowBlock(data.id, true);
     }
     onBlockGlowOff (data) {
-        if (this.workspace && this.workspace.getBlockById(data.id)) {
-            this.workspace.glowBlock(data.id, false);
-        }
+        if (!workspaceIsAlive(this)) return;
+        this.workspace.glowBlock(data.id, false);
     }
     onVisualReport (data) {
-        if (this.workspace && this.workspace.getBlockById(data.id)) {
-            this.workspace.reportValue(data.id, data.value, data.fullValue);
-        }
+        if (!workspaceIsAlive(this)) return;
+        if (!this.workspace.getBlockById(data.id)) return;
+        this.workspace.reportValue(data.id, data.value, data.fullValue);
     }
     getToolboxXML () {
         // Use try/catch because this requires digging pretty deep into the VM
         // Code inside intentionally ignores several error situations (no stage, etc.)
         // Because they would get caught by this try/catch
         try {
-            const runtime = this.props.vm.runtime;
-            // 拆分模式下，若该侧工作区已锁定到某个角色/背景，则工具箱使用该锁定目标，
-            // 以便变量、扩展等与对应角色一致，而不是跟随全局编辑目标。
-            let target = this.props.workspaceTargetId ?
-                runtime.getTargetById(this.props.workspaceTargetId) : this.props.vm.editingTarget;
+            let {editingTarget: target, runtime} = this.props.vm;
             const stage = runtime.getTargetForStage();
             if (!target) target = stage; // If no editingTarget, use the stage
 
             const stageCostumes = stage.getCostumes();
             const targetCostumes = target.getCostumes();
             const targetSounds = target.getSounds();
+            const costumeName = targetCostumes[targetCostumes.length - 1].name;
+            const backdropName = stageCostumes[stageCostumes.length - 1].name;
+            const soundName = targetSounds.length > 0 ? targetSounds[targetSounds.length - 1].name : '';
+            const customAssets = runtime.assetManager.assets;
+            const assetName = customAssets.length > 0 ? customAssets[0].name : '';
+
+            // Building the toolbox XML walks every block of the current target
+            // (runtime.getBlocksXML) and is expensive for big projects. It only
+            // needs to change when one of its inputs changes, so memoize it.
+            // The block count is included so adding/removing variables, custom
+            // blocks or other flyout-affecting blocks still rebuilds.
+            const blocksCount = target.blocks && target.blocks._blocks ?
+                Object.keys(target.blocks._blocks).length : 0;
+            const key = `${target.id}|${target.isStage}|${this.props.theme.id}|` +
+                `${costumeName}|${backdropName}|${soundName}|${assetName}|` +
+                `${blocksCount}|${runtime._blockInfo.length}|${getVanillaPalette()}`;
+            if (this._toolboxXMLCache && this._toolboxXMLCache.key === key) {
+                return this._toolboxXMLCache.xml;
+            }
+
             const dynamicBlocksXML = injectExtensionCategoryTheme(
-                this.props.vm.runtime.getBlocksXML(target),
+                runtime.getBlocksXML(target),
                 this.props.theme
             );
-            return makeToolboxXML(false, target.isStage, target.id, dynamicBlocksXML,
-                targetCostumes[targetCostumes.length - 1].name,
-                stageCostumes[stageCostumes.length - 1].name,
-                targetSounds.length > 0 ? targetSounds[targetSounds.length - 1].name : '',
-                this.props.theme.getBlockColors()
-            );
+            const toolboxXML = makeToolboxXML(false, target.isStage, target.id, dynamicBlocksXML,
+                costumeName, backdropName, soundName,
+                this.props.theme.getBlockColors(),
+                assetName);
+            this._toolboxXMLCache = {key, xml: toolboxXML};
+            return toolboxXML;
         } catch {
             return null;
         }
     }
     onWorkspaceUpdate (data) {
-        // When we change sprites, update the toolbox to have the new sprite's blocks
-        const toolboxXML = this.getToolboxXML();
-        if (toolboxXML) {
-            this.props.updateToolboxState(toolboxXML);
-        }
+        // Refresh the cross-target procedure list before the toolbox rebuild so
+        // the "我的积木" flyout always shows the latest global definitions.
+        this.updateGlobalProcedures();
 
-        // 拆分模式：该工作区锁定到了某个角色/背景（workspaceTargetId）。
-        // 只有当锁定目标恰好是全局编辑目标（即用户正在操作这一侧）时，
-        // 才用 data.xml（编辑目标的积木）刷新本侧；否则保持本侧当前显示，
-        // 避免被另一侧编辑的角色积木覆盖，从而实现两列分别编辑不同角色。
-        const lockedId = this.props.workspaceTargetId;
-        const isActiveLocked = lockedId && this.props.vm.editingTarget &&
-            lockedId === this.props.vm.editingTarget.id;
-        if (lockedId && !isActiveLocked) {
-            // 非激活锁定侧：仅更新工具箱，不重载积木，保持独立显示。
-            return;
-        }
+        // Batch this with target-dependent extension updates. A sprite switch
+        // should describe and rebuild the toolbox once, not once per event.
+        this.requestToolboxStateUpdate();
 
         if (this.props.vm.editingTarget && !this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id]) {
             this.onWorkspaceMetricsChange();
         }
 
         // Remove and reattach the workspace listener (but allow flyout events)
+        if (!workspaceIsAlive(this)) return;
+        this.cancelDeferredWorkspaceLoad();
         this.workspace.removeChangeListener(this.props.vm.blockListener);
-        const dom = this.ScratchBlocks.Xml.textToDom(data.xml);
+
+        // The VM hands over blocks as plain descriptions to avoid the cost of
+        // serializing every block to XML and parsing it back into a DOM. Use
+        // them directly when the deferred (virtualized) loader is available;
+        // only the lightweight header (variables / comments / frames) needs to
+        // go through the XML DOM. Fall back to the full XML path otherwise.
+        const hasDescs = !!data.blocks && !!data.blocks.blocks;
+        const blockCount = hasDescs ? Object.keys(data.blocks.blocks).length : 0;
+        const useDeferredLoad = !!this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXmlDeferred &&
+            (blockCount >= DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS ||
+                Object.keys(this.workspace.blockDB_ || {}).length >= DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS);
+        // Re-apply the workspace layout once the (possibly asynchronous) load
+        // finishes. The container may have been resized (stage zoom, tab switch,
+        // window resize) while the blocks were loading, which would otherwise
+        // leave the blocks area misaligned or clipped.
+        const relayoutAfterLoad = () => {
+            window.requestAnimationFrame(() => {
+                if (!workspaceIsAlive(this)) return;
+                if (!this.props.isVisible) return;
+                this.resizeBlocksWorkspace();
+            });
+        };
+        // A deferred (lazy) load that fails partway can leave the workspace
+        // cleared but only partially populated, which looks like the blocks
+        // area disappeared on big projects. Fall back to the synchronous
+        // full-XML loader so the blocks are always restored.
+        const fallbackToSyncLoad = () => {
+            this.deferredWorkspaceLoad = null;
+            if (this.workspace && this.workspace.cancelDeferredRender) {
+                this.workspace.cancelDeferredRender();
+            }
+            try {
+                const dom = this.ScratchBlocks.Xml.textToDom(data.xml);
+                this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXml(dom, this.workspace);
+            } catch (fallbackError) {
+                // Both load paths failed. Keep the error logged so it is
+                // debuggable, but don't crash the editor.
+                if (fallbackError.message) {
+                    fallbackError.message = `Workspace Update Fallback Error: ${fallbackError.message}`;
+                }
+                log.error(fallbackError);
+            }
+        };
         try {
-            this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXml(dom, this.workspace);
+            if (useDeferredLoad) {
+                const headerDom = this.ScratchBlocks.Xml.textToDom(data.headerXml || data.xml);
+                this.deferredWorkspaceLoad = this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXmlDeferred(
+                    headerDom,
+                    this.workspace,
+                    {
+                        onDone: () => {
+                            this.deferredWorkspaceLoad = null;
+                            relayoutAfterLoad();
+                        }
+                    },
+                    hasDescs ? data.blocks : undefined
+                );
+            } else {
+                const dom = this.ScratchBlocks.Xml.textToDom(data.xml);
+                this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXml(dom, this.workspace);
+            }
         } catch (error) {
             // The workspace is likely incomplete. What did update should be
             // functional.
@@ -1527,7 +1320,16 @@ class Blocks extends React.Component {
                 error.message = `Workspace Update Error: ${error.message}`;
             }
             log.error(error);
+            // The deferred loader clears the workspace up front, so an
+            // exception from it (e.g. malformed variables/comments/frames in a
+            // large project) would otherwise leave the blocks area blank. Rebuild
+            // from the full XML to restore the blocks instead of letting them
+            // disappear.
+            if (useDeferredLoad) {
+                fallbackToSyncLoad();
+            }
         }
+        if (!workspaceIsAlive(this)) return; // workspace may have been disposed during fallback load
         this.workspace.addChangeListener(this.props.vm.blockListener);
 
         if (this.props.vm.editingTarget && this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id]) {
@@ -1538,50 +1340,29 @@ class Blocks extends React.Component {
             this.workspace.resize();
         }
 
-        // 记录本工作区当前显示的目标，供 componentDidUpdate 判断是否需要初次加载锁定目标。
-        this._loadedTargetId = lockedId || (this.props.vm.editingTarget && this.props.vm.editingTarget.id);
-
         // Clear the undo state of the workspace since this is a
         // fresh workspace and we don't want any changes made to another sprites
         // workspace to be 'undone' here.
         this.workspace.clearUndo();
-    }
-    // 拆分模式下，为锁定到非全局编辑目标的工作区初次加载其自身角色的 XML，
-    // 使其显示正确角色的积木，而不依赖全局 WORKSPACE_UPDATE 事件。
-    loadLockedTargetWorkspace () {
-        const lockedId = this.props.workspaceTargetId;
-        if (!lockedId || !this.workspace) return;
-        if (this._loadedTargetId === lockedId) return;
-        const target = this.props.vm.runtime.getTargetById(lockedId);
-        if (!target || !target.blocks || typeof target.blocks.toXML !== 'function') return;
-        let xml;
-        try {
-            xml = target.blocks.toXML(target.comments ? target.comments : undefined);
-        } catch (e) {
-            return;
-        }
-        if (!xml) return;
-        // scratch-vm 的 blocks.toXML() 只返回内部 <block> 元素，
-        // 缺少 clearWorkspaceAndLoadFromXml 所需的 <xml> 根节点，需要自行包裹。
-        xml = `<xml xmlns="http://www.w3.org/1999/xhtml">${xml}</xml>`;
-        const toolboxXML = this.getToolboxXML();
-        if (toolboxXML) this.props.updateToolboxState(toolboxXML);
-        this.workspace.removeChangeListener(this.props.vm.blockListener);
-        try {
-            const dom = this.ScratchBlocks.Xml.textToDom(xml);
-            this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXml(dom, this.workspace);
-        } catch (error) {
-            if (error.message) error.message = `Locked Workspace Update Error: ${error.message}`;
-            log.error(error);
-        }
-        this.workspace.addChangeListener(this.props.vm.blockListener);
-        this._loadedTargetId = lockedId;
-        this.workspace.clearUndo();
+
+        // Large projects take a while to render. The container may have been
+        // resized (stage zoom, window resize, tab switch) before every block
+        // finished laying out, so re-run the layout once the current frame is
+        // done. This keeps the scrollbars and block positions consistent and
+        // prevents the blocks area from being misaligned or clipped.
+        window.requestAnimationFrame(() => {
+            if (!workspaceIsAlive(this)) return;
+            if (!this.props.isVisible) return;
+            this.resizeBlocksWorkspace();
+        });
+
+        this.workspace.toolboxRefreshEnabled_ = true;
     }
     handleMonitorsUpdate (monitors) {
         // Update the checkboxes of the relevant monitors.
         // TODO: What about monitors that have fields? See todo in scratch-vm blocks.js changeBlock:
         // https://github.com/LLK/scratch-vm/blob/2373f9483edaf705f11d62662f7bb2a57fbb5e28/src/engine/blocks.js#L569-L576
+        if (!workspaceIsAlive(this) || !this.workspace.getFlyout) return;
         const flyout = this.workspace.getFlyout();
         for (const monitor of monitors.values()) {
             const blockId = monitor.get('id');
@@ -1602,6 +1383,8 @@ class Blocks extends React.Component {
                 const staticBlocksJson = [];
                 const dynamicBlocksInfo = [];
                 blockInfoArray.forEach(blockInfo => {
+                    // Patching uses native extendable Scratch Blocks definitions.
+                    if (categoryInfo.id === 'patching') return;
                     if (blockInfo.info && blockInfo.info.isDynamic) {
                         dynamicBlocksInfo.push(blockInfo);
                     } else if (blockInfo.json) {
@@ -1636,11 +1419,7 @@ class Blocks extends React.Component {
         defineBlocks(categoryInfo.menus);
         defineBlocks(categoryInfo.blocks);
 
-        // Update the toolbox with new blocks if possible
-        const toolboxXML = this.getToolboxXML();
-        if (toolboxXML) {
-            this.props.updateToolboxState(toolboxXML);
-        }
+        this.requestToolboxStateUpdate();
     }
     handleBlocksInfoUpdate (categoryInfo) {
         // @todo Later we should replace this to avoid all the warnings from redefining blocks.
@@ -1648,10 +1427,21 @@ class Blocks extends React.Component {
     }
 
     handleExtensionsChanged () {
-        const toolboxXML = this.getToolboxXML();
-        if (toolboxXML) {
-            this.props.updateToolboxState(toolboxXML);
-        }
+        this.requestToolboxStateUpdate();
+    }
+    requestToolboxStateUpdate () {
+        // Debounce across the burst of events that a sprite switch / workspace
+        // update triggers so the toolbox XML is only described and rebuilt once
+        // per logical change instead of once per event.
+        clearTimeout(this.toolboxStateUpdateTimeout);
+        this.toolboxStateUpdateTimeout = setTimeout(() => {
+            this.toolboxStateUpdateTimeout = null;
+            if (this.unmounted) return;
+            const toolboxXML = this.getToolboxXML();
+            if (toolboxXML) {
+                this.props.updateToolboxState(toolboxXML);
+            }
+        }, 100);
     }
     handleCategorySelected (categoryId) {
         const extension = extensionData.find(ext => ext.extensionId === categoryId);
@@ -1665,6 +1455,57 @@ class Blocks extends React.Component {
     }
     setBlocks (blocks) {
         this.blocks = blocks;
+    }
+    resizeBlocksWorkspace () {
+        if (!workspaceIsAlive(this)) return;
+        // Blockly's resize() repositions toolbox/flyout/scrollbars but does NOT
+        // reset the SVG width/height attributes. If the workspace was resized
+        // while hidden (e.g. the stage was dragged while on the costumes/sounds
+        // tab), svgResize reads a 0-sized container and leaves the SVG at 0x0,
+        // so switching back shows an empty blocks area. Re-apply the SVG size
+        // from the (now visible) container before laying out.
+        if (typeof this.ScratchBlocks.svgResize === 'function') {
+            const svg = this.workspace.getParentSvg && this.workspace.getParentSvg();
+            const container = svg ? svg.parentNode : null;
+            if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
+                this.ScratchBlocks.svgResize(this.workspace);
+                return;
+            }
+        }
+        this.workspace.resize();
+    }
+    setupBlocksResizeObserver () {
+        if (!this.blocks || typeof ResizeObserver === 'undefined') return;
+        this.blocksResizeObserver = new ResizeObserver(() => {
+            this.handleBlocksResize();
+        });
+        this.blocksResizeObserver.observe(this.blocks);
+    }
+    handleBlocksResize () {
+        if (!workspaceIsAlive(this)) return;
+        if (!this.blocks) return;
+        if (!this.props.isVisible) return;
+        // Only react to meaningful size changes to avoid wasted work during
+        // every frame of a CSS transition.
+        const rect = this.blocks.getBoundingClientRect();
+        const width = Math.round(rect.width);
+        const height = Math.round(rect.height);
+        if (this.lastBlocksWidth === width && this.lastBlocksHeight === height) return;
+        this.lastBlocksWidth = width;
+        this.lastBlocksHeight = height;
+        if (this.workspaceResizeRaf) return;
+        this.workspaceResizeRaf = window.requestAnimationFrame(() => {
+            this.workspaceResizeRaf = null;
+            if (!workspaceIsAlive(this)) return;
+            if (!this.props.isVisible) return;
+            this.resizeBlocksWorkspace();
+        });
+    }
+    cancelDeferredWorkspaceLoad () {
+        this.deferredWorkspaceLoad = null;
+        if (this.workspace && typeof this.workspace.cancelDeferredRender === 'function') {
+            this.workspace.cancelDeferredRender();
+        }
     }
     handlePromptStart (message, defaultValue, callback, optTitle, optVarType) {
         const p = {prompt: {callback, message, defaultValue}};
@@ -1683,6 +1524,7 @@ class Blocks extends React.Component {
         this.props.onOpenConnectionModal(extensionId);
     }
     handleStatusButtonUpdate () {
+        if (!workspaceIsAlive(this)) return;
         this.ScratchBlocks.refreshStatusButtons(this.workspace);
     }
     handleOpenSoundRecorder () {
@@ -1705,74 +1547,15 @@ class Blocks extends React.Component {
         this.setState({prompt: null});
     }
     handleCustomProceduresClose (data) {
+        // The custom procedure modal creates blocks with Blockly events
+        // disabled; ask the collaboration engine to capture them.
         const collaborationService = CollaborationService.getInstance();
-        const newProcedureBlocks = [];
-        const allBlocks = this.workspace.getAllBlocks(true);
-        
-        allBlocks.forEach(block => {
-            if (block.type === 'procedures_definition') {
-                const blockId = block.id;
-                if (!window._syncedProcedureBlocks) {
-                    window._syncedProcedureBlocks = new Set();
-                }
-                
-                if (!window._syncedProcedureBlocks.has(blockId)) {
-                    newProcedureBlocks.push(block);
-                    window._syncedProcedureBlocks.add(blockId);
-                }
-            }
-        });
-        
-        if (collaborationService && collaborationService.isConnected) {
-            console.log('[Blocks] Collaboration connected, syncing', newProcedureBlocks.length, 'procedure blocks');
-            
-            if (newProcedureBlocks.length > 0) {
-                newProcedureBlocks.forEach(block => {
-                    try {
-                        const xml = this.ScratchBlocks.Xml.blockToDom(block);
-                        const xmlText = this.ScratchBlocks.Xml.domToText(xml);
-                        
-                        const event = {
-                            type: 'create',
-                            blockId: block.id,
-                            xml: xmlText,
-                            workspaceId: this.workspace.id,
-                            recordUndo: false
-                        };
-                        
-                        const eventOrigin = (collaborationService.peer && collaborationService.peer.id) ?
-                            collaborationService.peer.id : 'local';
-                        
-                        const localTarget = this.props.vm.editingTarget ? this.props.vm.editingTarget : null;
-                        const targetName = localTarget ? localTarget.getName() : null;
-                        
-                        const randomPart = Math.random().toString(36)
-                            .slice(2, 8);
-
-                        const eid = `${eventOrigin}-${Date.now()}-${randomPart}`;
-                        
-                        console.log('[Blocks] Sending procedure block to collaborators:', {
-                            blockId: block.id,
-                            eventId: eid,
-                            xmlLength: xmlText.length
-                        });
-                        
-                        collaborationService.sendMessage('block-event', {
-                            event: event,
-                            targetName: targetName,
-                            eventId: eid,
-                            eventOrigin: eventOrigin,
-                            timestamp: Date.now()
-                        });
-                        
-                    } catch (e) {
-                        console.error('[Blocks] Error syncing procedure block:', e);
-                    }
-                });
-            }
+        if (collaborationService.isConnected) {
+            collaborationService.flushProcedureBlocks();
         }
-        
+
         this.props.onRequestCloseCustomProcedures(data);
+        if (!workspaceIsAlive(this)) return;
         const ws = this.workspace;
         ws.refreshToolboxSelection_();
         ws.toolbox_.scrollToCategoryById('myBlocks');
@@ -1781,19 +1564,19 @@ class Blocks extends React.Component {
         fetch(dragInfo.payload.bodyUrl)
             .then(response => response.json())
             .then(payload => {
+                if (!workspaceIsAlive(this)) return;
                 // based on https://github.com/ScratchAddons/ScratchAddons/pull/7028
-                const topBlock = findTopBlock(payload);
-                if (topBlock) {
-                    const metrics = this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id];
-                    if (metrics) {
-                        const {x, y} = dragInfo.currentOffset;
-                        const {left, right} = this.workspace.scrollbar.hScroll.outerSvg_.getBoundingClientRect();
-                        const {top} = this.workspace.scrollbar.vScroll.outerSvg_.getBoundingClientRect();
-                        topBlock.x = (
-                            this.props.isRtl ? metrics.scrollX - x + right : -metrics.scrollX + x - left
-                        ) / metrics.scale;
-                        topBlock.y = (-metrics.scrollY - top + y) / metrics.scale;
-                    }
+                const metrics = this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id];
+                if (metrics) {
+                    const {x, y} = dragInfo.currentOffset;
+                    const {left, right} = this.workspace.scrollbar.hScroll.outerSvg_.getBoundingClientRect();
+                    const {top} = this.workspace.scrollbar.vScroll.outerSvg_.getBoundingClientRect();
+                    offsetToPosition(
+                        payload,
+                        (this.props.isRtl ? metrics.scrollX - x + right : -metrics.scrollX + x - left) /
+                            metrics.scale,
+                        (-metrics.scrollY - top + y) / metrics.scale
+                    );
                 }
                 return this.props.vm.shareBlocksToTarget(payload, this.props.vm.editingTarget.id);
             })
@@ -1803,13 +1586,15 @@ class Blocks extends React.Component {
             });
     }
     handleEnableProcedureReturns () {
-        console.log('handleEnableProcedureReturns called');
+        if (!workspaceIsAlive(this)) return;
+        if (process.env.DEBUG) console.log('handleEnableProcedureReturns called');
         this.workspace.enableProcedureReturns();
         this.requestToolboxUpdate();
         
         // Force immediate toolbox refresh to show return blocks
         setTimeout(() => {
-            console.log('Executing delayed toolbox refresh');
+            if (!workspaceIsAlive(this)) return;
+            if (process.env.DEBUG) console.log('Executing delayed toolbox refresh');
             if (this.workspace.getFlyout) {
                 const flyout = this.workspace.getFlyout();
                 if (flyout && flyout.getWorkspace) {
@@ -1827,168 +1612,6 @@ class Blocks extends React.Component {
             }
         }, 100);
     }
-    // === Hat Block Comment Reminder Feature ===
-    HAT_REMINDER_MAGIC () {
-        return ' // _hatblock_reminder_';
-    }
-    HAT_REMINDER_COMMENT_ID (blockId) {
-        return `_hat_reminder_${blockId}`;
-    }
-    _handleHatReminderSettingChanged (event) {
-        if (!event.detail) return;
-        const {key, value} = event.detail;
-        if (key === 'hat-block-comment-reminder') {
-            const wasEnabled = this.hatBlockCommentReminderEnabled;
-            this.hatBlockCommentReminderEnabled = value;
-            if (!wasEnabled && this.hatBlockCommentReminderEnabled) {
-                this._checkHatBlockReminders();
-            } else if (wasEnabled && !this.hatBlockCommentReminderEnabled) {
-                this._removeAllReminderComments();
-            }
-        } else if (key === 'hat-reminder-check-interval') {
-            this.hatReminderCheckInterval = value;
-            // Re-create debounced check with new interval
-            this._checkHatBlockReminders = debounce(
-                this._checkHatBlockRemindersImpl.bind(this), value
-            );
-        } else if (key === 'hat-reminder-block-threshold') {
-            this.hatReminderBlockThreshold = value;
-            // Re-check with new threshold
-            if (this.hatBlockCommentReminderEnabled) {
-                this._checkHatBlockReminders();
-            }
-        } else if (key === 'hat-reminder-comment-text') {
-            this.hatReminderCommentText = value;
-        } else if (key === 'hat-reminder-reset') {
-            this.hatReminderCheckInterval = value.hatReminderCheckInterval;
-            this.hatReminderBlockThreshold = value.hatReminderBlockThreshold;
-            this.hatReminderCommentText = value.hatReminderCommentText;
-            this._checkHatBlockReminders = debounce(
-                this._checkHatBlockRemindersImpl.bind(this), this.hatReminderCheckInterval
-            );
-            if (this.hatBlockCommentReminderEnabled) {
-                this._checkHatBlockReminders();
-            }
-        }
-    }
-    _onWorkspaceChangeForReminder () {
-        if (!this.hatBlockCommentReminderEnabled) return;
-        this._checkHatBlockReminders();
-    }
-    _checkHatBlockRemindersImpl () {
-        if (!this.hatBlockCommentReminderEnabled) return;
-        if (!this.workspace) return;
-        if (this._hatReminderChecking) return;
-
-        this._hatReminderChecking = true;
-        try {
-            const target = this.props.vm && this.props.vm.editingTarget;
-            if (!target) {
-                this._hatReminderChecking = false;
-                return;
-            }
-
-            const topBlocks = this.workspace.getTopBlocks(false) || [];
-            const closedReminders = target.closedHatReminders || new Set();
-
-            for (const block of topBlocks) {
-                if (!block.startHat_) continue;
-                const opcode = block.type;
-                if (!/^event_when/.test(opcode) && opcode !== 'control_start_as_clone') continue;
-
-                const count = this._countBlocksInChain(block);
-                const commentId = this.HAT_REMINDER_COMMENT_ID(block.id);
-                const hasReminder = block.comment && block.comment.id === commentId;
-                const hasUserComment = block.comment && block.comment.id !== commentId;
-                const threshold = this.hatReminderBlockThreshold;
-
-                if (count > threshold && !hasReminder && !hasUserComment && !closedReminders.has(block.id)) {
-                    this._createReminderCommentForBlock(block, commentId);
-                } else if ((count <= threshold || hasUserComment) && hasReminder) {
-                    this._deleteReminderComment(commentId);
-                }
-            }
-        } finally {
-            this._hatReminderChecking = false;
-        }
-    }
-    _countBlocksInChain (startBlock) {
-        let count = 0;
-        let block = startBlock;
-        while (block) {
-            count++;
-            block = block.getNextBlock();
-        }
-        return count;
-    }
-    _createReminderCommentForBlock (block, commentId) {
-        try {
-            const text = this.hatReminderCommentText;
-            const blockXY = block.getRelativeToSurfaceXY();
-            const x = blockXY.x + 70;
-            const y = blockXY.y + 10;
-
-            block.setCommentText(text, commentId, x, y, false);
-            if (block.comment) {
-                block.comment.isHatReminder_ = true;
-                block.comment.setSize(350, 180);
-            }
-        } catch (e) {
-            // Silently ignore errors from comment creation
-        }
-    }
-    _deleteReminderComment (commentId) {
-        try {
-            const blockId = commentId.replace(/^_hat_reminder_/, '');
-            const block = this.workspace.getBlockById(blockId);
-            if (block && block.comment && block.comment.id === commentId) {
-                block.comment.isHatReminder_ = false;
-                block.setCommentText(null);
-            }
-        } catch (e) {
-            // Silently ignore errors from comment deletion
-        }
-    }
-    _removeAllReminderComments () {
-        if (!this.workspace) return;
-
-        // Remove new-style block-attached reminder comments
-        const topBlocks = this.workspace.getTopBlocks(false) || [];
-        for (const block of topBlocks) {
-            if (block.comment && block.comment.id && block.comment.id.startsWith('_hat_reminder_')) {
-                block.comment.isHatReminder_ = false;
-                block.setCommentText(null);
-            }
-        }
-
-        // Also clean up old-style workspace/VM comments for backwards compatibility
-        const target = this.props.vm && this.props.vm.editingTarget;
-        if (target && target.comments) {
-            for (const [commentId, comment] of Object.entries(target.comments)) {
-                if (comment.text && comment.text.includes(this.HAT_REMINDER_MAGIC())) {
-                    delete target.comments[commentId];
-                }
-            }
-        }
-        const topComments = this.workspace.getTopComments(false) || [];
-        for (const comment of topComments) {
-            if (comment.text_ && comment.text_.includes(this.HAT_REMINDER_MAGIC())) {
-                try {
-                    comment.dispose();
-                } catch (e) {
-                    // ignore
-                }
-            }
-        }
-    }
-    _handleHatReminderClosed (event) {
-        const target = this.props.vm && this.props.vm.editingTarget;
-        if (!target || !event.detail || !event.detail.blockId) return;
-        target.closedHatReminders = target.closedHatReminders || new Set();
-        target.closedHatReminders.add(event.detail.blockId);
-    }
-    // === End Hat Block Comment Reminder Feature ===
-
     render () {
         /* eslint-disable no-unused-vars */
         const {
@@ -2004,6 +1627,7 @@ class Blocks extends React.Component {
             isRtl,
             isVisible,
             onActivateColorPicker,
+            onOpenAssetsModal,
             onOpenConnectionModal,
             onOpenSoundRecorder,
             onOpenCustomExtensionModal,
@@ -2025,7 +1649,7 @@ class Blocks extends React.Component {
                 <DroppableBlocks
                     componentRef={this.setBlocks}
                     onDrop={this.handleDrop}
-                    gridVisible={(this.props.theme.wallpaper && this.props.theme.wallpaper.gridVisible) !== false}
+                    gridVisible={this.props.theme.wallpaper.gridVisible !== false}
                     paletteWidth={typeof this.state.flyoutWidth === 'number' ?
                         (60 + this.state.flyoutWidth) : null}
                     paletteResizingEnabled={this.state.paletteResizeEnabled && !isFullScreen}
@@ -2049,9 +1673,11 @@ class Blocks extends React.Component {
 
                 {customProceduresVisible ? (
                     <CustomProcedures
+                        isStage={vm.runtime.getEditingTarget().isStage}
                         options={{
                             media: options.media
                         }}
+                        vm={vm}
                         onRequestClose={this.handleCustomProceduresClose}
                     />
                 ) : null}
@@ -2077,6 +1703,7 @@ Blocks.propTypes = {
     onActivateColorPicker: PropTypes.func,
     onActivateCustomProcedures: PropTypes.func,
     onActivateBlocksTab: PropTypes.func,
+    onOpenAssetsModal: PropTypes.func,
     onOpenConnectionModal: PropTypes.func,
     onOpenSoundRecorder: PropTypes.func,
     onOpenCustomExtensionModal: PropTypes.func,
@@ -2101,7 +1728,6 @@ Blocks.propTypes = {
     useCatBlocks: PropTypes.bool,
     vm: PropTypes.instanceOf(VM).isRequired,
     isFullScreen: PropTypes.bool,
-    projectTitle: PropTypes.string,
     workspaceMetrics: PropTypes.shape({
         targets: PropTypes.objectOf(PropTypes.object)
     })
@@ -2126,7 +1752,7 @@ Blocks.defaultOptions = {
 Blocks.defaultProps = {
     isVisible: true,
     options: Blocks.defaultOptions,
-    theme: Theme.light
+    theme: Theme.defaults.light
 };
 
 const mapStateToProps = state => ({
@@ -2143,7 +1769,6 @@ const mapStateToProps = state => ({
     toolboxXML: state.scratchGui.toolbox.toolboxXML,
     customProceduresVisible: state.scratchGui.customProcedures.active,
     workspaceMetrics: state.scratchGui.workspaceMetrics,
-    projectTitle: state.scratchGui.projectTitle,
     useCatBlocks: isTimeTravel2020(state)
 });
 
@@ -2159,6 +1784,7 @@ const mapDispatchToProps = dispatch => ({
         dispatch(openSoundRecorder());
     },
     reduxOnOpenCustomExtensionModal: () => dispatch(openCustomExtensionModal()),
+    onOpenAssetsModal: () => dispatch(openAssetsModal()),
     onRequestCloseExtensionLibrary: () => {
         dispatch(closeExtensionLibrary());
     },
@@ -2166,10 +1792,9 @@ const mapDispatchToProps = dispatch => ({
         dispatch(deactivateCustomProcedures(data));
     },
     onActivateBlocksTab: () => {
-        console.log('onActivateBlocksTab called');
+        if (process.env.DEBUG) console.log('onActivateBlocksTab called');
         dispatch(activateTab(BLOCKS_TAB_INDEX));
     },
-    onOpenAssetsModal: () => dispatch(openAssetsModal()),
     updateToolboxState: toolboxXML => {
         dispatch(updateToolbox(toolboxXML));
     },
@@ -2177,10 +1802,6 @@ const mapDispatchToProps = dispatch => ({
         dispatch(updateMetrics(metrics));
     }
 });
-
-export {
-    getProcedureReturnMessage
-};
 
 export default injectIntl(errorBoundaryHOC('Blocks')(
     connect(

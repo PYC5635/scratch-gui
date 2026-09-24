@@ -1,6 +1,8 @@
-import {BLOCKS_CUSTOM, Theme, ACCENT_DEFAULT, GUI_DEFAULT, BLOCKS_THREE} from './index.js';
+import {BLOCKS_CUSTOM, Theme, ACCENT_DEFAULT, GUI_DEFAULT, BLOCKS_THREE, MENUBAR_ALIGN_DEFAULT} from './index.js';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {customThemeManager, CustomTheme} from './custom-themes.js';
 import {applyGuiColors} from './guiHelpers.js';
+import {captureStoredAppearance, mergeStoredAppearance, applyAppearance} from './appearance.js';
 
 const matchMedia = query => (window.matchMedia ? window.matchMedia(query) : null);
 const PREFERS_HIGH_CONTRAST_QUERY = matchMedia('(prefers-contrast: more)');
@@ -12,14 +14,25 @@ const STORAGE_KEY = 'tw:theme';
  * @returns {Theme} detected theme
  */
 const systemPreferencesTheme = () => {
-    // Use Theme class static properties instead of Theme.defaults
+    const defaultsAvailable = Theme && Theme.defaults && Theme.defaults.light;
+    if (defaultsAvailable) {
+        if (PREFERS_HIGH_CONTRAST_QUERY && PREFERS_HIGH_CONTRAST_QUERY.matches) {
+            return Theme.defaults.highContrast;
+        }
+        if (PREFERS_DARK_QUERY && PREFERS_DARK_QUERY.matches) {
+            return Theme.defaults.dark;
+        }
+        return Theme.defaults.light;
+    }
+
+    // Fallback: construct a minimal Theme if Theme.defaults isn't initialized yet
     if (PREFERS_HIGH_CONTRAST_QUERY && PREFERS_HIGH_CONTRAST_QUERY.matches) {
-        return Theme.highContrast;
+        return new Theme(ACCENT_DEFAULT, GUI_DEFAULT, BLOCKS_THREE, MENUBAR_ALIGN_DEFAULT);
     }
     if (PREFERS_DARK_QUERY && PREFERS_DARK_QUERY.matches) {
-        return Theme.dark;
+        return new Theme(ACCENT_DEFAULT, 'dark', BLOCKS_THREE, MENUBAR_ALIGN_DEFAULT);
     }
-    return Theme.light;
+    return new Theme(ACCENT_DEFAULT, GUI_DEFAULT, BLOCKS_THREE, MENUBAR_ALIGN_DEFAULT);
 };
 
 /**
@@ -51,25 +64,39 @@ const onSystemPreferenceChange = onChange => {
  */
 const detectTheme = () => {
     const systemPreferences = systemPreferencesTheme();
+    const storedAppearance = captureStoredAppearance();
+    const addStoredAppearance = theme => {
+        const missingStoredValue = Object.keys(storedAppearance)
+            .some(key => typeof theme.appearance[key] === 'undefined');
+        return missingStoredValue ? theme.set('appearance', mergeStoredAppearance(theme.appearance)) : theme;
+    };
 
     try {
-        const local = localStorage.getItem(STORAGE_KEY);
+        const local = getStorageItem(STORAGE_KEY);
+        if (local === null) {
+            return addStoredAppearance(systemPreferences);
+        }
 
         // Migrate legacy preferences
         if (local === 'dark') {
-            return Theme.dark;
+            return addStoredAppearance(Theme.defaults.dark);
         }
         if (local === 'light') {
-            return Theme.light;
+            return addStoredAppearance(Theme.defaults.light);
         }
 
         const parsed = JSON.parse(local);
-        
+        if (!parsed || typeof parsed !== 'object') {
+            return addStoredAppearance(systemPreferences);
+        }
+
         // Check if this is a custom theme
         if (parsed.isCustom && parsed.customThemeUuid) {
             const customTheme = customThemeManager.getTheme(parsed.customThemeUuid);
             if (customTheme) {
-                return customTheme;
+                const migratedTheme = addStoredAppearance(customTheme);
+                return migratedTheme === customTheme ? customTheme :
+                    customThemeManager.updateTheme(customTheme.uuid, {appearance: migratedTheme.appearance});
             }
             // Fall back to system preferences if custom theme not found
             console.warn(`Custom theme ${parsed.customThemeUuid} not found, falling back to system preferences`);
@@ -77,7 +104,7 @@ const detectTheme = () => {
 
         if (parsed.inlineCustomTheme && typeof parsed.inlineCustomTheme === 'object') {
             try {
-                return CustomTheme.import(parsed.inlineCustomTheme);
+                return addStoredAppearance(CustomTheme.import(parsed.inlineCustomTheme));
             } catch (e) {
                 console.warn('Failed to import inline custom theme, falling back to system preferences', e);
             }
@@ -91,41 +118,44 @@ const detectTheme = () => {
             wallpaper.gridVisible = true;
         }
 
+        const legacyAppearance = {
+            ...(parsed.menuBarLayout ? {menuBarLayout: parsed.menuBarLayout} : {}),
+            ...(parsed.styleSettings ? {styles: parsed.styleSettings} : {})
+        };
+
         return new Theme(
             parsed.accent || systemPreferences.accent,
             parsed.gui || systemPreferences.gui,
             parsed.blocks || systemPreferences.blocks,
             parsed.menuBarAlign || systemPreferences.menuBarAlign,
             wallpaper,
-            parsed.fonts || {system: [], google: [], history: []}
+            parsed.fonts || {system: [], google: [], history: []},
+            null,
+            {...storedAppearance, ...legacyAppearance, ...(parsed.appearance || {})}
         );
     } catch (e) {
         // ignore
     }
 
-    return systemPreferences;
+    return addStoredAppearance(systemPreferences);
 };
 
 /**
  * @param {Theme} theme the theme
  */
 const persistTheme = theme => {
-    // When RWC applies a config it writes the exported theme snapshot
-    // directly to localStorage. If this runs during the brief window
-    // before page reload, it would overwrite the just-written value with
-    // the stale Redux theme. The flag is set by applyConfigFromUrl() and
-    // disappears on reload.
-    if (window._rwcSkipPersist) return;
-
     const systemPreferences = systemPreferencesTheme();
     const nonDefaultSettings = {};
 
     // Handle custom themes differently
     if (theme instanceof CustomTheme) {
-        const isSavedCustomTheme = !!customThemeManager.getTheme(theme.uuid);
-        if (isSavedCustomTheme) {
+        const savedCustomTheme = customThemeManager.getTheme(theme.uuid);
+        if (savedCustomTheme) {
             nonDefaultSettings.customThemeUuid = theme.uuid;
             nonDefaultSettings.isCustom = true;
+            if (JSON.stringify(savedCustomTheme.appearance) !== JSON.stringify(theme.appearance)) {
+                customThemeManager.updateTheme(theme.uuid, {appearance: theme.appearance});
+            }
         } else {
             // Modified/unselected custom theme: persist inline so it can be restored.
             nonDefaultSettings.inlineCustomTheme = theme.export();
@@ -144,74 +174,83 @@ const persistTheme = theme => {
         if (theme.menuBarAlign !== systemPreferences.menuBarAlign) {
             nonDefaultSettings.menuBarAlign = theme.menuBarAlign;
         }
+        if (Object.keys(theme.appearance).length > 0) {
+            nonDefaultSettings.appearance = theme.appearance;
+        }
         // Always save wallpaper settings if they exist
-        if (theme.wallpaper && (theme.wallpaper.url || (theme.wallpaper.history && theme.wallpaper.history.length > 0))) {
+        if (theme.wallpaper && (theme.wallpaper.url || theme.wallpaper.history.length > 0)) {
             nonDefaultSettings.wallpaper = theme.wallpaper;
         }
 
         // Always save fonts settings if they exist
         if (theme.fonts &&
-            ((theme.fonts.system && theme.fonts.system.length > 0) ||
-             (theme.fonts && theme.fonts.google && theme.fonts.google.length > 0) ||
-             (theme.fonts && theme.fonts.history && theme.fonts.history.length > 0))) {
+            (theme.fonts.system.length > 0 ||
+             theme.fonts.google.length > 0 ||
+             theme.fonts.history.length > 0)) {
             nonDefaultSettings.fonts = theme.fonts;
         }
     }
 
-    if (Object.keys(nonDefaultSettings).length === 0) {
-        try {
+    let previous = null;
+    try {
+        previous = getStorageItem(STORAGE_KEY);
+    } catch (e) {
+        // ignore
+    }
+    const next = Object.keys(nonDefaultSettings).length === 0 ? null : JSON.stringify(nonDefaultSettings);
+    try {
+        if (next === null) {
             localStorage.removeItem(STORAGE_KEY);
-        } catch (e) {
-            // ignore
+        } else {
+            localStorage.setItem(STORAGE_KEY, next);
         }
-    } else {
+    } catch (e) {
+        // ignore
+    }
+
+    if (next !== previous) {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(nonDefaultSettings));
-        } catch (e) {
-            // ignore
+            require('../rotur/cloud-sync.js').notifyLocalChange();
+        } catch (_) {
+            // cloud sync optional
         }
     }
+};
+
+/**
+ * Apply a theme to the GUI pipeline without persisting it.
+ * Use for boot, storage events, and forced themes (embeds); persistence
+ * must only happen on an explicit user change via applyTheme.
+ * @param {Theme} theme the theme
+ */
+const applyThemeVisuals = theme => {
+    try {
+        applyGuiColors(theme);
+    } catch (e) {
+        console.error('Failed to apply GUI colors for theme:', e);
+    }
+
+    applyAppearance(theme.appearance);
 };
 
 /**
  * Apply a theme to the GUI pipeline and persist settings.
  * This centralizes application so loading and manual changes behave the same.
  * @param {Theme} theme the theme
- * @param {boolean} delayPersist 是否延迟持久化到 localStorage（初始化加载时用）
  */
-const applyTheme = (theme, delayPersist = false) => {
-    try {
-        applyGuiColors(theme);
-    } catch (e) {
-        // Don't let GUI application failures block persistence
-        console.error('Failed to apply GUI colors for theme:', e);
-    }
-
-    // 初始化加载阶段：先让项目尽快加载，持久化在空闲时执行
-    // 避免 localStorage 写入 + JSON 序列化阻塞启动关键路径
-    if (delayPersist) {
-        const scheduleIdle = typeof requestIdleCallback !== 'undefined'
-            ? requestIdleCallback
-            : cb => setTimeout(cb, 0);
-        scheduleIdle(() => persistTheme(theme), {timeout: 3000});
-    } else {
-        persistTheme(theme);
-    }
+const applyTheme = theme => {
+    applyThemeVisuals(theme);
+    persistTheme(theme);
 };
 
-// 模块加载时只应用 CSS 颜色变量（避免闪烁），持久化延迟到浏览器空闲
-// 减少启动关键路径上的同步开销（localStorage 读写、JSON 序列化等）
+if (typeof window !== 'undefined') {
+    window.addEventListener('storage', event => {
+        if (event.key === STORAGE_KEY) applyThemeVisuals(detectTheme());
+    });
+}
+
 try {
-    const initialTheme = detectTheme();
-    try {
-        applyGuiColors(initialTheme);
-    } catch (e) {
-        console.error('Failed to apply GUI colors for theme:', e);
-    }
-    const scheduleIdle = typeof requestIdleCallback !== 'undefined'
-        ? requestIdleCallback
-        : cb => setTimeout(cb, 0);
-    scheduleIdle(() => persistTheme(initialTheme), {timeout: 3000});
+    applyThemeVisuals(detectTheme());
 } catch (e) {
     console.error('Failed to apply theme:', e);
 }
@@ -220,5 +259,6 @@ export {
     onSystemPreferenceChange,
     detectTheme,
     persistTheme,
-    applyTheme
+    applyTheme,
+    applyThemeVisuals
 };

@@ -55,6 +55,12 @@ const blockColors = {
         tertiary: '#389438',
         quaternary: '#DAF1DA'
     },
+    strings: {
+        primary: '#4CD2D2',
+        secondary: '#99E5E5',
+        tertiary: '#007A7A',
+        quaternary: '#CCF2F2'
+    },
     data: {
         primary: '#FFA54C',
         secondary: '#FFCC99',
@@ -68,6 +74,12 @@ const blockColors = {
         secondary: '#FFCAB0', // I don't think this is used, b/c we don't have any droppable fields in list blocks
         tertiary: '#E64D00',
         quaternary: '#FFDDCC'
+    },
+    assets: {
+        primary: '#A6B0BC',
+        secondary: '#C4CBD3',
+        tertiary: '#4F5866',
+        quaternary: '#DDE2E7'
     },
     more: {
         primary: '#FF99AA',

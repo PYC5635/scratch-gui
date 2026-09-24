@@ -29,7 +29,6 @@ class FontPlayground extends React.Component {
                 className={styles.fontPlayground}
                 value={this.state.value}
                 onChange={this.handleChange}
-                data-font-preview
                 placeholder={QUICK_BROWN_FOX}
                 style={{
                     fontFamily: this.props.family

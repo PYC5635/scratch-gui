@@ -11,10 +11,10 @@ import GreenFlagOverlay from '../../containers/green-flag-overlay.jsx';
 import Question from '../../containers/question.jsx';
 import MicIndicator from '../mic-indicator/mic-indicator.jsx';
 import {STAGE_DISPLAY_SIZES} from '../../lib/constants/layout-constants.js';
-import {getStageDimensions, getMinWidth} from '../../lib/utils/screen.js';
+import {getStageDimensions} from '../../lib/utils/screen.js';
 import styles from './stage.css';
 
-const StageComponent = props => {
+const StageComponent = React.memo(props => {
     const {
         canvas,
         customStageSize,
@@ -25,6 +25,7 @@ const StageComponent = props => {
         isStarted,
         isRtl,
         stageContainerWidth,
+        stageMaxHeight,
         colorInfo,
         micIndicator,
         question,
@@ -39,12 +40,9 @@ const StageComponent = props => {
     const isResizablePanel = !isFullScreen && typeof stageContainerWidth === 'number';
     const stageDimensions = getStageDimensions(
         stageSize, customStageSize, isFullScreen,
-        isResizablePanel ? stageContainerWidth : null
+        isResizablePanel ? stageContainerWidth : null,
+        isFullScreen ? null : stageMaxHeight
     );
-    const minWidth = isResizablePanel ? 0 : getMinWidth(stageSize);
-    const transformStyle = (!isResizablePanel && stageDimensions.width < minWidth && !isFullScreen) ? {
-        transform: `translateX(${(minWidth - stageDimensions.width) / (isRtl ? -2 : 2)}px)`
-    } : {};
 
     return (
         <React.Fragment>
@@ -53,10 +51,7 @@ const StageComponent = props => {
                     styles.stageWrapper,
                     {[styles.withColorPicker]: !isFullScreen && isColorPicking})}
                 onDoubleClick={onDoubleClick}
-                style={isPlayerOnly ? null : {
-                    // add 2 because a 1px border is shown around each side of the stage
-                    minWidth: minWidth ? `${minWidth + 2}px` : null
-                }}
+                style={isPlayerOnly ? null : undefined}
             >
                 <Box
                     className={classNames(
@@ -65,8 +60,7 @@ const StageComponent = props => {
                     )}
                     style={{
                         height: stageDimensions.height,
-                        width: stageDimensions.width,
-                        ...transformStyle
+                        width: stageDimensions.width
                     }}
                 >
                     <DOMElementRenderer
@@ -104,7 +98,6 @@ const StageComponent = props => {
                         styles.stageOverlays,
                         {[styles.fullScreen]: isFullScreen}
                     )}
-                    style={transformStyle}
                 >
                     <div
                         className={styles.stageBottomWrapper}
@@ -153,7 +146,9 @@ const StageComponent = props => {
             ) : null}
         </React.Fragment>
     );
-};
+});
+
+StageComponent.displayName = 'StageComponent';
 StageComponent.propTypes = {
     canvas: PropTypes.instanceOf(Element).isRequired,
     customStageSize: PropTypes.shape({
@@ -168,6 +163,7 @@ StageComponent.propTypes = {
     isPlayerOnly: PropTypes.bool,
     isRtl: PropTypes.bool,
     stageContainerWidth: PropTypes.number,
+    stageMaxHeight: PropTypes.number,
     isStarted: PropTypes.bool,
     micIndicator: PropTypes.bool,
     onDeactivateColorPicker: PropTypes.func,

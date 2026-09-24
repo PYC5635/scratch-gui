@@ -1,19 +1,23 @@
 import PropTypes from 'prop-types';
+import {getItem as getStorageItem} from '../lib/utils/safe-storage.js';
 import React from 'react';
 import {defineMessages, injectIntl, intlShape} from 'react-intl';
 import bindAll from 'lodash.bindall';
 import {connect} from 'react-redux';
 import {closeSettingsModal} from '../reducers/modals';
+import {setCloudHost} from '../reducers/tw';
+import {setTheme} from '../reducers/theme';
 import SettingsModalComponent from '../components/tw-settings-modal/settings-modal.jsx';
-import {defaultStageSize} from '../reducers/custom-stage-size';
+import {defaultStageSize, setCustomStageSize} from '../reducers/custom-stage-size';
 import {CustomTheme} from '../lib/themes/custom-themes.js';
-import {getStyleSetting, setStyleSetting} from '../lib/mw-style-settings';
-import {getAppearanceSetting, setAppearanceSetting} from '../lib/mw-appearance-settings';
-import {getVanillaPalette, setVanillaPalette} from '../lib/mw-vanilla-palette';
+import {setSearchParams} from '../lib/utils/navigation';
+import {getAppearanceSetting, setAppearanceSetting}
+    from '../lib/mw-appearance-settings';
+import {getStyleSetting, getStyleSettings, setStyleSetting} from '../lib/mw-style-settings';
+import {applyTheme} from '../lib/themes/themePersistance';
 import {getHideOperatorArrows, setHideOperatorArrows} from '../lib/mw-operator-arrows';
-import {getBlockLazyLoading, setBlockLazyLoading} from '../lib/mw-block-lazy-loading';
-import {getSkipAssetLoading, applySkipAssetLoading, setSkipAssetLoading} from '../lib/mw-skip-asset-loading';
-import WindowManager from '../addons/window-system/window-manager.js';
+import {getVanillaPalette, setVanillaPalette} from '../lib/mw-vanilla-palette';
+import WindowManager from '../addons/window-system/window-manager';
 
 const messages = defineMessages({
     newFramerate: {
@@ -23,42 +27,62 @@ const messages = defineMessages({
     }
 });
 
+// Minimum/maximum allowed custom stage dimensions. Keep in sync with the
+// bounds enforced by src/reducers/custom-stage-size.js.
+const STAGE_DIM_MIN = 1;
+const STAGE_DIM_MAX = 4096;
+
+/**
+ * Coerce a user-entered stage dimension pair into a valid {width, height}
+ * object, clamping to [STAGE_DIM_MIN, STAGE_DIM_MAX] and dropping NaN.
+ * Returns null if either value is not a finite number after coercion —
+ * callers should bail out without touching Redux / vm in that case so that
+ * a stray keystroke cannot corrupt `customStageSize` state.
+ *
+ * @param {number|string} rawWidth
+ * @param {number|string} rawHeight
+ * @returns {{width: number, height: number}|null}
+ */
+const sanitizeStageDimension = (rawWidth, rawHeight) => {
+    const width = Number(rawWidth);
+    const height = Number(rawHeight);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+        return null;
+    }
+    const clampedWidth = Math.max(STAGE_DIM_MIN, Math.min(STAGE_DIM_MAX, Math.round(width)));
+    const clampedHeight = Math.max(STAGE_DIM_MIN, Math.min(STAGE_DIM_MAX, Math.round(height)));
+    return {width: clampedWidth, height: clampedHeight};
+};
+
 class UsernameModal extends React.Component {
     constructor (props) {
         super(props);
 
-        // 处理多工作区默认值
-        const multiWorkspacesStored = localStorage.getItem('mw:multi-workspaces');
-        if (multiWorkspacesStored === null) {
-            localStorage.setItem('mw:multi-workspaces', 'true');
-        }
+        // 隐私模式/存储被禁用的 WebView 中 localStorage 访问会抛 SecurityError，
+        // 必须安全读取，否则设置弹窗组件渲染失败导致白屏。
+        const safeGetItem = key => {
+            try {
+                return getStorageItem(key);
+            } catch (e) {
+                return null;
+            }
+        };
 
         this.state = {
-            optimizeAnimations: localStorage.getItem('mw:optimize-animations') === 'true',
-            debugMode: localStorage.getItem('mw:debug-mode') === 'true',
-            showFPSCounter: localStorage.getItem('mw:show-fps-counter') === 'true',
-            viewCompiledMode: localStorage.getItem('mw:view-compiled-mode') === 'true',
-            storeThemeInProject: localStorage.getItem('mw:store-theme-in-project') === 'true',
-            superRefactor: localStorage.getItem('mw:super-refactor') === 'true',
-            multiWorkspaces: localStorage.getItem('mw:multi-workspaces') === 'true',
-            hatBlockCommentReminder: localStorage.getItem('mw:hat-block-comment-reminder') !== 'false',
-            hatReminderCheckInterval: parseInt(localStorage.getItem('mw:hat-reminder-check-interval'), 10) || 500,
-            hatReminderBlockThreshold: parseInt(localStorage.getItem('mw:hat-reminder-block-threshold'), 10) || 10,
-            hatReminderCommentText: localStorage.getItem('mw:hat-reminder-comment-text') || '记得写注释，不然别人和自己以后都看不懂！（可在高级设置-实验性中修改相关设置）',
-            tabStyle: getStyleSetting('tab-style'),
-            tabLooks: getStyleSetting('tab-looks'),
-            windowStyle: getStyleSetting('window-style'),
-            windowAnimation: localStorage.getItem('mw:window-animation') !== 'false',
-            enableStageResize: localStorage.getItem('mw:enable-stage-resize') !== 'false',
-            unclipPalette: getAppearanceSetting('unclip-palette'),
+            optimizeAnimations: safeGetItem('mw:optimize-animations') === 'true',
+            debugMode: safeGetItem('mw:debug-mode') === 'true',
+            showFPSCounter: safeGetItem('mw:show-fps-counter') === 'true',
+            viewCompiledMode: safeGetItem('mw:view-compiled-mode') === 'true',
+            storeThemeInProject: safeGetItem('mw:store-theme-in-project') === 'true',
+            enableStageResize: safeGetItem('mw:enable-stage-resize') !== 'false',
+            windowAnimation: safeGetItem('mw:window-animation') !== 'false',
+            hideOperatorArrows: getHideOperatorArrows(),
             vanillaPalette: getVanillaPalette(),
             squareStageCorners: getAppearanceSetting('square-stage-corners'),
-            hideExtensionButton: getAppearanceSetting('hide-extension-button'),
-            hideOperatorArrows: getHideOperatorArrows(),
-            blockLazyLoading: getBlockLazyLoading(),
-            skipAssetLoading: getSkipAssetLoading(),
             hideDeleteButton: getAppearanceSetting('hide-delete-button'),
-            hideBackpack: getAppearanceSetting('hide-backpack')
+            hideExtensionButton: getAppearanceSetting('hide-extension-button'),
+            unclipPalette: getAppearanceSetting('unclip-palette'),
+            hideBackpack: getAppearanceSetting('hide-backpack'),
         };
 
         bindAll(this, [
@@ -82,115 +106,21 @@ class UsernameModal extends React.Component {
             'handleShowFPSCounterChange',
             'handleViewCompiledModeChange',
             'handleStoreThemeInProjectChange',
-            'handleSuperRefactorChange',
-            'handleMultiWorkspacesChange',
-            'handleHatBlockCommentReminderChange',
-            'handleHatReminderCheckIntervalChange',
-            'handleHatReminderBlockThresholdChange',
-            'handleHatReminderCommentTextChange',
-            'handleHatReminderReset',
+            'handleEnableStageResizeChange',
+            'handleCloudVariableServerChange',
+            'handleWindowAnimationChange',
+            'handleHideOperatorArrowsChange',
+            'handleVanillaPaletteChange',
+            'handleSquareStageCornersChange',
+            'handleHideDeleteButtonChange',
+            'handleHideExtensionButtonChange',
+            'handleUnclipPaletteChange',
+            'handleHideBackpackChange',
+            
             'handleTabStyleChange',
             'handleTabLooksChange',
-            'handleWindowStyleChange',
-            'handleSquareStageCornersChange',
-            'handleHideExtensionButtonChange',
-            'handleHideOperatorArrowsChange',
-            'handleHideDeleteButtonChange',
-            'handleHideBackpackChange',
-            'handleWindowAnimationChange',
-            'handleEnableStageResizeChange',
-            'handleUnclipPaletteChange',
-            'handleVanillaPaletteChange',
-            'handleBlockLazyLoadingChange',
-            'handleSkipAssetLoadingChange'
+            'handleWindowStyleChange'
         ]);
-    }
-
-    handleTabStyleChange (value) {
-        this.setState({tabStyle: value});
-        setStyleSetting('tab-style', value);
-    }
-
-    handleTabLooksChange (value) {
-        this.setState({tabLooks: value});
-        setStyleSetting('tab-looks', value);
-    }
-
-    handleWindowStyleChange (value) {
-        this.setState({windowStyle: value});
-        setStyleSetting('window-style', value);
-    }
-
-    handleSquareStageCornersChange (e) {
-        const value = e.target.checked;
-        this.setState({squareStageCorners: value});
-        setAppearanceSetting('square-stage-corners', value);
-    }
-
-    handleHideExtensionButtonChange (e) {
-        const value = e.target.checked;
-        this.setState({hideExtensionButton: value});
-        setAppearanceSetting('hide-extension-button', value);
-    }
-
-    handleHideOperatorArrowsChange (e) {
-        const value = e.target.checked;
-        this.setState({hideOperatorArrows: value});
-        setHideOperatorArrows(value);
-    }
-
-    handleBlockLazyLoadingChange (e) {
-        const value = e.target.checked;
-        this.setState({blockLazyLoading: value});
-        setBlockLazyLoading(value);
-    }
-
-    handleSkipAssetLoadingChange (e) {
-        const value = e.target.checked;
-        this.setState({skipAssetLoading: value});
-        setSkipAssetLoading(this.props.vm, value);
-        // Re-apply to the VM in case it was replaced (e.g. via cloud/new project).
-        applySkipAssetLoading(this.props.vm);
-    }
-
-    handleHideDeleteButtonChange (e) {
-        const value = e.target.checked;
-        this.setState({hideDeleteButton: value});
-        setAppearanceSetting('hide-delete-button', value);
-    }
-
-    handleHideBackpackChange (e) {
-        const value = e.target.checked;
-        this.setState({hideBackpack: value});
-        setAppearanceSetting('hide-backpack', value);
-    }
-
-    handleWindowAnimationChange (e) {
-        const enabled = e.target.checked;
-        this.setState({windowAnimation: enabled});
-        WindowManager.setAnimationsEnabled(enabled);
-    }
-
-    handleEnableStageResizeChange (e) {
-        this.setState({enableStageResize: e.target.checked});
-        try {
-            localStorage.setItem('mw:enable-stage-resize', e.target.checked);
-        } catch (err) {
-            // ignore
-        }
-        location.reload();
-    }
-
-    handleUnclipPaletteChange (e) {
-        this.setState({unclipPalette: e.target.checked});
-        setAppearanceSetting('unclip-palette', e.target.checked);
-        location.reload();
-    }
-
-    handleVanillaPaletteChange (e) {
-        this.setState({vanillaPalette: e.target.checked});
-        setVanillaPalette(e.target.checked);
-        location.reload();
     }
 
     handleFramerateChange (e) {
@@ -201,7 +131,7 @@ class UsernameModal extends React.Component {
         // eslint-disable-next-line no-alert
         const newFramerate = await prompt(this.props.intl.formatMessage(messages.newFramerate), this.props.framerate);
         const parsed = parseFloat(newFramerate);
-        if (isFinite(parsed)) {
+        if (isFinite(parsed) && parsed > 0 && parsed <= 500) {
             this.props.vm.setFramerate(parsed);
         }
     }
@@ -253,10 +183,30 @@ class UsernameModal extends React.Component {
         });
     }
     handleStageWidthChange (value) {
-        this.props.vm.setStageSize(value, this.props.customStageSize.height);
+        const sanitized = sanitizeStageDimension(value, this.props.customStageSize.height);
+        if (!sanitized) return;
+        // Keep vm and Redux in sync so Stage re-renders, the renderer projection
+        // updates, the URL `?size=` param updates, and a page refresh preserves
+        // the new size (see src/reducers/custom-stage-size.js for the reducer).
+        this.props.vm.setStageSize(sanitized.width, sanitized.height);
+        this.props.onSetCustomStageSize(sanitized.width, sanitized.height);
+        this.storeStageSizeInProject();
     }
     handleStageHeightChange (value) {
-        this.props.vm.setStageSize(this.props.customStageSize.width, value);
+        const sanitized = sanitizeStageDimension(this.props.customStageSize.width, value);
+        if (!sanitized) return;
+        this.props.vm.setStageSize(sanitized.width, sanitized.height);
+        this.props.onSetCustomStageSize(sanitized.width, sanitized.height);
+        this.storeStageSizeInProject();
+    }
+    storeStageSizeInProject () {
+        if (this.storeStageSizeTimeout) {
+            clearTimeout(this.storeStageSizeTimeout);
+        }
+        this.storeStageSizeTimeout = setTimeout(() => {
+            this.storeStageSizeTimeout = null;
+            this.props.vm.storeProjectOptions();
+        }, 500);
     }
     handleStoreProjectOptions () {
         if (!this.state.storeThemeInProject) {
@@ -270,7 +220,7 @@ class UsernameModal extends React.Component {
             return;
         }
 
-        const mistwarpTheme = (() => {
+        const bilupTheme = (() => {
             if (theme instanceof CustomTheme) {
                 return {
                     version: 1,
@@ -287,13 +237,14 @@ class UsernameModal extends React.Component {
                     blocks: theme.blocks,
                     menuBarAlign: theme.menuBarAlign,
                     wallpaper: theme.wallpaper,
-                    fonts: theme.fonts
+                    fonts: theme.fonts,
+                    appearance: theme.appearance
                 }
             };
         })();
 
         this.props.vm.storeProjectOptions({
-            mistwarpTheme
+            bilupTheme
         });
     }
 
@@ -342,90 +293,84 @@ class UsernameModal extends React.Component {
         }
     }
 
-    handleSuperRefactorChange (e) {
-        this.setState({superRefactor: e.target.checked});
+    handleEnableStageResizeChange (e) {
+        this.setState({enableStageResize: e.target.checked});
         try {
-            localStorage.setItem('mw:super-refactor', e.target.checked);
+            localStorage.setItem('mw:enable-stage-resize', e.target.checked);
         } catch (err) {
             // ignore
         }
     }
 
-    handleMultiWorkspacesChange (e) {
-        this.setState({multiWorkspaces: e.target.checked});
-        try {
-            localStorage.setItem('mw:multi-workspaces', e.target.checked);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'multi-workspaces', value: e.target.checked}
-            }));
-        } catch (err) {
-            // ignore
+    handleCloudVariableServerChange (value) {
+        if (value && !value.startsWith('ws://') && !value.startsWith('wss://')) {
+            return;
+        }
+
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('cloud_host', value);
+        setSearchParams(currentUrl.searchParams);
+        this.props.onSetCloudHost(value);
+    }
+
+handleWindowAnimationChange (e) {
+        const enabled = e.target.checked;
+        this.setState({windowAnimation: enabled});
+        WindowManager.setAnimationsEnabled(enabled);
+    }
+
+    handleHideOperatorArrowsChange (e) {
+        this.setState({hideOperatorArrows: e.target.checked});
+        setHideOperatorArrows(e.target.checked);
+    }
+
+    handleVanillaPaletteChange (e) {
+        this.setState({vanillaPalette: e.target.checked});
+        setVanillaPalette(e.target.checked);
+    }
+
+    setAppearance_ (stateKey, id, checked) {
+        this.setState({[stateKey]: checked});
+        setAppearanceSetting(id, checked);
+    }
+
+    handleSquareStageCornersChange (e) {
+        this.setAppearance_('squareStageCorners', 'square-stage-corners', e.target.checked);
+    }
+
+    handleHideDeleteButtonChange (e) {
+        this.setAppearance_('hideDeleteButton', 'hide-delete-button', e.target.checked);
+    }
+
+    handleHideExtensionButtonChange (e) {
+        this.setAppearance_('hideExtensionButton', 'hide-extension-button', e.target.checked);
+    }
+
+    handleHideBackpackChange (e) {
+        this.setAppearance_('hideBackpack', 'hide-backpack', e.target.checked);
+    }
+
+    handleUnclipPaletteChange (e) {
+        this.setAppearance_('unclipPalette', 'unclip-palette', e.target.checked);
+    }
+
+    setStyle_ (id, value) {
+        setStyleSetting(id, value);
+        if (this.props.theme) {
+            this.props.onChangeTheme(this.props.theme.setAppearance({styles: getStyleSettings()}));
         }
     }
-    handleHatBlockCommentReminderChange (e) {
-        this.setState({hatBlockCommentReminder: e.target.checked});
-        try {
-            localStorage.setItem('mw:hat-block-comment-reminder', e.target.checked);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'hat-block-comment-reminder', value: e.target.checked}
-            }));
-        } catch (err) {
-            // ignore
-        }
+
+    handleTabStyleChange (value) {
+        this.setStyle_('tab-style', value);
     }
-    handleHatReminderCheckIntervalChange (value) {
-        const num = parseInt(value, 10) || 500;
-        this.setState({hatReminderCheckInterval: num});
-        try {
-            localStorage.setItem('mw:hat-reminder-check-interval', num);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'hat-reminder-check-interval', value: num}
-            }));
-        } catch (err) {
-            // ignore
-        }
+
+    handleTabLooksChange (value) {
+        this.setStyle_('tab-looks', value);
     }
-    handleHatReminderBlockThresholdChange (value) {
-        const num = parseInt(value, 10) || 10;
-        this.setState({hatReminderBlockThreshold: num});
-        try {
-            localStorage.setItem('mw:hat-reminder-block-threshold', num);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'hat-reminder-block-threshold', value: num}
-            }));
-        } catch (err) {
-            // ignore
-        }
-    }
-    handleHatReminderCommentTextChange (value) {
-        const text = value || '记得写注释，不然别人和自己以后都看不懂！（可在高级设置-实验性中修改相关设置）';
-        this.setState({hatReminderCommentText: text});
-        try {
-            localStorage.setItem('mw:hat-reminder-comment-text', text);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'hat-reminder-comment-text', value: text}
-            }));
-        } catch (err) {
-            // ignore
-        }
-    }
-    handleHatReminderReset () {
-        const defaults = {
-            hatReminderCheckInterval: 500,
-            hatReminderBlockThreshold: 10,
-            hatReminderCommentText: '记得写注释，不然别人和自己以后都看不懂！（可在高级设置-实验性中修改相关设置）'
-        };
-        this.setState(defaults);
-        try {
-            localStorage.setItem('mw:hat-reminder-check-interval', defaults.hatReminderCheckInterval);
-            localStorage.setItem('mw:hat-reminder-block-threshold', defaults.hatReminderBlockThreshold);
-            localStorage.setItem('mw:hat-reminder-comment-text', defaults.hatReminderCommentText);
-            window.dispatchEvent(new CustomEvent('mw-settings-changed', {
-                detail: {key: 'hat-reminder-reset', value: defaults}
-            }));
-        } catch (err) {
-            // ignore
-        }
+
+    handleWindowStyleChange (value) {
+        this.setStyle_('window-style', value);
     }
     render () {
         const {
@@ -449,6 +394,7 @@ class UsernameModal extends React.Component {
                 onStageWidthChange={this.handleStageWidthChange}
                 onStageHeightChange={this.handleStageHeightChange}
                 onDisableCompilerChange={this.handleDisableCompilerChange}
+                disableCompiler={this.props.disableCompiler}
                 onCaseSensitiveListsChange={this.handleCaseSensitiveListsChange}
                 onRealLayerIndexesChange={this.handleRealLayerIndexesChange}
                 stageWidth={this.props.customStageSize.width}
@@ -463,52 +409,36 @@ class UsernameModal extends React.Component {
                 onShowFPSCounterChange={this.handleShowFPSCounterChange}
                 onViewCompiledModeChange={this.handleViewCompiledModeChange}
                 onStoreThemeInProjectChange={this.handleStoreThemeInProjectChange}
-                onSuperRefactorChange={this.handleSuperRefactorChange}
-                onMultiWorkspacesChange={this.handleMultiWorkspacesChange}
-                onHatBlockCommentReminderChange={this.handleHatBlockCommentReminderChange}
-                hatBlockCommentReminder={this.state.hatBlockCommentReminder}
-                onHatReminderCheckIntervalChange={this.handleHatReminderCheckIntervalChange}
-                hatReminderCheckInterval={this.state.hatReminderCheckInterval}
-                onHatReminderBlockThresholdChange={this.handleHatReminderBlockThresholdChange}
-                hatReminderBlockThreshold={this.state.hatReminderBlockThreshold}
-                onHatReminderCommentTextChange={this.handleHatReminderCommentTextChange}
-                hatReminderCommentText={this.state.hatReminderCommentText}
-                onHatReminderReset={this.handleHatReminderReset}
+                onEnableStageResizeChange={this.handleEnableStageResizeChange}
+                onCloudVariableServerChange={this.handleCloudVariableServerChange}
+                onWindowAnimationChange={this.handleWindowAnimationChange}
+                onHideOperatorArrowsChange={this.handleHideOperatorArrowsChange}
+                hideOperatorArrows={this.state.hideOperatorArrows}
+                onVanillaPaletteChange={this.handleVanillaPaletteChange}
+                vanillaPalette={this.state.vanillaPalette}
+                onSquareStageCornersChange={this.handleSquareStageCornersChange}
+                squareStageCorners={this.state.squareStageCorners}
+                onHideDeleteButtonChange={this.handleHideDeleteButtonChange}
+                hideDeleteButton={this.state.hideDeleteButton}
+                onHideExtensionButtonChange={this.handleHideExtensionButtonChange}
+                hideExtensionButton={this.state.hideExtensionButton}
+                onUnclipPaletteChange={this.handleUnclipPaletteChange}
+                unclipPalette={this.state.unclipPalette}
+                onHideBackpackChange={this.handleHideBackpackChange}
+                hideBackpack={this.state.hideBackpack}
+                onTabStyleChange={this.handleTabStyleChange}
+                tabStyle={getStyleSetting('tab-style')}
+                onTabLooksChange={this.handleTabLooksChange}
+                tabLooks={getStyleSetting('tab-looks')}
+                onWindowStyleChange={this.handleWindowStyleChange}
+                windowStyle={getStyleSetting('window-style')}
                 optimizeAnimations={this.state.optimizeAnimations}
                 debugMode={this.state.debugMode}
                 showFPSCounter={this.state.showFPSCounter}
                 viewCompiledMode={this.state.viewCompiledMode}
                 storeThemeInProject={this.state.storeThemeInProject}
-                superRefactor={this.state.superRefactor}
-                multiWorkspaces={this.state.multiWorkspaces}
-                tabStyle={this.state.tabStyle}
-                onTabStyleChange={this.handleTabStyleChange}
-                tabLooks={this.state.tabLooks}
-                onTabLooksChange={this.handleTabLooksChange}
-                windowStyle={this.state.windowStyle}
-                onWindowStyleChange={this.handleWindowStyleChange}
-                squareStageCorners={this.state.squareStageCorners}
-                onSquareStageCornersChange={this.handleSquareStageCornersChange}
-                hideExtensionButton={this.state.hideExtensionButton}
-                onHideExtensionButtonChange={this.handleHideExtensionButtonChange}
-                hideOperatorArrows={this.state.hideOperatorArrows}
-                onHideOperatorArrowsChange={this.handleHideOperatorArrowsChange}
-                blockLazyLoading={this.state.blockLazyLoading}
-                onBlockLazyLoadingChange={this.handleBlockLazyLoadingChange}
-                skipAssetLoading={this.state.skipAssetLoading}
-                onSkipAssetLoadingChange={this.handleSkipAssetLoadingChange}
-                hideDeleteButton={this.state.hideDeleteButton}
-                onHideDeleteButtonChange={this.handleHideDeleteButtonChange}
-                hideBackpack={this.state.hideBackpack}
-                onHideBackpackChange={this.handleHideBackpackChange}
-                windowAnimation={this.state.windowAnimation}
-                onWindowAnimationChange={this.handleWindowAnimationChange}
                 enableStageResize={this.state.enableStageResize}
-                onEnableStageResizeChange={this.handleEnableStageResizeChange}
-                unclipPalette={this.state.unclipPalette}
-                onUnclipPaletteChange={this.handleUnclipPaletteChange}
-                vanillaPalette={this.state.vanillaPalette}
-                onVanillaPaletteChange={this.handleVanillaPaletteChange}
+                windowAnimation={this.state.windowAnimation}
                 theme={this.props.theme}
                 {...props}
             />
@@ -521,13 +451,15 @@ UsernameModal.propTypes = {
     onClose: PropTypes.func,
     vm: PropTypes.shape({
         renderer: PropTypes.shape({
-            setUseHighQualityRender: PropTypes.func
+            setUseHighQualityRender: PropTypes.func,
+            useRealLayerIndexes: PropTypes.bool
         }),
         setFramerate: PropTypes.func,
         setCompilerOptions: PropTypes.func,
         setInterpolation: PropTypes.func,
         setRuntimeOptions: PropTypes.func,
         setStageSize: PropTypes.func,
+        setExtendableOperators: PropTypes.func,
         storeProjectOptions: PropTypes.func
     }),
     isEmbedded: PropTypes.bool,
@@ -542,10 +474,12 @@ UsernameModal.propTypes = {
         width: PropTypes.number,
         height: PropTypes.number
     }),
+    onSetCustomStageSize: PropTypes.func,
     disableCompiler: PropTypes.bool,
     caseSensitiveLists: PropTypes.bool,
     realLayerIndexes: PropTypes.bool,
-    theme: PropTypes.any
+    theme: PropTypes.any,
+    onChangeTheme: PropTypes.func
 };
 
 const mapStateToProps = state => ({
@@ -558,15 +492,23 @@ const mapStateToProps = state => ({
     removeFencing: !state.scratchGui.tw.runtimeOptions.fencing,
     removeLimits: !state.scratchGui.tw.runtimeOptions.miscLimits,
     warpTimer: state.scratchGui.tw.compilerOptions.warpTimer,
+    disableCompiler: !state.scratchGui.tw.compilerOptions.enabled,
     customStageSize: state.scratchGui.customStageSize,
     // Handle possible undefined value for caseSensitiveLists
     caseSensitiveLists: !!state.scratchGui.tw.runtimeOptions.caseSensitiveLists,
     realLayerIndexes: !!state.scratchGui.tw.runtimeOptions.realLayerIndexes,
-    theme: state.scratchGui.theme?.theme
+    theme: state.scratchGui.theme?.theme,
+    cloudVariableServer: state.scratchGui.tw.cloudHost
 });
 
 const mapDispatchToProps = dispatch => ({
-    onClose: () => dispatch(closeSettingsModal())
+    onClose: () => dispatch(closeSettingsModal()),
+    onSetCloudHost: cloudHost => dispatch(setCloudHost(cloudHost)),
+    onSetCustomStageSize: (width, height) => dispatch(setCustomStageSize(width, height)),
+    onChangeTheme: theme => {
+        dispatch(setTheme(theme));
+        applyTheme(theme);
+    }
 });
 
 export default injectIntl(connect(

@@ -1,4 +1,4 @@
-import logo from './assets/bilup-logo.svg';
+import logo from './assets/bilup-icon.svg';
 
 let link = null;
 let badged = false;

@@ -1,4 +1,4 @@
-import {sanitizeSvg} from '@turbowarp/scratch-svg-renderer';
+import {sanitizeSvg} from '@bilup/scratch-svg-renderer';
 
 export default async function ({ addon, console, msg }) {
   const paper = await addon.tab.traps.getPaper();

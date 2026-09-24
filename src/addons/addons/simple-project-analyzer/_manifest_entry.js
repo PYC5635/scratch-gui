@@ -10,12 +10,14 @@ const manifest = {
     {
       name: "KOSHINO",
       link: "https://github.com/KOSHINOawa"
+    },
+    {
+      name: "RyaninCn11",
+      link: "https://github.com/RyaninCn11"
     }
   ],
   "tags": [
     "recommended",
-    "new",
-    "development",
     "astraeditor"
   ],
   "dynamicDisable": true,
@@ -29,15 +31,6 @@ const manifest = {
       url: "userstyle.css"
     }
   ],
-  "enabledByDefault": true,
-  "l10n": {
-    "defaultLocale": "en",
-    "locales": ["en", "zh-cn"]
-  },
-  "permissions": [
-    "vm",
-    "tab",
-    "storage"
-  ]
+  "enabledByDefault": true
 };
 export default manifest;

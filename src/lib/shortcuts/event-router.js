@@ -1,4 +1,5 @@
 import bowser from 'bowser';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {getDefaultShortcuts, applyCustomShortcuts} from './registry.js';
 import WindowManager from '../../addons/window-system/window-manager.js';
 
@@ -93,7 +94,7 @@ const keyCodeToKey = {
 
 const loadCustomShortcuts = () => {
     try {
-        const saved = localStorage.getItem('tw:shortcuts');
+        const saved = getStorageItem('tw:shortcuts');
         if (saved) {
             const customShortcuts = JSON.parse(saved);
             shortcuts = applyCustomShortcuts(getDefaultShortcuts(), customShortcuts);
@@ -134,11 +135,6 @@ const getEventKey = event => {
     let key = '';
     const keyCode = event.keyCode;
     
-    // Ignore modifier keys alone (Ctrl: 17, Alt: 18, Shift: 16)
-    if (keyCode === 16 || keyCode === 17 || keyCode === 18) {
-        return '';
-    }
-    
     if (keyCodeToKey[keyCode]) {
         key = keyCodeToKey[keyCode];
     } else {
@@ -151,9 +147,6 @@ const getEventKey = event => {
 const normalizeEventKey = event => {
     const modifiers = getModifierKeys(event);
     const key = getEventKey(event);
-    
-    // If no valid key (e.g., modifier keys alone), return empty string
-    if (!key) return '';
     
     const parts = [];
     if (modifiers.ctrl) parts.push('Ctrl');
@@ -170,10 +163,13 @@ const findMatchingShortcut = keyCombo => shortcuts.find(shortcut => {
 });
 
 const executeReduxAction = shortcut => {
+    console.log('Executing Redux action:', shortcut.action);
+    console.log('Dispatch object:', dispatch);
     if (!dispatch) return;
     
     const actionMap = {
         requestNewProject: () => {
+            console.log('Executing requestNewProject');
             if (dispatch.requestNewProject) {
                 dispatch.requestNewProject(false);
             } else {
@@ -181,20 +177,29 @@ const executeReduxAction = shortcut => {
             }
         },
         manualUpdateProject: () => {
-            if (dispatch.manualUpdateProject) {
-                dispatch.manualUpdateProject();
+            console.log('Executing manualUpdateProject');
+            console.log('Callbacks object:', callbacks);
+            console.log('Dispatch object:', dispatch);
+            if (callbacks.saveProject) {
+                console.log('Using callbacks.saveProject instead of manualUpdateProject');
+                callbacks.saveProject();
             } else {
-                console.warn('manualUpdateProject not available in dispatch');
+                console.warn('saveProject not available in callbacks');
             }
         },
         saveProjectAsCopy: () => {
-            if (dispatch.saveProjectAsCopy) {
-                dispatch.saveProjectAsCopy();
+            console.log('Executing saveProjectAsCopy');
+            console.log('Callbacks object:', callbacks);
+            console.log('Dispatch object:', dispatch);
+            if (callbacks.saveProjectAsCopy) {
+                console.log('Using callbacks.saveProjectAsCopy instead of dispatch.saveProjectAsCopy');
+                callbacks.saveProjectAsCopy();
             } else {
-                console.warn('saveProjectAsCopy not available in dispatch');
+                console.warn('saveProjectAsCopy not available in callbacks');
             }
         },
         openSettingsModal: () => {
+            console.log('Executing openSettingsModal');
             if (dispatch.openSettingsModal) {
                 dispatch.openSettingsModal();
             } else {
@@ -202,6 +207,7 @@ const executeReduxAction = shortcut => {
             }
         },
         activateTab: () => {
+            console.log('Executing activateTab');
             if (dispatch.activateTab && shortcut.params && typeof shortcut.params[0] !== 'undefined') {
                 dispatch.activateTab(shortcut.params[0]);
             } else {
@@ -209,6 +215,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openSpriteLibrary: () => {
+            console.log('Executing openSpriteLibrary');
             if (dispatch.openSpriteLibrary) {
                 dispatch.openSpriteLibrary();
             } else {
@@ -216,6 +223,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openCostumeLibrary: () => {
+            console.log('Executing openCostumeLibrary');
             if (dispatch.openCostumeLibrary) {
                 dispatch.openCostumeLibrary();
             } else {
@@ -223,6 +231,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openSoundLibrary: () => {
+            console.log('Executing openSoundLibrary');
             if (dispatch.openSoundLibrary) {
                 dispatch.openSoundLibrary();
             } else {
@@ -230,6 +239,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openExtensionLibrary: () => {
+            console.log('Executing openExtensionLibrary');
             if (dispatch.openExtensionLibrary) {
                 dispatch.openExtensionLibrary();
             } else {
@@ -237,6 +247,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openExtensionManagerModal: () => {
+            console.log('Executing openExtensionManagerModal');
             if (dispatch.openExtensionManagerModal) {
                 dispatch.openExtensionManagerModal();
             } else {
@@ -244,6 +255,7 @@ const executeReduxAction = shortcut => {
             }
         },
         openRestorePointModal: () => {
+            console.log('Executing openRestorePointModal');
             if (dispatch.openRestorePointModal) {
                 dispatch.openRestorePointModal();
             } else {
@@ -254,6 +266,7 @@ const executeReduxAction = shortcut => {
     
     const action = actionMap[shortcut.action];
     if (action) {
+        console.log('Found action in actionMap:', shortcut.action);
         action();
     } else {
         console.warn(`Unknown Redux action: ${shortcut.action}`);
@@ -297,6 +310,7 @@ const executeVMAction = shortcut => {
         case 'deleteSprite':
             if (vm.deleteSprite && vm.editingTarget) {
                 const spriteId = vm.editingTarget.id;
+                // eslint-disable-next-line no-alert
                 if (window.confirm('Are you sure you want to delete this sprite?')) {
                     vm.deleteSprite(spriteId);
                 }
@@ -328,6 +342,11 @@ const executeCallbackAction = shortcut => {
 
     try {
         switch (shortcut.action) {
+        case 'saveSmart':
+            if (callbacks.saveSmart) {
+                callbacks.saveSmart();
+            }
+            break;
         case 'loadFromComputer':
             if (callbacks.loadFromComputer) {
                 callbacks.loadFromComputer();
@@ -341,6 +360,11 @@ const executeCallbackAction = shortcut => {
         case 'toggleBackpack':
             if (callbacks.toggleBackpack) {
                 callbacks.toggleBackpack();
+            }
+            break;
+        case 'openSpotlight':
+            if (callbacks.openSpotlight) {
+                callbacks.openSpotlight();
             }
             break;
         case 'toggleStageSize':
@@ -361,6 +385,14 @@ const executeCallbackAction = shortcut => {
                 }
             }
             break;
+        case 'toggleWindowFullScreen':
+            if (WindowManager) {
+                const top = WindowManager.getAllWindows().sort((a, b) => b.zIndex - a.zIndex)[0];
+                if (top) {
+                    top.toggleMaximize();
+                }
+            }
+            break;
         default:
             console.warn(`Unknown callback action: ${shortcut.action}`);
         }
@@ -370,7 +402,10 @@ const executeCallbackAction = shortcut => {
 };
 
 const executeShortcut = shortcut => {
-    console.log('Executing shortcut:', shortcut.id, 'actionType:', shortcut.actionType, 'action:', shortcut.action);
+    if (shortcut.actionType === null) {
+        return;
+    }
+    
     if (shortcut.actionType === 'redux') {
         executeReduxAction(shortcut);
     } else if (shortcut.actionType === 'vm') {
@@ -386,15 +421,13 @@ const handleKeyDown = event => {
     if (shouldIgnoreEvent(event)) return;
 
     const keyCombo = normalizeEventKey(event);
-    
-    // Ignore if no valid key (e.g., modifier keys alone)
-    if (!keyCombo) return;
-    
     const matchingShortcut = findMatchingShortcut(keyCombo);
 
     if (matchingShortcut) {
-        event.preventDefault();
-        event.stopPropagation();
+        if (matchingShortcut.actionType !== null) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         executeShortcut(matchingShortcut);
     }
 };
@@ -411,13 +444,12 @@ const updateShortcuts = customShortcuts => {
 
 const getShortcuts = () => shortcuts;
 
-const getCallbacks = () => callbacks;
-
 const updateCallbacks = newCallbacks => {
     // Only update callbacks if they don't already exist
     const updatedCallbacks = {...callbacks};
     for (const key of Object.keys(newCallbacks)) {
-        if (!(key in updatedCallbacks) || updatedCallbacks[key] === undefined || updatedCallbacks[key] === null) {
+        const existing = updatedCallbacks[key];
+        if (!(key in updatedCallbacks) || existing === null || typeof existing === 'undefined') {
             updatedCallbacks[key] = newCallbacks[key];
         }
     }
@@ -435,7 +467,7 @@ const initialize = (dispatchFn, vmInstance, callbacksFn) => {
     dispatch = dispatchFn;
     vm = vmInstance;
     // Merge provided callbacks with existing, with existing taking precedence
-    callbacks = {...callbacks, ...callbacksFn};
+    callbacks = {...callbacksFn, ...callbacks};
     shortcuts = getDefaultShortcuts();
     loadCustomShortcuts();
 

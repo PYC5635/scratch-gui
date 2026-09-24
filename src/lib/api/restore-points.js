@@ -1,48 +1,9 @@
 import {base64ToArrayBuffer} from '../utils/base64';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import JSZip from '@turbowarp/jszip';
-import {PROXY_BASE_URL} from '../proxy-config';
 
 const TYPE_AUTOMATIC = 0;
 const TYPE_MANUAL = 1;
-
-const CLOUD_STORAGE_KEY = 'tw:cloud-restore-point-version';
-const CLOUD_HASH_KEY = 'tw:cloud-restore-point-hash';
-
-// GitHub 直接 API 配置（网络还原点）
-const GITHUB_REPO_OWNER = 'PineEditor-rw';
-const GITHUB_REPO_NAME = 'rw-owr';
-const GITHUB_API_BASE = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`;
-const GH_PROXY_PREFIX = 'https://gh-proxy.org/';
-const getProxiedRawUrl = filePath =>
-    `${GH_PROXY_PREFIX}https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/${filePath}`;
-const GITHUB_TOKEN = ['ghp_fLBsu', 'milohGrz7H7m', 'f0ZAcdnMkV', 'wlO1928J6'].join('');
-
-const githubApiRequest = async (path, options = {}) => {
-    const response = await fetch(`${GITHUB_API_BASE}${path}`, {
-        ...options,
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    });
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`GitHub API ${response.status}: ${errorBody}`);
-    }
-    return response;
-};
-
-const arrayBufferToBase64 = buffer => {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-    }
-    return btoa(binary);
-};
 
 /**
  * @typedef {0|1} MetadataType
@@ -118,7 +79,7 @@ const parseMetadata = obj => {
         obj = {};
     }
 
-    obj.title = typeof obj.title === 'string' ? obj.title : '?';
+    obj.title = typeof obj.title === 'string' && obj.title.trim() ? obj.title : '?';
     obj.created = typeof obj.created === 'number' ? obj.created : 0;
     obj.type = [TYPE_AUTOMATIC, TYPE_MANUAL].includes(obj.type) ? obj.type : TYPE_MANUAL;
 
@@ -308,25 +269,49 @@ const removeExtraneousRestorePoints = () => openDB().then(db => new Promise((res
 // eslint-disable-next-line valid-jsdoc
 /**
  * @param {VirtualMachine} vm scratch-vm instance
- * @returns {Promise<{type: string; data: ArrayBuffer;}>} Thumbnail data
+ * @returns {Promise<{type: string; data: ArrayBuffer;}|null>} Thumbnail data,
+ * or null when the renderer cannot produce a snapshot (never rejects).
  */
 const generateThumbnail = vm => new Promise(resolve => {
     // Piggyback off of the next draw if we can, otherwise just force it to render
     const drawTimeout = setTimeout(() => {
-        vm.renderer.draw();
+        if (vm.renderer && typeof vm.renderer.draw === 'function') {
+            vm.renderer.draw();
+        }
     }, 100);
+
+    if (!vm.renderer || typeof vm.renderer.requestSnapshot !== 'function') {
+        clearTimeout(drawTimeout);
+        resolve(null);
+        return;
+    }
+
+    // The renderer may never call back (e.g. a hidden/headless canvas or a
+    // paused WebGL context). Restore-point creation -- and therefore
+    // collaboration onboarding, which awaits it before applying the host's
+    // project -- must never hang on the thumbnail, so settle with null after
+    // a grace period.
+    const snapshotTimeout = setTimeout(() => {
+        clearTimeout(drawTimeout);
+        resolve(null);
+    }, 5000);
 
     vm.renderer.requestSnapshot(dataURL => {
         clearTimeout(drawTimeout);
+        clearTimeout(snapshotTimeout);
 
-        const index = dataURL.indexOf(',');
-        const base64 = dataURL.substring(index + 1);
-        const arrayBuffer = base64ToArrayBuffer(base64);
-        const type = 'image/png';
-        resolve({
-            type,
-            data: arrayBuffer
-        });
+        try {
+            const index = dataURL.indexOf(',');
+            const base64 = dataURL.substring(index + 1);
+            const arrayBuffer = base64ToArrayBuffer(base64);
+            const type = 'image/png';
+            resolve({
+                type,
+                data: arrayBuffer
+            });
+        } catch (error) {
+            resolve(null);
+        }
     });
 });
 
@@ -353,6 +338,16 @@ const createRestorePoint = (
     vm.emit('RESTORE_POINT_START');
 
     generateThumbnail(vm).then(thumbnailData => {
+        if (!thumbnailData) {
+            // Renderer unavailable; a 1x1 transparent PNG keeps the restore
+            // point valid and non-zero-sized.
+            thumbnailData = {
+                type: 'image/png',
+                data: base64ToArrayBuffer(
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+                )
+            };
+        }
         const transaction = db.transaction(ALL_STORES, 'readwrite');
         transaction.onerror = event => {
             vm.emit('RESTORE_POINT_END'); // Ensure end is emitted on error
@@ -367,6 +362,7 @@ const createRestorePoint = (
             const thumbnailStore = transaction.objectStore(THUMBNAIL_STORE);
             const request = thumbnailStore.add(thumbnailData, generatedId);
             request.onsuccess = () => {
+                vm.emit('RESTORE_POINT_END');
                 resolveTransaction();
             };
         };
@@ -437,6 +433,14 @@ const createRestorePoint = (
         writeMetadata();
     });
 }));
+
+const createSafetyRestorePoint = (vm, title) => Promise.resolve()
+    .then(() => createRestorePoint(vm, title || '?', TYPE_AUTOMATIC))
+    .then(() => removeExtraneousRestorePoints())
+    .catch(error => {
+        // eslint-disable-next-line no-console
+        console.warn('Could not create safety restore point', error);
+    });
 
 /**
  * @param {number} id the restore point's ID
@@ -591,41 +595,86 @@ const exportRestorePoint = async id => {
 };
 
 /**
+ * Collect all asset md5exts from a project JSON by scanning targets' costumes and sounds.
+ * @param {object} projectJSON Parsed project JSON
+ * @returns {string[]} Array of md5ext strings (e.g. "abc123def456.png")
+ */
+const collectAssetMd5exts = projectJSON => {
+    const md5exts = new Set();
+    const targets = projectJSON.targets || [];
+    for (const target of targets) {
+        const costumes = target.costumes || [];
+        for (const costume of costumes) {
+            // The sb3 serialized JSON uses 'md5ext' as the key,
+            // while the runtime object uses 'md5'.
+            const md5 = costume.md5 || costume.md5ext;
+            if (md5) {
+                md5exts.add(md5);
+            }
+        }
+        const sounds = target.sounds || [];
+        for (const sound of sounds) {
+            const md5 = sound.md5 || sound.md5ext;
+            if (md5) {
+                md5exts.add(md5);
+            }
+        }
+    }
+    // Collect font assets from customFonts
+    const customFonts = projectJSON.customFonts || [];
+    for (const font of customFonts) {
+        if (!font.system && typeof font.md5ext === 'string') {
+            md5exts.add(font.md5ext);
+        }
+    }
+    return Array.from(md5exts);
+};
+
+/**
+ * Load all assets from IndexedDB in a single transaction.
+ * @param {IDBDatabase} db IndexedDB database
+ * @param {string[]} md5exts Asset md5exts to fetch
+ * @returns {Promise<Map<string, Uint8Array>>} Map of md5ext to asset data
+ */
+const loadAllAssetsFromDB = (db, md5exts) => new Promise((resolve, reject) => {
+    if (md5exts.length === 0) {
+        resolve(new Map());
+        return;
+    }
+
+    const transaction = db.transaction([ASSET_STORE], 'readonly');
+    const assetStore = transaction.objectStore(ASSET_STORE);
+    const assetMap = new Map();
+    let completed = 0;
+    let hasError = false;
+
+    for (const md5ext of md5exts) {
+        const request = assetStore.get(md5ext);
+        request.onsuccess = () => {
+            if (request.result) {
+                assetMap.set(md5ext, request.result);
+            }
+            completed++;
+            if (completed === md5exts.length && !hasError) {
+                resolve(assetMap);
+            }
+        };
+        request.onerror = () => {
+            if (!hasError) {
+                hasError = true;
+                reject(new Error(`Failed to load restore point asset: ${md5ext}`));
+            }
+        };
+    }
+});
+
+/**
  * @param {VirtualMachine} vm scratch-vm instance
  * @param {number} id the restore point's ID
  * @returns {Promise<ArrayBuffer>} Resolves with sb3 file
  */
 const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolveProject, rejectProject) => {
     const storage = vm.runtime.storage;
-
-    // In-memory helper is 100, web helper is -100, we want to be in the middle somewhere
-    const PRIORITY = 50;
-    const storageHelper = {
-        load: (assetType, assetId, dataFormat) => new Promise((resolveFetch, rejectFetch) => {
-            const transaction = db.transaction([ASSET_STORE], 'readonly');
-            transaction.onerror = event => {
-                rejectFetch(new Error(`Loading restore point asset: ${event.target.error}`));
-            };
-
-            const md5ext = `${assetId}.${dataFormat}`;
-            const assetStore = transaction.objectStore(ASSET_STORE);
-            const request = assetStore.get(md5ext);
-            request.onsuccess = () => {
-                if (request.result) {
-                    const asset = storage.createAsset(assetType, dataFormat, request.result, assetId, false);
-                    resolveFetch(asset);
-                } else {
-                    rejectFetch(new Error(`Restore point asset ${md5ext} does not exist`));
-                }
-            };
-        })
-    };
-    storage.addHelper(storageHelper, PRIORITY);
-
-    const cleanup = () => {
-        // No clean API for removing storage helpers yet
-        storage._helpers = storage._helpers.filter(i => i.helper !== storageHelper);
-    };
 
     const loadProjectJSON = () => {
         const transaction = db.transaction([PROJECT_STORE], 'readonly');
@@ -636,8 +685,59 @@ const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolvePro
         const projectStore = transaction.objectStore(PROJECT_STORE);
         const request = projectStore.get(id);
         request.onsuccess = () => {
-            if (request.result) {
-                vm.loadProject(request.result)
+            if (!request.result) {
+                rejectProject(new Error(`Restore point project ${id} does not exist`));
+                return;
+            }
+
+            const projectJSON = request.result;
+            let parsedProject;
+
+            // Parse the project JSON to discover asset IDs, then load all assets
+            // in a single IndexedDB transaction instead of one transaction per asset.
+            // This dramatically reduces load time for projects with many assets.
+            try {
+                if (typeof projectJSON === 'string') {
+                    parsedProject = JSON.parse(projectJSON);
+                } else if (projectJSON instanceof ArrayBuffer || ArrayBuffer.isView(projectJSON)) {
+                    // projectJSON is stored as a Uint8Array (from TextEncoder.encode),
+                    // so it needs to be decoded to string before parsing.
+                    const decoder = new TextDecoder();
+                    parsedProject = JSON.parse(decoder.decode(projectJSON));
+                } else {
+                    parsedProject = projectJSON;
+                }
+            } catch (e) {
+                rejectProject(new Error('Failed to parse restore point project JSON'));
+                return;
+            }
+
+            const md5exts = collectAssetMd5exts(parsedProject);
+
+            loadAllAssetsFromDB(db, md5exts).then(assetMap => {
+                const PRIORITY = 50;
+                const storageHelper = {
+                    load: (assetType, assetId, dataFormat) => {
+                        const md5ext = `${assetId}.${dataFormat}`;
+                        const data = assetMap.get(md5ext);
+                        if (data) {
+                            return Promise.resolve(
+                                storage.createAsset(assetType, dataFormat, data, assetId, false)
+                            );
+                        }
+                        // Asset not found in the preloaded map; fall through to
+                        // lower-priority helpers (e.g. web store).
+                        return null;
+                    }
+                };
+                storage.addHelper(storageHelper, PRIORITY);
+
+                const cleanup = () => {
+                    storage._helpers = storage._helpers.filter(i => i.helper !== storageHelper);
+                };
+
+                vm.quit();
+                vm.loadProject(projectJSON)
                     .then(() => {
                         cleanup();
                         resolveProject();
@@ -646,14 +746,10 @@ const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolvePro
                         cleanup();
                         rejectProject(error);
                     });
-            } else {
-                cleanup();
-                rejectProject(new Error(`Restore point project ${id} does not exist`));
-            }
+            });
         };
     };
 
-    vm.quit();
     loadProjectJSON();
 }));
 
@@ -745,7 +841,7 @@ const INTERVAL_STORAGE_KEY = 'tw:restore-point-interval';
 
 const readInterval = () => {
     try {
-        const stored = localStorage.getItem(INTERVAL_STORAGE_KEY);
+        const stored = getStorageItem(INTERVAL_STORAGE_KEY);
         if (stored) {
             const number = +stored;
             if (Number.isFinite(number)) {
@@ -754,7 +850,7 @@ const readInterval = () => {
         }
 
         // TODO: this is temporary, remove it after enough has passed for people that care to have migrated
-        const addonSettings = localStorage.getItem('tw:addons');
+        const addonSettings = getStorageItem('tw:addons');
         if (addonSettings) {
             const parsedAddonSettings = JSON.parse(addonSettings);
             const addonObject = parsedAddonSettings['tw-disable-restore-points'];
@@ -776,184 +872,12 @@ const setInterval = interval => {
     }
 };
 
-const getStoredVersion = () => {
-    try {
-        const version = localStorage.getItem(CLOUD_STORAGE_KEY);
-        const hash = localStorage.getItem(CLOUD_HASH_KEY);
-        return {version, hash};
-    } catch (e) {
-        return {version: null, hash: null};
-    }
-};
-
-const setStoredVersion = (version, hash) => {
-    try {
-        if (version) {
-            localStorage.setItem(CLOUD_STORAGE_KEY, version);
-        }
-        if (hash) {
-            localStorage.setItem(CLOUD_HASH_KEY, hash);
-        }
-    } catch (e) {
-        // ignore
-    }
-};
-
-const getCloudRestorePoints = async () => {
-    try {
-        // 使用 Tree API 一次性获取完整目录树（仅 1 次请求）
-        const treeResponse = await githubApiRequest('/git/trees/main?recursive=1');
-        const treeData = await treeResponse.json();
-
-        if (!treeData.tree || !Array.isArray(treeData.tree)) {
-            return [];
-        }
-
-        const restorePoints = [];
-        const projectIds = new Set();
-
-        for (const item of treeData.tree) {
-            if (item.type === 'blob' && item.path.startsWith('projects/') && item.path.endsWith('.sb3')) {
-                const pathParts = item.path.split('/');
-                if (pathParts.length >= 3) {
-                    const id = pathParts[1];
-                    const filename = pathParts.slice(2).join('/');
-                    projectIds.add(id);
-                    restorePoints.push({
-                        id,
-                        filename,
-                        title: filename.replace(/\.sb3$/, ''),
-                        size: item.size || 0,
-                        hash: item.sha,
-                        created: null,
-                        downloadUrl: getProxiedRawUrl(item.path)
-                    });
-                }
-            }
-        }
-
-        // 并行获取每个项目的推送时间
-        const commitDateMap = {};
-        const commitPromises = Array.from(projectIds).map(async projectId => {
-            try {
-                const commitResponse = await githubApiRequest(
-                    `/commits?path=projects/${projectId}&per_page=1`
-                );
-                const commits = await commitResponse.json();
-                if (Array.isArray(commits) && commits.length > 0) {
-                    commitDateMap[projectId] = new Date(commits[0].commit.committer.date).getTime() / 1000;
-                }
-            } catch (e) {
-                // ignore
-            }
-        });
-        await Promise.all(commitPromises);
-
-        for (const rp of restorePoints) {
-            rp.created = commitDateMap[rp.id] || Date.now() / 1000;
-        }
-
-        // 按时间从新到旧排序
-        restorePoints.sort((a, b) => (b.created || 0) - (a.created || 0));
-
-        return restorePoints;
-    } catch (error) {
-        throw new Error(`Failed to fetch cloud restore points: ${error.message}`);
-    }
-};
-
-const pushToCloud = async (vm, title) => {
-    try {
-        const projectFiles = vm.saveProjectSb3DontZip();
-        const jsonData = projectFiles['project.json'];
-        const projectAssetIDs = Object.keys(projectFiles).filter(i => i !== 'project.json');
-
-        const zip = new JSZip();
-        zip.file('project.json', jsonData);
-        for (const assetId of projectAssetIDs) {
-            zip.file(assetId, projectFiles[assetId]);
-        }
-
-        const arrayBuffer = await zip.generateAsync({
-            type: 'arraybuffer',
-            compression: 'DEFLATE'
-        });
-
-        const fileId = Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
-        const filename = `${title}.sb3`;
-        const filePath = `projects/${fileId}/${filename}`;
-        const base64Content = arrayBufferToBase64(arrayBuffer);
-
-        const response = await githubApiRequest(`/contents/${filePath}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                message: `Upload restore point: ${title}`,
-                content: base64Content
-            })
-        });
-
-        const result = await response.json();
-        const commitSha = result.commit ? result.commit.sha : null;
-        const blobSha = result.content ? result.content.sha : null;
-        // 使用 blob SHA（文件内容哈希），与列表中 file.sha 保持一致
-        const hash = blobSha || commitSha;
-        setStoredVersion(null, hash);
-
-        const rawUrl = getProxiedRawUrl(filePath);
-        return {
-            success: true,
-            id: fileId,
-            filename,
-            title,
-            hash,
-            downloadUrl: rawUrl
-        };
-    } catch (error) {
-        throw new Error(`Failed to push to cloud: ${error.message}`);
-    }
-};
-
-const deleteCloudRestorePoint = async (id, filename) => {
-    try {
-        const filePath = `projects/${id}/${filename || id}`;
-        // 先获取文件 sha
-        const infoResponse = await githubApiRequest(`/contents/${filePath}`);
-        const info = await infoResponse.json();
-
-        if (!info.sha) {
-            throw new Error('File not found');
-        }
-
-        await githubApiRequest(`/contents/${filePath}`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-                message: `Delete restore point: ${filename}`,
-                sha: info.sha
-            })
-        });
-
-        return {success: true, id, filename};
-    } catch (error) {
-        throw new Error(`Failed to delete cloud restore point: ${error.message}`);
-    }
-};
-
-const copyCloudRestorePointLink = async (id, filename) => {
-    try {
-        const filePath = `projects/${id}/${filename || id}`;
-        const url = getProxiedRawUrl(filePath);
-        await navigator.clipboard.writeText(url);
-        return url;
-    } catch (error) {
-        throw new Error(`Failed to copy link: ${error.message}`);
-    }
-};
-
 export default {
     TYPE_AUTOMATIC,
     TYPE_MANUAL,
     getAllRestorePoints,
     createRestorePoint,
+    createSafetyRestorePoint,
     removeExtraneousRestorePoints,
     deleteRestorePoint,
     deleteAllRestorePoints,
@@ -962,11 +886,5 @@ export default {
     loadRestorePoint,
     deleteLegacyRestorePoint,
     readInterval,
-    setInterval,
-    getCloudRestorePoints,
-    pushToCloud,
-    deleteCloudRestorePoint,
-    copyCloudRestorePointLink,
-    getStoredVersion,
-    setStoredVersion
+    setInterval
 };

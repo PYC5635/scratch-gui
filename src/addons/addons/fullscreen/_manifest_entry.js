@@ -73,7 +73,15 @@ const manifest = {
       }
     },
     {
-      "url": "hideToolbar.css"
+      "url": "hideToolbar.css",
+      "if": {
+        "settings": {
+          "toolbar": [
+            "hide",
+            "hover"
+          ]
+        }
+      }
     }
   ],
   "userscripts": [

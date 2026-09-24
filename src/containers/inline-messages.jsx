@@ -15,7 +15,7 @@ const LEVEL_TO_TYPE = {
     [AlertLevels.WARN]: 'warning'
 };
 
-// 未配置 maxDisplaySecs 的提示（如"新建还原点中…"等进度提示）
+// 未配置 maxDisplaySecs 的提示（如“新建还原点中…”等进度提示）
 // 也使用默认时长自动关闭，避免 toast 一直停留在右下角
 const DEFAULT_TOAST_DURATION = 4000;
 

@@ -33,6 +33,7 @@ const Overview = ({stats, account, quota}) => {
     const t = (id, defaultMessage, values) => intl.formatMessage({id, defaultMessage}, values);
     const weekViews = historyRows(stats.viewHistory, 7).reduce((sum, row) => sum + row.value, 0);
     const pct = quota ? (quota.used / quota.limit) * 100 : 0;
+
     return (
         <section className={styles.dashboard}>
             <div className={styles.dashGrid}>
@@ -157,9 +158,20 @@ const UploadUsage = ({quota, onRefresh}) => {
     }, []);
     useEscape(showConfirm ? dismiss : null);
 
-    const oldestDate = quota && quota.oldestEventMs ?
-        new Date(quota.oldestEventMs).toLocaleDateString() :
-        null;
+    // Resolve the oldest upload date, tolerating both ms and s timestamps and
+    // rejecting obviously-wrong values (e.g. 1970-era epochs when nothing was uploaded).
+    const oldestDate = (() => {
+        const raw = Number(quota && quota.oldestEventMs);
+        if (!raw || raw <= 0) return null;
+        let date = new Date(raw);
+        // If the value only makes sense as seconds (result before year 2000), try again as ms.
+        if (date.getTime() < Date.UTC(2000, 0, 1)) {
+            date = new Date(raw * 1000);
+        }
+        const time = date.getTime();
+        if (Number.isNaN(time) || time < Date.UTC(2000, 0, 1)) return null;
+        return date.toLocaleDateString();
+    })();
 
     if (!quota) {
         return <p className={styles.status}>{t('mw.community.myStuff.loadingUploadInfo', 'Loading upload info…')}</p>;
@@ -168,7 +180,7 @@ const UploadUsage = ({quota, onRefresh}) => {
     const summaryStats = [
         {value: formatBytes(quota.used), label: t('mw.community.myStuff.used', 'Used')},
         {value: formatBytes(quota.limit), label: t('mw.community.myStuff.limit', 'Limit')},
-        ...(oldestDate ? [{value: oldestDate, label: t('mw.community.myStuff.oldestUpload', 'Oldest upload')}] : []),
+        {value: oldestDate || '----/--/--', label: t('mw.community.myStuff.oldestUpload', 'Oldest upload')},
         {value: quota.eventCount || 0, label: t('mw.community.myStuff.uploadsThisWeek', 'Uploads this week')}
     ];
 

@@ -7,16 +7,7 @@ export default class MockAudioEffects {
             SOFTER: 'lower',
             FASTER: 'faster',
             SLOWER: 'slower',
-            ECHO: 'echo',
-            LOWPASS: 'low pass',
-            HIGHPASS: 'high pass',
-            REVERB: 'reverb',
-            REVERBV2: 'reverbv2',
-            LOWPITCH: 'lower pitch',
-            HIGHPITCH: 'higher pitch',
-            MEGAPHONE: 'megaphone',
-            TREMBLE: 'tremble',
-            DISTORTION: 'distortion',
+            ECHO: 'echo'
         };
     }
     constructor (buffer, name) {

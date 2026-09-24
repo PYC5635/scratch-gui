@@ -34,7 +34,6 @@ a:active, a:focus {
 }
 
 .container {
-    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
@@ -152,140 +151,16 @@ a:active, a:focus {
     text-align: center;
 }
 
-.main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-}
-
-.main-content-left-align,
-.mainContentLeftAlign {
-    flex-direction: row;
-}
-
-.main-content-right-align,
-.mainContentRightAlign {
-    flex-direction: row-reverse;
-}
-
 .addons {
-    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 10px 20px;
+    height: 100%;
 }
 @media (max-width: 700px) {
     .addons {
         padding-left: 5px;
         padding-right: 5px;
-    }
-}
-
-.sidebar {
-    width: 250px;
-    background-color: $ui-secondary;
-    border-left: 1px solid $ui-black-transparent;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-/* 多级下拉菜单样式 */
-.dropdown-container {
-    margin-bottom: 20px;
-}
-
-.dropdown-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    background-color: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.dropdown-header:hover {
-    background-color: $ui-white;
-}
-
-.dropdown-title {
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.dropdown-arrow {
-    font-size: 12px;
-    transition: transform 0.2s ease;
-}
-
-.dropdown-menu {
-    margin-top: 5px;
-    background-color: $ui-secondary;
-    border: 1px solid $ui-black-transparent;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px $shadow;
-    overflow: hidden;
-}
-
-.dropdown-level {
-    padding: 10px 0;
-}
-
-.dropdown-item {
-    margin-bottom: 5px;
-}
-
-.dropdown-button {
-    width: 100%;
-    padding: 8px 15px;
-    background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    border-radius: 4px;
-    text-align: left;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-    margin-bottom: 5px;
-}
-
-.dropdown-button:hover {
-    background-color: $ui-white;
-    border-color: var(--looks-secondary);
-}
-
-.dropdown-button-active {
-    background-color: var(--looks-secondary);
-    color: white;
-    border-color: var(--looks-secondary);
-}
-
-.dropdown-submenu {
-    margin-top: 5px;
-    padding: 10px 15px;
-    background-color: $ui-tertiary;
-    border-top: 1px solid $ui-black-transparent;
-}
-
-@media (max-width: 1024px) {
-    .sidebar {
-        width: 200px;
-        padding: 15px;
-    }
-}
-
-@media (max-width: 768px) {
-    .main-content {
-        flex-direction: column;
-    }
-    
-    .sidebar {
-        width: 100%;
-        border-left: none;
-        border-top: 1px solid $ui-black-transparent;
-        padding: 15px;
-        max-height: 300px;
     }
 }
 
@@ -414,7 +289,7 @@ a:active, a:focus {
     transition-property: background;
 }
 .switch[state="on"] {
-    background: var(--looks-secondary);
+    background: $looks-secondary;
 }
 .switch::before {
     content: "";
@@ -480,6 +355,16 @@ a:active, a:focus {
     background: #fd2b2b;
     border-color: #d81212;
 }
+.tag-astra-editor {
+    color: white;
+    background: #0099ff;
+    border-color: #005994;
+}
+.tag-poorlang {
+    color: white;
+    background: #fd2b2b;
+    border-color: #d81212;
+}
 
 /* Tag Filter Styles */
 .tag-filter {
@@ -519,22 +404,22 @@ a:active, a:focus {
 
 .tag-button:hover {
     background: $ui-white;
-    border-color: var(--looks-secondary);
+    border-color: $looks-secondary;
 }
 
 .tag-button:focus {
-    box-shadow: 0 0 0 2px var(--looks-transparent);
+    box-shadow: 0 0 0 2px $looks-transparent;
 }
 
 .tag-button-active {
-    background: var(--looks-secondary);
+    background: $looks-secondary;
     color: white;
-    border-color: var(--looks-secondary);
+    border-color: $looks-secondary;
 }
 
 .tag-button-active:hover {
-    background: var(--looks-secondary-dark);
-    border-color: var(--looks-secondary-dark);
+    background: $looks-secondary-dark;
+    border-color: $looks-secondary-dark;
 }
 
 .clear-tags-button {
@@ -620,26 +505,6 @@ a:active, a:focus {
     margin-right: 10px;
 }
 
-/* 插件不兼容红色警告 */
-.conflict-warning {
-    padding: 12px 20px;
-    margin: 0 10px 10px 10px;
-    border-radius: 5px;
-    background: #fd2b2b;
-    color: #fff;
-    font-weight: bold;
-    font-size: 14px;
-    line-height: 1.5;
-    border: 1px solid #d81212;
-    box-shadow: 0 2px 5px $shadow;
-}
-.conflict-warning-text strong {
-    color: #ffe600;
-}
-.conflict-warning-text {
-    display: inline;
-}
-
 .setting-container {
     margin-top: 10px;
     display: flex;
@@ -672,13 +537,14 @@ a:active, a:focus {
 }
 .setting input:focus, .setting input:active {
     outline: none;
-    border-color: var(--looks-secondary);
-    box-shadow: 0 0 0 3px var(--looks-transparent);
+    border-color: $looks-secondary;
+    box-shadow: 0 0 0 3px $looks-transparent;
 }
 .setting input[type="checkbox"] {
     height: 20px;
     width: 20px;
     background-position: center center;
+    padding: 8px;
 }
 .setting input[type="number"],
 .setting input[type="text"] {
@@ -687,23 +553,6 @@ a:active, a:focus {
     width: 75px;
     height: 35px;
     box-sizing: border-box;
-}
-.setting textarea {
-    background: $input-background;
-    border: 1px solid $ui-black-transparent;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-family: inherit;
-    min-width: 300px;
-    resize: vertical;
-    transition: 0.25s ease;
-    transition-property: background;
-}
-.setting textarea:focus, .setting textarea:active {
-    outline: none;
-    border-color: var(--looks-secondary);
-    box-shadow: 0 0 0 3px var(--looks-transparent);
 }
 .setting input[type="color"] {
     height: 30px;
@@ -759,11 +608,11 @@ a:active, a:focus {
 }
 .select-option.selected {
     color: white;
-    background: var(--looks-secondary);
+    background: $looks-secondary;
 }
 .select-option:active, .select-option:focus-within {
     outline: none;
-    box-shadow: 0 0 0 3px var(--looks-transparent);
+    box-shadow: 0 0 0 3px $looks-transparent;
     z-index: 10;
 }
 
@@ -848,256 +697,53 @@ a:active, a:focus {
     }
 }
 
-/* Editor and Category buttons */
-
-.editorMenu {
-    margin-bottom: 24px;
+/* ---- 自定义插件区块 ---- */
+.custom-plugins-section {
+    border: 1px dashed $ui-black-transparent;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 16px;
 }
-
-.editorMenu h3 {
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 12px;
-    color: $text-primary;
-    text-transform: uppercase;
-}
-
-.editorButtonContainer {
+.custom-plugins-header {
+    display: flex;
+    align-items: baseline;
     margin-bottom: 8px;
 }
-
-.editorButtonWrapper {
+.custom-plugins-title {
+    font-weight: bold;
+    font-size: 1.05em;
+    margin-right: 10px;
+}
+.custom-plugins-hint {
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+.custom-plugins-empty {
+    opacity: 0.7;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+.custom-plugins-actions {
     display: flex;
-    align-items: center;
-}
-
-.editorButton {
-    flex: 1;
-    padding: 10px 16px;
-    background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    border-radius: 4px 0 0 4px;
-    color: $text-primary;
-    font-size: 14px;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
-    outline: none;
-}
-
-.categoryToggleButton {
-    width: 36px;
-    padding: 10px 8px;
-    background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    border-left: none;
-    border-radius: 0 4px 4px 0;
-    color: $text-primary;
-    font-size: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    outline: none;
-}
-
-.editorButtonWrapper:hover .editorButton,
-.editorButtonWrapper:hover .categoryToggleButton {
-    background: $ui-white;
-    border-color: var(--looks-secondary);
-}
-
-.editorButtonActive {
-    background: var(--looks-secondary);
-    color: white;
-    border-color: var(--looks-secondary);
-}
-
-.editorButtonActive + .categoryToggleButton {
-    background: var(--looks-secondary);
-    color: white;
-    border-color: var(--looks-secondary);
-}
-
-.editorButtonWrapper:hover .editorButtonActive,
-.editorButtonWrapper:hover .editorButtonActive + .categoryToggleButton {
-    background: var(--looks-secondary-dark);
-    border-color: var(--looks-secondary-dark);
-}
-
-.editorButton:hover {
-    background: $ui-white;
-    border-color: var(--looks-secondary);
-}
-
-.editorButtonActive {
-    background: var(--looks-secondary);
-    color: white;
-    border-color: var(--looks-secondary);
-}
-
-.editorButtonActive:hover {
-    background: var(--looks-secondary-dark);
-    border-color: var(--looks-secondary-dark);
-}
-
-.categoryMenu {
     margin-top: 8px;
-    margin-left: 16px;
-    margin-bottom: 16px;
 }
-
-.categoryMenu h4 {
-    font-size: 12px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    color: $text-primary;
-    text-transform: uppercase;
+.custom-plugins-import-button {
+    margin-right: 8px;
 }
-
-.categoryButtons {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.custom-addon {
+    margin-bottom: 6px;
 }
-
-.categoryButton {
-    padding: 8px 12px;
-    background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
-    border-radius: 4px;
-    color: $text-primary;
-    font-size: 13px;
+.custom-delete-button {
+    border: none;
+    background: transparent;
+    color: $ui-black-transparent;
+    font-size: 1.2em;
     cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
-    outline: none;
-    width: 100%;
-}
-
-.categoryButton:hover {
-    background: $ui-white;
-    border-color: var(--looks-secondary);
-}
-
-.categoryButtonActive {
-    background: var(--looks-secondary);
-    color: white;
-    border-color: var(--looks-secondary);
-}
-
-.categoryButtonActive:hover {
-    background: var(--looks-secondary-dark);
-    border-color: var(--looks-secondary-dark);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .categoryButtons {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-    
-    .categoryButton {
-        flex: 1;
-        min-width: 100px;
-        text-align: center;
-    }
-}
-
-/* 对齐按钮样式 */
-
-.alignButtons {
-    margin-bottom: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid $ui-black-transparent;
-}
-
-.alignButtonGroup {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-}
-
-.alignButton {
-    width: 32px;
-    height: 32px;
-    padding: 4px;
-    background: $ui-tertiary;
-    border: 1px solid $ui-black-transparent;
+    padding: 4px 8px;
     border-radius: 4px;
-    color: $text-primary;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    outline: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
-
-.alignButton:hover {
-    background: $ui-white;
-    border-color: var(--looks-secondary);
-}
-
-.alignButtonActive {
-    background: var(--looks-secondary);
+.custom-delete-button:hover {
+    background: $ui-black-transparent;
     color: white;
-    border-color: var(--looks-secondary);
 }
 
-.alignButtonActive:hover {
-    background: var(--looks-secondary-dark);
-    border-color: var(--looks-secondary-dark);
-}
-
-/* 分类菜单对齐样式 */
-.categoryMenu.alignLeft {
-    text-align: left;
-    margin-left: 0;
-    margin-right: auto;
-}
-
-.categoryMenu.alignRight {
-    text-align: right;
-    margin-left: auto;
-    margin-right: 0;
-}
-
-.categoryMenu.alignRight .categoryButtons {
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-/* 编辑器按钮容器对齐 */
-.editorButtons.alignLeft {
-    text-align: left;
-    width: 100%;
-}
-
-.editorButtons.alignRight {
-    text-align: right;
-    width: 100%;
-}
-
-/* 编辑器按钮对齐 */
-.editorButtonContainer.alignLeft {
-    text-align: left;
-    width: 100%;
-}
-
-.editorButtonContainer.alignRight {
-    text-align: right;
-    width: 100%;
-}
-
-/* 编辑器按钮包装器对齐 */
-.editorButtonWrapper.alignLeft {
-    justify-content: flex-start;
-}
-
-.editorButtonWrapper.alignRight {
-    justify-content: flex-end;
-}

@@ -19,23 +19,35 @@ import WindowManager from '../../addons/window-system/window-manager';
 import showAlert from '../../addons/window-system/alert';
 import ReactDOM from 'react-dom';
 
-const startDrag = (index, e, dragging, setGradientColors, previewRef) => {
+const startDrag = (index, e, dragging, setGradientColors, previewRef, gradientColors) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (dragging.current && dragging.current.color) {
+        return;
+    }
     const rect = previewRef.current && previewRef.current.getBoundingClientRect();
-    dragging.current = {index, rect};
+    const stop = gradientColors[index];
+    dragging.current = {color: stop.color, position: stop.position, rect, initialPosition: stop.position};
 
     const move = ev => {
         const clientX = typeof ev.clientX === 'number' ?
             ev.clientX : (ev.touches && ev.touches[0] && ev.touches[0].clientX);
-        if (!clientX || !dragging.current.rect) return;
+        if (!clientX || !dragging.current.rect || !dragging.current.color) return;
 
         const val = ((clientX - dragging.current.rect.left) / dragging.current.rect.width);
         const pct = Math.max(0, Math.min(100, val * 100));
         setGradientColors(prev => {
-            const next = prev.slice();
-            next[dragging.current.index] = {...next[dragging.current.index], position: pct};
-            return next;
+            return prev.map(s => {
+                // 使用初始位置来精确匹配被拖动的标记
+                if (s.color === dragging.current.color && 
+                    Math.abs(s.position - dragging.current.initialPosition) < 0.01) {
+                    return {...s, position: pct};
+                }
+                return s;
+            });
         });
+        // 更新当前跟踪的位置
+        dragging.current.initialPosition = pct;
     };
 
     const up = () => {
@@ -44,7 +56,7 @@ const startDrag = (index, e, dragging, setGradientColors, previewRef) => {
         document.removeEventListener('touchmove', move);
         document.removeEventListener('touchend', up);
         setGradientColors(prev => prev.slice().sort((a, b) => a.position - b.position));
-        dragging.current = {index: null, rect: null};
+        dragging.current = {color: null, position: null, rect: null, initialPosition: null};
     };
 
     dragging.current.moveHandler = move;
@@ -280,6 +292,20 @@ const GradientCreatorApp = injectIntl(props => {
                                 />
                                 <div className={styles.gradientTrack}>
                                     {gradientColors.map((stop, index) => (
+                                        <span
+                                            key={`pos-${index}`}
+                                            className={styles.colorStopPosition}
+                                            style={{
+                                                position: 'absolute',
+                                                left: `${stop.position <= 3 ? 3 : stop.position >= 97 ? 97 : stop.position}%`,
+                                                bottom: '28px',
+                                                transform: 'translateX(-50%)'
+                                            }}
+                                        >
+                                            {Math.round(stop.position)}%
+                                        </span>
+                                    ))}
+                                    {gradientColors.map((stop, index) => (
                                         <div
                                             key={index}
                                             className={classNames(styles.colorStopMarker, isDragging === index && styles.colorStopMarkerDragging)}
@@ -289,17 +315,16 @@ const GradientCreatorApp = injectIntl(props => {
                                                 className={styles.colorStopHandle}
                                                 onMouseDown={e => {
                                                     setIsDragging(index);
-                                                    startDrag(index, e, dragging, setGradientColors, previewRef);
+                                                    startDrag(index, e, dragging, setGradientColors, previewRef, gradientColors);
                                                 }}
                                                 onTouchStart={e => {
                                                     setIsDragging(index);
-                                                    startDrag(index, e, dragging, setGradientColors, previewRef);
+                                                    startDrag(index, e, dragging, setGradientColors, previewRef, gradientColors);
                                                 }}
                                                 onMouseUp={() => setIsDragging(null)}
                                                 onTouchEnd={() => setIsDragging(null)}
                                                 style={{background: stop.color}}
                                             />
-                                            <span className={styles.colorStopPosition}>{Math.round(stop.position)}%</span>
                                         </div>
                                     ))}
                                 </div>
@@ -430,7 +455,7 @@ const GradientCreatorApp = injectIntl(props => {
                                             className={classNames(styles.dirPresetBtn, direction === dir && styles.dirPresetBtnActive)}
                                             title={`${dir}°`}
                                         >
-                                            {['→', '↗', '↓', '↘', '←', '↙', '↑', '↖'][dir / 45]}
+                                            {['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'][dir / 45]}
                                         </button>
                                     ))}
                                 </div>
@@ -541,17 +566,6 @@ const GradientEditorApp = injectIntl(props => {
 
     const previewRef = React.useRef(null);
     const dragging = React.useRef({index: null, rect: null});
-
-    const presetNameToKey = {
-        'Sunset': 'tw.customThemes.preset.sunset',
-        'Ocean': 'tw.customThemes.preset.ocean',
-        'Forest': 'tw.customThemes.preset.forest',
-        'Purple Rain': 'tw.customThemes.preset.purpleRain',
-        'Fire': 'tw.customThemes.preset.fire',
-        'Aurora': 'tw.customThemes.preset.aurora',
-        'Space': 'tw.customThemes.preset.space',
-        'Cherry': 'tw.customThemes.preset.cherry'
-    };
 
     const handlePreview = async () => {
         if (isPreviewActive) {
@@ -696,6 +710,20 @@ const GradientEditorApp = injectIntl(props => {
                                 />
                                 <div className={styles.gradientTrack}>
                                     {gradientColors.map((stop, index) => (
+                                        <span
+                                            key={`pos-${index}`}
+                                            className={styles.colorStopPosition}
+                                            style={{
+                                                position: 'absolute',
+                                                left: `${stop.position <= 1 ? 3 : stop.position >= 99 ? 97 : stop.position}%`,
+                                                bottom: '28px',
+                                                transform: 'translateX(-50%)'
+                                            }}
+                                        >
+                                            {Math.round(stop.position)}%
+                                        </span>
+                                    ))}
+                                    {gradientColors.map((stop, index) => (
                                         <div
                                             key={index}
                                             className={classNames(styles.colorStopMarker, isDragging === index && styles.colorStopMarkerDragging)}
@@ -705,17 +733,16 @@ const GradientEditorApp = injectIntl(props => {
                                                 className={styles.colorStopHandle}
                                                 onMouseDown={e => {
                                                     setIsDragging(index);
-                                                    startDrag(index, e, dragging, setGradientColors, previewRef);
+                                                    startDrag(index, e, dragging, setGradientColors, previewRef, gradientColors);
                                                 }}
                                                 onTouchStart={e => {
                                                     setIsDragging(index);
-                                                    startDrag(index, e, dragging, setGradientColors, previewRef);
+                                                    startDrag(index, e, dragging, setGradientColors, previewRef, gradientColors);
                                                 }}
                                                 onMouseUp={() => setIsDragging(null)}
                                                 onTouchEnd={() => setIsDragging(null)}
                                                 style={{background: stop.color}}
                                             />
-                                            <span className={styles.colorStopPosition}>{Math.round(stop.position)}%</span>
                                         </div>
                                     ))}
                                 </div>
@@ -846,7 +873,7 @@ const GradientEditorApp = injectIntl(props => {
                                             className={classNames(styles.dirPresetBtn, direction === dir && styles.dirPresetBtnActive)}
                                             title={`${dir}°`}
                                         >
-                                            {['→', '↗', '↓', '↘', '←', '↙', '↑', '↖'][dir / 45]}
+                                            {['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'][dir / 45]}
                                         </button>
                                     ))}
                                 </div>
@@ -977,12 +1004,12 @@ class CustomThemeMenu extends React.Component {
         this.gradientCreatorContainer = null;
         this.gradientEditorContainer = null;
 
-        this._mounted = false;
+        this._isMounted = false;
         this._activeFileReader = null;
     }
 
     componentDidMount () {
-        this._mounted = true;
+        this._isMounted = true;
         // Listen for custom theme changes
         this._unsubscribeCustomThemes = customThemeManager.subscribe(() => {
             this.safeSetState({customThemes: customThemeManager.getAllThemes()});
@@ -1083,7 +1110,7 @@ class CustomThemeMenu extends React.Component {
     // TODO: Migrate to functional component with useEffect cleanup
     // componentWillUnmount is deprecated in React 16.3+
     componentWillUnmount () {
-        this._mounted = false;
+        this._isMounted = false;
 
         if (this._unsubscribeCustomThemes) {
             try {
@@ -1111,12 +1138,12 @@ class CustomThemeMenu extends React.Component {
     }
 
     safeForceUpdate = () => {
-        if (!this._mounted) return;
+        if (!this._isMounted) return;
         this.forceUpdate();
     };
 
     safeSetState = (state, callback) => {
-        if (!this._mounted) return;
+        if (!this._isMounted) return;
         this.setState(state, callback);
     };
 
@@ -1137,17 +1164,28 @@ class CustomThemeMenu extends React.Component {
             minHeight: 240,
             className: 'tw-create-theme-window',
             onClose: () => {
-                try {
-                    if (this.createThemeContainer) {
-                        try {
-                            ReactDOM.unmountComponentAtNode(this.createThemeContainer);
-                        } catch (e) {}
-                        this.createThemeContainer = null;
+                const closingContainer = this.createThemeContainer;
+                const closingWindow = this.createThemeWindow;
+                // Delay the cleanup until the window's closing animation has
+                // played out so the content stays visible while it fades out.
+                // Only touch the window that was actually closed — the user may
+                // have reopened a new one while the animation was playing.
+                setTimeout(() => {
+                    try {
+                        if (this.createThemeWindow === closingWindow) {
+                            this.createThemeWindow = null;
+                        }
+                        if (this.createThemeContainer === closingContainer) {
+                            try {
+                                if (closingContainer) {
+                                    ReactDOM.unmountComponentAtNode(closingContainer);
+                                }
+                            } catch (e) {}
+                            this.createThemeContainer = null;
+                        }
                         this.safeForceUpdate();
-                    }
-                } catch (e) {}
-                this.createThemeWindow = null;
-                this.createThemeContainer = null;
+                    } catch (e) {}
+                }, 220);
             }
         });
 
@@ -1197,23 +1235,38 @@ class CustomThemeMenu extends React.Component {
             minHeight: 500,
             className: 'tw-gradient-creator-window',
             onClose: () => {
+                // Restore the pre-preview theme immediately (this is editor
+                // state, unrelated to the window animation).
                 try {
                     const {originalThemeBeforePreview} = this.state;
-                    if (originalThemeBeforePreview && this._mounted) {
+                    if (originalThemeBeforePreview && this._isMounted) {
                         this.props.onChangeTheme(originalThemeBeforePreview);
                         this.safeSetState({originalThemeBeforePreview: null});
                     }
-
-                    if (this.gradientCreatorContainer) {
-                        try {
-                            ReactDOM.unmountComponentAtNode(this.gradientCreatorContainer);
-                        } catch (e) {}
-                        this.gradientCreatorContainer = null;
-                        this.safeForceUpdate();
-                    }
                 } catch (e) {}
-                this.gradientCreatorWindow = null;
-                this.gradientCreatorContainer = null;
+
+                const closingContainer = this.gradientCreatorContainer;
+                const closingWindow = this.gradientCreatorWindow;
+                // Delay the content cleanup until the window's closing
+                // animation has played out so it stays visible while fading.
+                // Only touch the window that was actually closed — the user may
+                // have reopened a new one while the animation was playing.
+                setTimeout(() => {
+                    try {
+                        if (this.gradientCreatorWindow === closingWindow) {
+                            this.gradientCreatorWindow = null;
+                        }
+                        if (this.gradientCreatorContainer === closingContainer) {
+                            try {
+                                if (closingContainer) {
+                                    ReactDOM.unmountComponentAtNode(closingContainer);
+                                }
+                            } catch (e) {}
+                            this.gradientCreatorContainer = null;
+                        }
+                        this.safeForceUpdate();
+                    } catch (e) {}
+                }, 220);
             }
         });
 
@@ -1255,7 +1308,7 @@ class CustomThemeMenu extends React.Component {
                             },
                             onCancel: () => {
                                 const {originalThemeBeforePreview} = this.state;
-                                if (originalThemeBeforePreview && this._mounted) {
+                                if (originalThemeBeforePreview && this._isMounted) {
                                     this.props.onChangeTheme(originalThemeBeforePreview);
                                     this.safeSetState({originalThemeBeforePreview: null});
                                 }
@@ -1293,7 +1346,7 @@ class CustomThemeMenu extends React.Component {
             onClose: () => {
                 try {
                     const {originalThemeBeforePreview} = this.state;
-                    if (originalThemeBeforePreview && this._mounted) {
+                    if (originalThemeBeforePreview && this._isMounted) {
                         this.props.onChangeTheme(originalThemeBeforePreview);
                         this.safeSetState({originalThemeBeforePreview: null});
                     }
@@ -1349,7 +1402,7 @@ class CustomThemeMenu extends React.Component {
                             },
                             onCancel: () => {
                                 const {originalThemeBeforePreview} = this.state;
-                                if (originalThemeBeforePreview && this._mounted) {
+                                if (originalThemeBeforePreview && this._isMounted) {
                                     this.props.onChangeTheme(originalThemeBeforePreview);
                                     this.safeSetState({originalThemeBeforePreview: null});
                                 }
@@ -1537,7 +1590,7 @@ class CustomThemeMenu extends React.Component {
                 primaryColor: gradientInfo.primaryColor,
                 selectedPreset: ''
             }, () => {
-                if (this._mounted) this.openGradientEditorWindow(themeUuid);
+                if (this._isMounted) this.openGradientEditorWindow(themeUuid);
             });
         } catch (error) {
             await showAlert(`Failed to load gradient theme: ${error.message}`);
@@ -1672,7 +1725,7 @@ class CustomThemeMenu extends React.Component {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `mistwarp-themes-${new Date().toISOString()
+            link.download = `bilup-themes-${new Date().toISOString()
                 .split('T')[0]}.json`;
             document.body.appendChild(link);
             link.click();
@@ -1689,7 +1742,7 @@ class CustomThemeMenu extends React.Component {
                 version: '2.0',
                 timestamp: Date.now(),
                 themes: [theme.export()],
-                platform: 'MistWarp'
+                platform: 'Bilup'
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json'

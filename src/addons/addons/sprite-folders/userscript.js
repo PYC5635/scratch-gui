@@ -103,8 +103,8 @@ export default async ({ addon, console, msg }) => {
         renderFileList();
     }
 
-    function createNewFolder() {
-        const folderName = prompt(msg('folder-name-prompt'));
+    async function createNewFolder() {
+        const folderName = await window.__bilupPrompt(msg('folder-name-prompt'), msg('folder-name-prompt'));
         if (!folderName) return;
 
         // Check if folder already exists
@@ -123,8 +123,8 @@ export default async ({ addon, console, msg }) => {
         renderFileList();
     }
 
-    function renameFolder(oldFolderName) {
-        const newFolderName = prompt(msg('rename-folder-prompt', { name: oldFolderName }), oldFolderName);
+    async function renameFolder(oldFolderName) {
+        const newFolderName = await window.__bilupPrompt(msg('rename-folder-prompt', { name: oldFolderName }), msg('rename-folder-prompt', { name: oldFolderName }) , oldFolderName);
         if (!newFolderName || newFolderName === oldFolderName) return;
 
         const hasSprites = vm.runtime.targets.some(t => {
@@ -205,13 +205,14 @@ export default async ({ addon, console, msg }) => {
                 } catch (e) {
                 }
 
-                // Fallback to asset URL
+                // TW: Fallback to asset URL using storage.assetHost
+                const assetHost = vm?.runtime?.storage?.getAssetHost?.() || 'https://assets.r2.bilup.org';
                 if (costume.asset.assetId) {
-                    const url = `https://rw-asset.pages.dev/asset/internalapi/asset/${costume.asset.assetId}.${costume.dataFormat || 'png'}/get/`;
+                    const url = `${assetHost}/${costume.asset.assetId}.${costume.dataFormat || 'png'}`;
                     return url;
                 }
                 if (costume.md5ext) {
-                    return `https://rw-asset.pages.dev/asset/internalapi/asset/${costume.md5ext}/get/`;
+                    return `${assetHost}/${costume.md5ext}`;
                 }
             }
         }
@@ -252,7 +253,7 @@ export default async ({ addon, console, msg }) => {
                         icon.src = dataUri;
                     }
                 }).catch(() => {
-                    const url = `https://rw-asset.pages.dev/asset/internalapi/asset/${costume.asset.assetId}.${costume.dataFormat || 'png'}/get/`;
+                    const url = `${window.location.origin}/internalapi/asset/${costume.asset.assetId}.${costume.dataFormat || 'png'}/get/`;
                     if (icon.parentNode) {
                         icon.src = url;
                     }
@@ -281,7 +282,7 @@ export default async ({ addon, console, msg }) => {
         const fileList = document.createElement('div');
         fileList.className = 'sa-file-list';
 
-        const sprites = vm.runtime.targets.filter(t => !t.isStage && t.id);
+        const sprites = vm.runtime.targets.filter(t => !t.isStage && t.id && t.isOriginal);
 
         // Group sprites by folder
         const grouped = {};
@@ -386,9 +387,6 @@ export default async ({ addon, console, msg }) => {
         item.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-
-            // Select the sprite first
-            selectSprite(sprite);
 
             showSpriteContextMenu(e, sprite, container);
         });
@@ -498,7 +496,7 @@ export default async ({ addon, console, msg }) => {
     function removeContextMenu() {
         const last_menu = document.getElementsByClassName('sa-folder-context-menu');
         try {
-            for (let i = 0; i < last_menu.length; i += 1) {
+            for (let i = 0; i <= last_menu.length; i += 1) {
                 last_menu[i].remove();
             }
         } catch (e) {
@@ -588,9 +586,9 @@ export default async ({ addon, console, msg }) => {
         const renameBtn = document.createElement('div');
         renameBtn.className = 'sa-context-menu-item';
         renameBtn.textContent = msg('rename');
-        renameBtn.addEventListener('click', () => {
+        renameBtn.addEventListener('click', async () => {
             menu.remove();
-            const newName = prompt(msg('rename-sprite-prompt'), sprite.name || sprite.sprite?.name);
+            const newName = await window.__bilupPrompt(msg('rename-sprite-prompt'), sprite.name || sprite.sprite?.name);
             if (newName && newName !== (sprite.name || sprite.sprite?.name)) {
                 vm.renameSprite(sprite.id, newName);
             }
@@ -752,7 +750,7 @@ export default async ({ addon, console, msg }) => {
         setTimeout(() => {
             // Update icons for sprites whose costumes have changed before re-rendering
             vm.runtime.targets.forEach(target => {
-                if (!target.isStage && target.id) {
+                if (!target.isStage && target.id && target.isOriginal) {
                     updateSpriteIcon(target);
                 }
             });
@@ -799,12 +797,16 @@ export default async ({ addon, console, msg }) => {
     };
 
     // Also listen for project loaded events
-    vm.on('PROJECT_LOADED', () => {
+    const onProjectLoaded = () => {
         setTimeout(() => {
             renderFileList();
             if (vm.editingTarget) {
                 autoExpandCurrentFolder();
             }
         }, 500);
+    };
+    vm.on('PROJECT_LOADED', onProjectLoaded);
+    addon.self.addEventListener('disabled', () => {
+        vm.off('PROJECT_LOADED', onProjectLoaded);
     });
 };

@@ -2,11 +2,13 @@ import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {defineMessages, injectIntl, intlShape} from 'react-intl';
+import VM from 'scratch-vm';
 
 import GreenFlag from '../green-flag/green-flag.jsx';
 import StopAll from '../stop-all/stop-all.jsx';
 import TurboMode from '../turbo-mode/turbo-mode.jsx';
 import FramerateIndicator from '../tw-framerate-indicator/framerate-indicator.jsx';
+import DebuggerStageControls from '../tw-debugger/stage-controls.jsx';
 
 import styles from './controls.css';
 
@@ -34,7 +36,7 @@ const Controls = function (props) {
         framerate,
         interpolation,
         isSmall,
-        isEditor,
+        vm,
         ...componentProps
     } = props;
     return (
@@ -47,6 +49,9 @@ const Controls = function (props) {
                 title={intl.formatMessage(messages.goTitle)}
                 onClick={onGreenFlagClick}
             />
+            {vm ? (
+                <DebuggerStageControls vm={vm} />
+            ) : null}
             <StopAll
                 active={active}
                 title={intl.formatMessage(messages.stopTitle)}
@@ -59,7 +64,6 @@ const Controls = function (props) {
                 <FramerateIndicator
                     framerate={framerate}
                     interpolation={interpolation}
-                    isEditor={isEditor}
                 />
             )}
         </div>
@@ -76,14 +80,13 @@ Controls.propTypes = {
     interpolation: PropTypes.bool,
     isSmall: PropTypes.bool,
     turbo: PropTypes.bool,
-    isEditor: PropTypes.bool
+    vm: PropTypes.instanceOf(VM)
 };
 
 Controls.defaultProps = {
     active: false,
     turbo: false,
-    isSmall: false,
-    isEditor: true
+    isSmall: false
 };
 
 export default injectIntl(Controls);

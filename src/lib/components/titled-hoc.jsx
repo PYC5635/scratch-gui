@@ -24,6 +24,11 @@ const messages = defineMessages({
 const TitledHOC = function (WrappedComponent) {
     class TitledComponent extends React.Component {
         componentDidMount () {
+            const hasExplicitTitle = this.props.projectTitle !== null &&
+                typeof this.props.projectTitle !== 'undefined';
+            if (!hasExplicitTitle && this.props.reduxProjectTitle) {
+                return;
+            }
             this.handleReceivedProjectTitle(this.props.projectTitle);
         }
         componentDidUpdate (prevProps) {
@@ -32,9 +37,17 @@ const TitledHOC = function (WrappedComponent) {
             }
             // if project is a new default project, and has loaded,
             if (this.props.isShowingWithoutId && prevProps.isAnyCreatingNewState) {
-                // reset title to default
-                const defaultProjectTitle = this.handleReceivedProjectTitle();
-                this.props.onUpdateProjectTitle(defaultProjectTitle, true);
+                const defaultProjectTitle = this.props.intl.formatMessage(messages.defaultProjectTitle);
+                // #bl- platform loads still go through the default-project id path
+                // (hash parser only understands numeric scratch ids), but the fetcher
+                // already set the real title from the API. Don't clobber that.
+                if (this.props.reduxProjectTitle &&
+                    this.props.reduxProjectTitle !== defaultProjectTitle) {
+                    this.props.onUpdateProjectTitle(this.props.reduxProjectTitle, false);
+                } else {
+                    const title = this.handleReceivedProjectTitle();
+                    this.props.onUpdateProjectTitle(title, true);
+                }
             }
             // if the projectTitle hasn't changed, but the reduxProjectTitle
             // HAS changed, we need to report that change to the projectTitle's owner

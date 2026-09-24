@@ -144,7 +144,17 @@ export default function (vm) {
         return [[myself, '_myself_']].concat(spriteMenu());
     };
 
+    const assetsMenu = function () {
+        const customAssets = vm.runtime.assetManager.assets;
+        if (customAssets.length > 0) {
+            return customAssets.map(entry => [entry.name, entry.name]);
+        }
+        return [['', '']];
+    };
+
     const soundColors = ScratchBlocks.Colours.sounds;
+
+    const assetsColors = ScratchBlocks.Colours.assets;
 
     const looksColors = ScratchBlocks.Colours.looks;
 
@@ -156,25 +166,13 @@ export default function (vm) {
 
     const eventColors = ScratchBlocks.Colours.event;
 
-    const assetsColors = ScratchBlocks.Colours.assets;
-
-    const assetsMenu = function () {
-        const assetManager = vm.runtime && vm.runtime.assetManager;
-        if (assetManager && assetManager.assets && assetManager.assets.length > 0) {
-            return assetManager.assets.map(entry => [entry.name, entry.name]);
-        }
-        return [['', '']];
-    };
-
-    if (ScratchBlocks.Blocks.assets_menu) {
-        ScratchBlocks.Blocks.assets_menu.init = function () {
-            const json = jsonForMenuBlock('ASSET', assetsMenu, assetsColors, []);
-            this.jsonInit(json);
-        };
-    }
-
     ScratchBlocks.Blocks.sound_sounds_menu.init = function () {
         const json = jsonForMenuBlock('SOUND_MENU', soundsMenu, soundColors, []);
+        this.jsonInit(json);
+    };
+
+    ScratchBlocks.Blocks.assets_menu.init = function () {
+        const json = jsonForMenuBlock('ASSET', assetsMenu, assetsColors, []);
         this.jsonInit(json);
     };
 

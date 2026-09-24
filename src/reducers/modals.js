@@ -23,28 +23,13 @@ const MODAL_EXTENSION_MANAGER = 'extensionManagerModal';
 const MODAL_GIT = 'gitModal';
 const MODAL_PREFERENCES = 'preferencesModal';
 const MODAL_SIMPLE_DIALOG = 'simpleDialog';
-const MODAL_ONBOARDING = 'onboardingModal';
 const MODAL_SHORTCUT_MANAGER = 'shortcutManagerModal';
-const MODAL_BAIDU_AI = 'baiduAIModal';
-const MODAL_EXTENSION_LOAD_CHOICE = 'extensionLoadChoiceModal';
 const MODAL_WARPTHEME = 'bilmeModal';
 const MODAL_CUSTOM_GALLERY = 'customGalleryModal';
 const MODAL_DEBUGGER = 'debuggerModal';
-const MODAL_HELP = 'helpModal';
-const MODAL_WARPTHEME_STORE = 'warpthemeModal';
-const MODAL_EXTENSION_EDITOR = 'extensionEditorModal';
-const MODAL_SUPER_REFACTOR = 'superRefactorModal';
-
-const MODAL_TUTORIAL = 'tutorialModal';
-const MODAL_VIDEO = 'videoModal';
-const MODAL_GANDI_HELP = 'gandiHelpModal';
-const MODAL_CUSTOM_THEME = 'customtheme';
-const MODAL_README = 'readme';
-const MODAL_PREVIEW_EXT = 'previewExt';
-const MODAL_AE_FEATURES = 'aeFeaturesModal';
-const MODAL_COMPATIBILITY = 'compatibilityModal';
 const MODAL_ROTUR_LOGIN = 'roturLoginModal';
 const MODAL_PROJECT_METADATA = 'projectMetadataModal';
+const MODAL_HELP = 'helpModal';
 
 const initialState = {
     [MODAL_BACKDROP_LIBRARY]: false,
@@ -62,37 +47,22 @@ const initialState = {
     [MODAL_CUSTOM_EXTENSION]: false,
     [MODAL_RESTORE_POINTS]: false,
     [MODAL_FONTS]: false,
+    [MODAL_ASSETS]: false,
     [MODAL_UNKNOWN_PLATFORM]: false,
     [MODAL_INVALID_PROJECT]: false,
     [MODAL_EXTENSION_MANAGER]: false,
     [MODAL_GIT]: false,
     [MODAL_PREFERENCES]: false,
     [MODAL_SIMPLE_DIALOG]: false,
-    [MODAL_ONBOARDING]: false,
     [MODAL_SHORTCUT_MANAGER]: false,
-    [MODAL_BAIDU_AI]: false,
-    [MODAL_EXTENSION_LOAD_CHOICE]: false,
     [MODAL_WARPTHEME]: false,
-    [MODAL_WARPTHEME_STORE]: false,
-    [MODAL_EXTENSION_EDITOR]: false,
-    [MODAL_SUPER_REFACTOR]: false,
-    [MODAL_TUTORIAL]: false,
-    [MODAL_VIDEO]: false,
-    [MODAL_GANDI_HELP]: false,
-    [MODAL_CUSTOM_THEME]: false,
-    [MODAL_README]: false,
-    [MODAL_PREVIEW_EXT]: false,
-    [MODAL_AE_FEATURES]: false,
-    [MODAL_COMPATIBILITY]: false,
-    [MODAL_ROTUR_LOGIN]: false,
-    [MODAL_PROJECT_METADATA]: false,
-    [MODAL_ASSETS]: false,
     [MODAL_CUSTOM_GALLERY]: false,
     [MODAL_DEBUGGER]: false,
+    [MODAL_ROTUR_LOGIN]: false,
+    [MODAL_PROJECT_METADATA]: false,
     [MODAL_HELP]: false,
-    helpEntry: null,
-    extensionLoadChoiceData: null,
-    videoModalData: null
+    projectMetadataView: 'project',
+    helpEntry: null
 };
 
 const reducer = function (state, action) {
@@ -101,15 +71,14 @@ const reducer = function (state, action) {
     case OPEN_MODAL:
         return Object.assign({}, state, {
             [action.modal]: true,
-            extensionLoadChoiceData: action.extensionLoadChoiceData || state.extensionLoadChoiceData,
-            videoModalData: action.tutorial || state.videoModalData
+            projectMetadataView: action.modal === MODAL_PROJECT_METADATA ?
+                (action.view || 'project') :
+                state.projectMetadataView
         });
     case CLOSE_MODAL:
         return Object.assign({}, state, {
             [action.modal]: false,
             simpleDialogConfig: null,
-            extensionLoadChoiceData: action.modal === MODAL_EXTENSION_LOAD_CHOICE ? null : state.extensionLoadChoiceData,
-            videoModalData: action.modal === MODAL_VIDEO ? null : state.videoModalData,
             helpEntry: action.modal === MODAL_HELP ? null : state.helpEntry
         });
     case 'scratch-gui/modals/SHOW_SIMPLE_DIALOG':
@@ -126,11 +95,10 @@ const reducer = function (state, action) {
         return state;
     }
 };
-const openModal = function (modal, data) {
+const openModal = function (modal) {
     return {
         type: OPEN_MODAL,
-        modal: modal,
-        ...data
+        modal: modal
     };
 };
 const closeModal = function (modal) {
@@ -184,6 +152,9 @@ const openRestorePointModal = function () {
 const openFontsModal = function () {
     return openModal(MODAL_FONTS);
 };
+const openAssetsModal = function () {
+    return openModal(MODAL_ASSETS);
+};
 const openUnknownPlatformModal = function () {
     return openModal(MODAL_UNKNOWN_PLATFORM);
 };
@@ -199,23 +170,45 @@ const openGitModal = function () {
 const openPreferencesModal = function () {
     return openModal(MODAL_PREFERENCES);
 };
-const openOnboardingModal = function () {
-    return openModal(MODAL_ONBOARDING);
-};
 const openShortcutManagerModal = function () {
-    return openModal(MODAL_SHORTCUT_MANAGER);
+    // eslint-disable-next-line global-require
+    const {setSettingsModalInitialView} = require('../lib/settings/modal-view.js');
+    setSettingsModalInitialView('shortcuts');
+    return openModal(MODAL_SETTINGS);
 };
-const openBaiduAIModal = function (config) {
+const openBilmeModal = function () {
+    return openModal(MODAL_WARPTHEME);
+};
+const openCustomGalleryModal = function () {
+    return openModal(MODAL_CUSTOM_GALLERY);
+};
+const openDebuggerModal = function () {
+    return openModal(MODAL_DEBUGGER);
+};
+const closeDebuggerModal = function () {
+    return closeModal(MODAL_DEBUGGER);
+};
+const openRoturLoginModal = function () {
+    return openModal(MODAL_ROTUR_LOGIN);
+};
+const closeRoturLoginModal = function () {
+    return closeModal(MODAL_ROTUR_LOGIN);
+};
+const openProjectMetadataModal = function (view) {
+    return Object.assign(openModal(MODAL_PROJECT_METADATA), {view});
+};
+const closeProjectMetadataModal = function () {
+    return closeModal(MODAL_PROJECT_METADATA);
+};
+const openHelp = function (entryId) {
     return {
-        type: OPEN_MODAL,
-        modal: MODAL_BAIDU_AI,
-        aiConfig: config
+        type: 'scratch-gui/modals/SET_HELP_MODAL',
+        entryId: entryId || null
     };
 };
-const closeBaiduAIModal = function () {
-    return closeModal(MODAL_BAIDU_AI);
+const closeHelpModal = function () {
+    return closeModal(MODAL_HELP);
 };
-
 const openSimpleDialog = function (dialogConfig) {
     return {
         type: 'scratch-gui/modals/SHOW_SIMPLE_DIALOG',
@@ -267,6 +260,9 @@ const closeRestorePointModal = function () {
 const closeFontsModal = function () {
     return closeModal(MODAL_FONTS);
 };
+const closeAssetsModal = function () {
+    return closeModal(MODAL_ASSETS);
+};
 const closeUnknownPlatformModal = function () {
     return closeModal(MODAL_UNKNOWN_PLATFORM);
 };
@@ -282,146 +278,14 @@ const closeGitModal = function () {
 const closePreferencesModal = function () {
     return closeModal(MODAL_PREFERENCES);
 };
-const closeOnboardingModal = function () {
-    return closeModal(MODAL_ONBOARDING);
-};
 const closeShortcutManagerModal = function () {
     return closeModal(MODAL_SHORTCUT_MANAGER);
-};
-const openExtensionLoadChoiceModal = function (extensionId, extensionName, localURL, onlineURL) {
-    return {
-        type: OPEN_MODAL,
-        modal: MODAL_EXTENSION_LOAD_CHOICE,
-        extensionLoadChoiceData: {
-            extensionId,
-            extensionName,
-            localURL,
-            onlineURL
-        }
-    };
-};
-const closeExtensionLoadChoiceModal = function () {
-    return {
-        type: CLOSE_MODAL,
-        modal: MODAL_EXTENSION_LOAD_CHOICE
-    };
-};
-const openBilmeModal = function () {
-    return openModal(MODAL_WARPTHEME);
 };
 const closeBilmeModal = function () {
     return closeModal(MODAL_WARPTHEME);
 };
-const openWarpthemeModal = function () {
-    return openModal(MODAL_WARPTHEME_STORE);
-};
-const closeWarpthemeModal = function () {
-    return closeModal(MODAL_WARPTHEME_STORE);
-};
-const openTutorialModal = function () {
-    return openModal(MODAL_TUTORIAL);
-};
-const closeTutorialModal = function () {
-    return closeModal(MODAL_TUTORIAL);
-};
-const openVideoModal = function (tutorial) {
-    return openModal(MODAL_VIDEO, { tutorial });
-};
-const closeVideoModal = function () {
-    return Object.assign({}, closeModal(MODAL_VIDEO), {
-        videoModalData: null
-    });
-};
-const openGandiHelpModal = function () {
-    return openModal(MODAL_GANDI_HELP);
-};
-const closeGandiHelpModal = function () {
-    return closeModal(MODAL_GANDI_HELP);
-};
-const openExtensionEditorModal = function () {
-    return openModal(MODAL_EXTENSION_EDITOR);
-};
-const closeExtensionEditorModal = function () {
-    return closeModal(MODAL_EXTENSION_EDITOR);
-};
-const openSuperRefactorModal = function () {
-    return openModal(MODAL_SUPER_REFACTOR);
-};
-const closeSuperRefactorModal = function () {
-    return closeModal(MODAL_SUPER_REFACTOR);
-};
-const openCustomTheme = function () {
-    return openModal(MODAL_CUSTOM_THEME);
-};
-const closeCustomTheme = function () {
-    return closeModal(MODAL_CUSTOM_THEME);
-};
-const openReadme = function () {
-    return openModal(MODAL_README);
-};
-const closeReadme = function() {
-    return closeModal(MODAL_README);
-}
-const openPreviewExt = function () {
-    return openModal(MODAL_PREVIEW_EXT);
-};
-const closePreviewExt = function () {
-    return closeModal(MODAL_PREVIEW_EXT);
-};
-const openAeFeaturesModal = function () {
-    return openModal(MODAL_AE_FEATURES);
-};
-const closeAeFeaturesModal = function () {
-    return closeModal(MODAL_AE_FEATURES);
-};
-const openCompatibilityModal = function () {
-    return openModal(MODAL_COMPATIBILITY);
-};
-const closeCompatibilityModal = function () {
-    return closeModal(MODAL_COMPATIBILITY);
-};
-const openRoturLoginModal = function () {
-    return openModal(MODAL_ROTUR_LOGIN);
-};
-const closeRoturLoginModal = function () {
-    return closeModal(MODAL_ROTUR_LOGIN);
-};
-const openProjectMetadataModal = function (tab) {
-    return {
-        type: OPEN_MODAL,
-        modal: MODAL_PROJECT_METADATA,
-        metadataTab: tab
-    };
-};
-const closeProjectMetadataModal = function () {
-    return closeModal(MODAL_PROJECT_METADATA);
-};
-const openAssetsModal = function () {
-    return openModal(MODAL_ASSETS);
-};
-const closeAssetsModal = function () {
-    return closeModal(MODAL_ASSETS);
-};
-const openCustomGalleryModal = function () {
-    return openModal(MODAL_CUSTOM_GALLERY);
-};
 const closeCustomGalleryModal = function () {
     return closeModal(MODAL_CUSTOM_GALLERY);
-};
-const openDebuggerModal = function () {
-    return openModal(MODAL_DEBUGGER);
-};
-const closeDebuggerModal = function () {
-    return closeModal(MODAL_DEBUGGER);
-};
-const openHelp = function (entryId) {
-    return {
-        type: 'scratch-gui/modals/SET_HELP_MODAL',
-        entryId: entryId
-    };
-};
-const closeHelpModal = function () {
-    return closeModal(MODAL_HELP);
 };
 export {
     reducer as default,
@@ -442,15 +306,22 @@ export {
     openCustomExtensionModal,
     openRestorePointModal,
     openFontsModal,
+    openAssetsModal,
     openUnknownPlatformModal,
     openInvalidProjectModal,
     openExtensionManagerModal,
     openGitModal,
     openPreferencesModal,
-    openOnboardingModal,
     openShortcutManagerModal,
-    openBaiduAIModal,
-    closeBaiduAIModal,
+    openBilmeModal,
+    openDebuggerModal,
+    closeDebuggerModal,
+    openRoturLoginModal,
+    closeRoturLoginModal,
+    openProjectMetadataModal,
+    closeProjectMetadataModal,
+    openHelp,
+    closeHelpModal,
     openSimpleDialog,
     closeBackdropLibrary,
     closeCostumeLibrary,
@@ -467,57 +338,14 @@ export {
     closeCustomExtensionModal,
     closeRestorePointModal,
     closeFontsModal,
+    closeAssetsModal,
     closeUnknownPlatformModal,
     closeInvalidProjectModal,
     closeExtensionManagerModal,
     closeGitModal,
     closePreferencesModal,
-    closeOnboardingModal,
     closeShortcutManagerModal,
-    openExtensionLoadChoiceModal,
-    closeExtensionLoadChoiceModal,
-    openBilmeModal,
     closeBilmeModal,
-    openWarpthemeModal,
-    closeWarpthemeModal,
-    openTutorialModal,
-    closeTutorialModal,
-    openVideoModal,
-    closeVideoModal,
-    openGandiHelpModal,
-    closeGandiHelpModal,
-    openExtensionEditorModal,
-    closeExtensionEditorModal,
-    openSuperRefactorModal,
-    closeSuperRefactorModal,
-    openCustomTheme,
-    closeCustomTheme,
-    openReadme,
-    closeReadme,
-    openPreviewExt,
-    closePreviewExt,
-    openAeFeaturesModal,
-    closeAeFeaturesModal,
-    openCompatibilityModal,
-    closeCompatibilityModal,
-    openRoturLoginModal,
-    closeRoturLoginModal,
-    openProjectMetadataModal,
-    closeProjectMetadataModal,
-    openAssetsModal,
-    closeAssetsModal,
-    openCustomGalleryModal,
     closeCustomGalleryModal,
-    openDebuggerModal,
-    closeDebuggerModal,
-    openHelp,
-    closeHelpModal,
-    MODAL_GANDI_HELP,
-    MODAL_WARPTHEME,
-    MODAL_WARPTHEME_STORE,
-    MODAL_EXTENSION_EDITOR,
-    MODAL_SUPER_REFACTOR,
-    MODAL_BAIDU_AI,
-    MODAL_COMPATIBILITY,
-    MODAL_ROTUR_LOGIN
+    openCustomGalleryModal
 };

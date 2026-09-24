@@ -223,7 +223,9 @@ class LibraryItemComponent extends React.PureComponent {
             <Box
                 className={classNames(
                     styles.libraryItem, {
-                        [styles.hidden]: this.props.hidden
+                        [styles.hidden]: this.props.hidden,
+                        [styles.backdrop]: this.props.isBackdrop,
+                        [styles.sound]: this.props.isSound
                     }
                 )}
                 role="button"
@@ -280,6 +282,8 @@ LibraryItemComponent.propTypes = {
     featured: PropTypes.bool,
     hidden: PropTypes.bool,
     iconURL: PropTypes.string,
+    isBackdrop: PropTypes.bool,
+    isSound: PropTypes.bool,
     insetIconURL: PropTypes.string,
     internetConnectionRequired: PropTypes.bool,
     isPlaying: PropTypes.bool,

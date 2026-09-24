@@ -13,6 +13,16 @@ const messages = defineMessages({
         defaultMessage: 'Say something... (max 500 chars)',
         description: 'Placeholder text for collaboration chat input',
         id: 'tw.collaboration.chatPlaceholder'
+    },
+    downloadingProject: {
+        defaultMessage: 'Downloading project from host…',
+        description: 'Loading message while downloading the project from the host',
+        id: 'gui.collaboration.downloadingProject'
+    },
+    loadingProject: {
+        defaultMessage: 'Loading project…',
+        description: 'Loading message while applying the project received from the host',
+        id: 'gui.collaboration.loadingProject'
     }
 });
 
@@ -25,8 +35,9 @@ import {
     setCollaborationRoomPrivacy,
     setCollaborationLoading,
     setCollaborationHostLoadingProgress,
-    setSpriteEditor,
-    removeSpriteEditor
+    setCollaborationReconnecting,
+    setUserActivity,
+    removeUserActivity
 } from '../reducers/collaboration';
 
 import {
@@ -79,6 +90,8 @@ class CollaborationContainer extends Component {
         this.handleProjectSyncWait = this.handleProjectSyncWait.bind(this);
         this.handleSessionReady = this.handleSessionReady.bind(this);
         this.handlePresenceEditingChanged = this.handlePresenceEditingChanged.bind(this);
+        this.handleReconnecting = this.handleReconnecting.bind(this);
+        this.handleReconnected = this.handleReconnected.bind(this);
     }
 
     componentDidMount () {
@@ -122,6 +135,8 @@ class CollaborationContainer extends Component {
         this.collaborationService.on('project-sync-wait', this.handleProjectSyncWait);
         this.collaborationService.on('session-ready', this.handleSessionReady);
         this.collaborationService.on('presence-editing-changed', this.handlePresenceEditingChanged);
+        this.collaborationService.on('reconnecting', this.handleReconnecting);
+        this.collaborationService.on('reconnected', this.handleReconnected);
 
         this.projectSyncProgress = 0;
         this.projectSyncLoadingBar = null;
@@ -133,6 +148,12 @@ class CollaborationContainer extends Component {
             console.log('Shortcuts updated in Redux:', this.props.customShortcuts);
             this.collaborationService.customShortcuts = this.props.customShortcuts;
             console.log('CollaborationService customShortcuts updated:', this.collaborationService.customShortcuts);
+        }
+
+        // The tabs are the one piece of our activity this container owns; the
+        // sprite and the costume/sound index are reported by their own panes.
+        if (this.props.activeTabIndex !== prevProps.activeTabIndex) {
+            this.collaborationService.setActivity({tab: this.props.activeTabIndex});
         }
     }
 
@@ -161,6 +182,13 @@ class CollaborationContainer extends Component {
         this.collaborationService.off('project-sync-wait', this.handleProjectSyncWait);
         this.collaborationService.off('session-ready', this.handleSessionReady);
         this.collaborationService.off('presence-editing-changed', this.handlePresenceEditingChanged);
+        this.collaborationService.off('reconnecting', this.handleReconnecting);
+        this.collaborationService.off('reconnected', this.handleReconnected);
+
+        if (this.attachTimeout) {
+            clearTimeout(this.attachTimeout);
+            this.attachTimeout = null;
+        }
 
         // Clear waiting overlay if it exists
         this.clearWaitingOverlay();
@@ -178,7 +206,7 @@ class CollaborationContainer extends Component {
         try {
             this.props.onSetError(null);
 
-            await this.collaborationService.connectToRoom(roomId, username, false);
+            await this.collaborationService.connectToRoom(roomId, username, false, 'public', this.props.roturHandle);
 
             // Don't set connected immediately - wait for connected-to-host event
             this.props.onSetRoomId(roomId);
@@ -207,7 +235,7 @@ class CollaborationContainer extends Component {
         try {
             this.props.onSetError(null);
 
-            await this.collaborationService.connectToRoom(roomId, username, true, privacy);
+            await this.collaborationService.connectToRoom(roomId, username, true, privacy, this.props.roturHandle);
 
             // For hosts, set connected immediately since they're always connected
             this.props.onSetConnected(true);
@@ -233,6 +261,10 @@ class CollaborationContainer extends Component {
     }
 
     tryAttachToWorkspace () {
+        if (this.attachTimeout) {
+            clearTimeout(this.attachTimeout);
+            this.attachTimeout = null;
+        }
         // Try to find the Blockly workspace via AddonHooks
         if (window.AddonHooks && window.AddonHooks.blocklyWorkspace) {
             this.collaborationService.attachToWorkspace(window.AddonHooks.blocklyWorkspace);
@@ -240,16 +272,15 @@ class CollaborationContainer extends Component {
             // Fallback to global Blockly workspace
             const workspace = window.Blockly.getMainWorkspace();
             this.collaborationService.attachToWorkspace(workspace);
-        } else {
-            // If workspace isn't available yet, try again after a short delay
-            setTimeout(() => {
+        } else if (this.collaborationService.isConnected) {
+            this.attachTimeout = setTimeout(() => {
+                this.attachTimeout = null;
                 this.tryAttachToWorkspace();
             }, 500);
         }
     }
 
     handleWorkspaceReattach () {
-        console.log('🔄 Handling workspace reattach request');
         this.tryAttachToWorkspace();
     }
 
@@ -306,33 +337,33 @@ class CollaborationContainer extends Component {
             const {intl} = this.props;
 
             switch (code) {
-            case 'CONNECTION_TIMEOUT':
-                errorMessage = intl.formatMessage({
-                    id: 'tw.collaboration.error.connectionTimeout',
-                    defaultMessage: 'Connection to room "{roomId}" timed out. Host may not be available.',
-                    description: 'Error message when connection to room times out'
-                }, {roomId});
-                break;
-            case 'HOST_UNAVAILABLE':
-                errorMessage = intl.formatMessage({
-                    id: 'tw.collaboration.error.hostUnavailable',
-                    defaultMessage: 'Could not connect to host. Room "{roomId}" may not exist or host may be offline.',
-                    description: 'Error message when host is unavailable'
-                }, {roomId});
-                break;
-            case 'ICE_CONNECTION_FAILED':
-                errorMessage = intl.formatMessage({
-                    id: 'tw.collaboration.error.iceConnectionFailed',
-                    defaultMessage: 'ICE connection failed after {attempts} attempts. This may be a network issue.',
-                    description: 'Error message when ICE connection fails'
-                }, {attempts});
-                break;
-            default:
-                errorMessage = intl.formatMessage({
-                    id: 'tw.collaboration.error.unknown',
-                    defaultMessage: 'Connection failed: {error}',
-                    description: 'Generic connection error message'
-                }, {error: JSON.stringify(data.error)});
+                case 'CONNECTION_TIMEOUT':
+                    errorMessage = intl.formatMessage({
+                        id: 'tw.collaboration.error.connectionTimeout',
+                        defaultMessage: 'Connection to room "{roomId}" timed out. Host may not be available.',
+                        description: 'Error message when connection to room times out'
+                    }, {roomId});
+                    break;
+                case 'HOST_UNAVAILABLE':
+                    errorMessage = intl.formatMessage({
+                        id: 'tw.collaboration.error.hostUnavailable',
+                        defaultMessage: 'Could not connect to host. Room "{roomId}" may not exist or host may be offline.',
+                        description: 'Error message when host is unavailable'
+                    }, {roomId});
+                    break;
+                case 'ICE_CONNECTION_FAILED':
+                    errorMessage = intl.formatMessage({
+                        id: 'tw.collaboration.error.iceConnectionFailed',
+                        defaultMessage: 'ICE connection failed after {attempts} attempts. This may be a network issue.',
+                        description: 'Error message when ICE connection fails'
+                    }, {attempts});
+                    break;
+                default:
+                    errorMessage = intl.formatMessage({
+                        id: 'tw.collaboration.error.unknown',
+                        defaultMessage: 'Connection failed: {error}',
+                        description: 'Generic connection error message'
+                    }, {error: JSON.stringify(data.error)});
             }
         }
 
@@ -346,8 +377,10 @@ class CollaborationContainer extends Component {
     handleUsernameChanged (user) {
         console.log('Username changed:', user);
 
-        // If this is our own username change from another client, update local state
+        // If this is our own username change from another client, update local state.
+        // When signed into Bilup Accounts the two names are separate, so don't clobber the project name.
         if (
+            !this.props.roturHandle &&
             user.id === this.getCurrentUserId() &&
             user.username !== this.props.currentUsername
         ) this.props.onSetUsername(user.username);
@@ -358,6 +391,16 @@ class CollaborationContainer extends Component {
     handleKickedFromRoom (data) {
         console.log('Kicked from room:', data);
 
+        const kickMessage = this.props.intl.formatMessage({
+            id: 'gui.collaboration.kickedFromRoom',
+            defaultMessage: 'You have been removed from the collaboration room by the host.',
+            description: 'Error message when kicked from room'
+        });
+
+        // The disconnect below fires a generic "Disconnected" notice; the
+        // kick warning is more specific, so suppress it this once.
+        this._suppressDisconnectNotice = true;
+
         // Disconnect from the collaboration service but don't clear the error
         this.collaborationService.disconnect();
 
@@ -366,14 +409,11 @@ class CollaborationContainer extends Component {
         this.props.onSetRoomId(null);
         this.props.onSetUsers([]);
 
+        // Pop the same kind of reminder as the other collaboration notices.
+        NotificationSystem.warning(kickMessage, 5000);
+
         // Set a specific kick message AFTER clearing the room state
-        this.props.onSetError(
-            this.props.intl.formatMessage({
-                id: 'gui.collaboration.kickedFromRoom',
-                defaultMessage: 'You have been removed from the collaboration room by the host.',
-                description: 'Error message when kicked from room'
-            })
-        );
+        this.props.onSetError(kickMessage);
     }
 
     handleHostLeft () {
@@ -405,9 +445,10 @@ class CollaborationContainer extends Component {
         // Now we're actually connected and can show the connected UI
         this.props.onSetConnected(true);
 
-        // Sync username with collaboration service
+        // Sync username with collaboration service (guests only; see handleUsernameChanged)
         const serviceUsername = this.collaborationService.username;
         if (
+            !this.props.roturHandle &&
             serviceUsername &&
             serviceUsername !== this.props.currentUsername
         ) this.props.onSetUsername(serviceUsername);
@@ -422,14 +463,20 @@ class CollaborationContainer extends Component {
     handleDisconnected () {
         console.log('Disconnected from collaboration');
 
-        NotificationSystem.info(
-            this.props.intl.formatMessage({
-                id: 'gui.collaboration.disconnected',
-                defaultMessage: 'Disconnected from collaboration room',
-                description: 'Notification when disconnected'
-            }),
-            3000
-        );
+        // When a more specific notice (e.g. "kicked") already covered this
+        // disconnect, skip the generic one.
+        if (this._suppressDisconnectNotice) {
+            this._suppressDisconnectNotice = false;
+        } else {
+            NotificationSystem.info(
+                this.props.intl.formatMessage({
+                    id: 'gui.collaboration.disconnected',
+                    defaultMessage: 'Disconnected from collaboration room',
+                    description: 'Notification when disconnected'
+                }),
+                3000
+            );
+        }
 
         this.clearWaitingOverlay();
 
@@ -554,26 +601,26 @@ class CollaborationContainer extends Component {
 
     handleProjectSyncDownloadStart () {
         this.projectSyncProgress = 0;
-        this.props.onSetCollabLoading(true, 'Downloading project from host…');
+        this.props.onSetCollabLoading(true, this.props.intl.formatMessage(messages.downloadingProject));
         this.props.onSetHostLoadingProgress(0);
     }
 
     handleProjectSyncDownloadProgress (data) {
         if (data && typeof data.progress === 'number') {
             this.projectSyncProgress = data.progress;
-            this.props.onSetCollabLoading(true, 'Downloading project from host…');
+            this.props.onSetCollabLoading(true, this.props.intl.formatMessage(messages.downloadingProject));
             this.props.onSetHostLoadingProgress(data.progress);
         }
     }
 
     handleProjectSyncDownloadComplete () {
         this.projectSyncProgress = null;
-        this.props.onSetCollabLoading(true, 'Loading project…');
+        this.props.onSetCollabLoading(true, this.props.intl.formatMessage(messages.loadingProject));
         this.props.onSetHostLoadingProgress(0);
     }
 
     handleProjectSyncApplyStart () {
-        this.props.onSetCollabLoading(true, 'Loading project…');
+        this.props.onSetCollabLoading(true, this.props.intl.formatMessage(messages.loadingProject));
         this.props.onSetHostLoadingProgress(0);
     }
 
@@ -679,13 +726,21 @@ class CollaborationContainer extends Component {
         this.clearWaitingOverlay();
     }
 
-    handlePresenceEditingChanged ({userId, username, targetId, previousTargetId}) {
-        if (previousTargetId) {
-            this.props.onRemoveSpriteEditor(previousTargetId, userId);
+    handleReconnecting () {
+        this.props.onSetReconnecting(true);
+    }
+
+    handleReconnected () {
+        this.props.onSetReconnecting(false);
+        NotificationSystem.info('Reconnected to the collaboration room', 3000);
+    }
+
+    handlePresenceEditingChanged ({userId, username, handle, activity}) {
+        if (!activity) {
+            this.props.onRemoveUserActivity(userId);
+            return;
         }
-        if (targetId) {
-            this.props.onSetSpriteEditor(targetId, userId, username, Date.now());
-        }
+        this.props.onSetUserActivity(Object.assign({userId, username, handle}, activity));
     }
 
     render () {
@@ -694,10 +749,13 @@ class CollaborationContainer extends Component {
                 visible={this.props.isVisible}
                 currentUsername={this.props.currentUsername}
                 currentUserId={this.getCurrentUserId()}
+                roturHandle={this.props.roturHandle}
                 isConnected={this.props.isConnected}
                 roomId={this.props.roomId}
                 roomPrivacy={this.props.roomPrivacy}
                 connectedUsers={this.props.connectedUsers}
+                userActivity={this.props.userActivity}
+                vm={this.props.vm}
                 connectionError={this.props.connectionError}
                 customShortcuts={this.props.customShortcuts}
                 onRequestClose={this.props.onRequestClose}
@@ -725,6 +783,7 @@ CollaborationContainer.propTypes = {
     connectedUsers: PropTypes.array.isRequired,
     connectionError: PropTypes.string,
     currentUsername: PropTypes.string,
+    roturHandle: PropTypes.string,
     vm: PropTypes.object.isRequired,
     onRequestClose: PropTypes.func.isRequired,
     onSetConnected: PropTypes.func.isRequired,
@@ -735,9 +794,13 @@ CollaborationContainer.propTypes = {
     onSetUsername: PropTypes.func.isRequired,
     onSetCollabLoading: PropTypes.func.isRequired,
     onSetHostLoadingProgress: PropTypes.func.isRequired,
-    onSetSpriteEditor: PropTypes.func.isRequired,
-    onRemoveSpriteEditor: PropTypes.func.isRequired,
-    onOpenChangeUsername: PropTypes.func.isRequired
+    onSetReconnecting: PropTypes.func.isRequired,
+    onSetUserActivity: PropTypes.func.isRequired,
+    onRemoveUserActivity: PropTypes.func.isRequired,
+    onOpenChangeUsername: PropTypes.func.isRequired,
+    activeTabIndex: PropTypes.number,
+    // eslint-disable-next-line react/forbid-prop-types
+    userActivity: PropTypes.object.isRequired
 };
 
 const mapStateToProps = state => ({
@@ -746,8 +809,14 @@ const mapStateToProps = state => ({
     roomId: state.scratchGui.collaboration.roomId,
     roomPrivacy: state.scratchGui.collaboration.roomPrivacy,
     connectedUsers: state.scratchGui.collaboration.connectedUsers,
+    userActivity: state.scratchGui.collaboration.activity,
+    activeTabIndex: state.scratchGui.editorTab.activeTabIndex,
     connectionError: state.scratchGui.collaboration.connectionError,
-    currentUsername: state.scratchGui.tw.username,
+    // Online identity is the Bilup Accounts handle when signed in; the custom name is only a fallback.
+    currentUsername: state.scratchGui.rotur.username ?
+        `@${state.scratchGui.rotur.username}` :
+        state.scratchGui.tw.username,
+    roturHandle: state.scratchGui.rotur.username,
     vm: state.scratchGui.vm,
     customShortcuts: state.scratchGui.shortcuts.customShortcuts
 });
@@ -762,9 +831,9 @@ const mapDispatchToProps = dispatch => ({
     onSetUsername: username => dispatch(setUsername(username)),
     onSetCollabLoading: (isLoading, message) => dispatch(setCollaborationLoading(isLoading, message)),
     onSetHostLoadingProgress: progress => dispatch(setCollaborationHostLoadingProgress(progress)),
-    onSetSpriteEditor: (spriteId, userId, username, timestamp) =>
-        dispatch(setSpriteEditor(spriteId, userId, username, timestamp)),
-    onRemoveSpriteEditor: (spriteId, userId) => dispatch(removeSpriteEditor(spriteId, userId)),
+    onSetReconnecting: isReconnecting => dispatch(setCollaborationReconnecting(isReconnecting)),
+    onSetUserActivity: activity => dispatch(setUserActivity(activity)),
+    onRemoveUserActivity: userId => dispatch(removeUserActivity(userId)),
     onOpenChangeUsername: () => dispatch(openUsernameModal())
 });
 

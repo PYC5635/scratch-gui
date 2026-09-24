@@ -2,7 +2,6 @@
 
 .menu {
     position: absolute;
-    border-bottom: 2px solid $looks-secondary;
     border-radius: 0 0 10px 10px;
     background-color: $ui-secondary;
     color: $text-primary;
@@ -16,6 +15,7 @@
     transform-origin: top left;
     transform: scale(0.9) translateY(-8px);
     transition: opacity 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .menuOpen {
@@ -93,12 +93,17 @@
     cursor: pointer;
 }
 
+.menu-item:has(.shortcut) {
+    display: flex;
+    align-items: center;
+}
+
 .menu-item .shortcut {
-    float: right;
+    margin-left: auto;
+    padding-left: 20px;
     opacity: 0.6;
     font-size: 0.9em;
     font-weight: normal;
-    margin-left: 20px;
     letter-spacing: -0.5px;
 }
 
@@ -136,48 +141,80 @@
     position: relative;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-width: thin;
     scrollbar-color: $menu-bar-foreground $menu-bar-background;
     border-radius: 8px;
-    border: 2px solid $looks-secondary;
+    border: 1px solid $ui-black-transparent;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-.menu-item.expanded>.submenu {
+.menu-item.expanded>.submenu,
+:not(:has(> .menu-item.expanded))>.menu-item:hover>.submenu {
     opacity: 1;
     visibility: visible;
     transform: scale(1);
-}
-
-.menu:not(.mobileModeMenu) .menu-item:not(.expanded):hover>.submenu {
-    opacity: 1;
-    visibility: visible;
-    transform: scale(1);
-}
-
-/* 子菜单内层的 ul.menu 基础样式为 opacity:0（与顶层面板共用 .menu 类）。
-   被子菜单包裹时从不接收 isOpen/.menuOpen，会造成内容恒为透明。
-   这里在子菜单打开/悬停时同时显隐内层 ul，才能真正渲染出子菜单内容。 */
-.menu-item.expanded>.submenu>.menu,
-.menu:not(.mobileModeMenu) .menu-item:not(.expanded):hover>.submenu>.menu {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-}
-
-.menu.mobileModeMenu .menu-item:not(.expanded):hover>.submenu {
-    display: none !important;
 }
 
 /* Fallback styling for webkit browsers that don't support scrollbar-color */
 
 .submenu>.menu::-webkit-scrollbar {
-    width: 12px;
+    width: 8px;
 }
 
 .submenu>.menu::-webkit-scrollbar-track {
-    background: $menu-bar-background;
+    background: transparent;
 }
 
 .submenu>.menu::-webkit-scrollbar-thumb {
-    background-color: $menu-bar-foreground;
-    border-radius: 12px;
-    border: 3px solid $menu-bar-background;
+    background-color: $ui-black-transparent;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+@media only screen and (max-width: 900px) {
+    .menu {
+        min-width: 260px;
+        max-width: calc(100vw - 1rem);
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border-radius: 12px;
+        padding-bottom: 0.25rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        line-height: 1.2;
+        min-height: 44px;
+        padding: 0 1rem;
+        font-size: 0.875rem;
+        white-space: normal;
+    }
+
+    .menu-item .shortcut {
+        display: none;
+    }
+
+    .submenu {
+        position: static;
+        min-width: 0;
+        overflow: visible;
+    }
+
+    .submenu.left,
+    .submenu.right {
+        left: auto;
+        right: auto;
+    }
+
+    .submenu > .menu {
+        position: static;
+        width: 100%;
+        min-width: 0;
+        max-height: none;
+        border-radius: 8px;
+        box-shadow: none;
+    }
 }

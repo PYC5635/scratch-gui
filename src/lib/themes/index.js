@@ -1,59 +1,12 @@
 import defaultsDeep from 'lodash.defaultsdeep';
 
-import * as guiLight from './gui/light';
-import * as guiGenesisLight from './gui/genesislight';
-import * as guiModenwhite from './gui/modern_white';
-import * as guiDark from './gui/dark';
-import * as guiGenesisDark from './gui/genesisdark';
-import * as guiDeepDark  from './gui/deep_dark';
-import * as guiMidnight from './gui/midnight';
-
 import * as blocksThree from './blocks/three';
 import * as blocksHighContrast from './blocks/high-contrast';
 import * as blocksDark from './blocks/dark';
 
 import {ACCENT_MAP, ACCENT_DEFAULT} from './accents';
-
-// Menu bar alignment options
-const MENUBAR_ALIGN = {
-    left: {
-        defaultMessage: 'Left',
-        description: 'Menu bar alignment option: left',
-        id: 'tw.menuBar.align.left',
-        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPCEtLSBDaXJjdWxhciBiYWNrZ3JvdW5kIC0tPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjExIiBmaWxsPSIjRkY2NjgwIiBzdHJva2U9IiNFNzRDM0MiIHN0cm9rZS13aWR0aD0iMSIvPgogIAogIDwhLS0gTGVmdC1hbGlnbmVkIHRleHQgbGluZXMgaW4gd2hpdGUgLS0+CiAgPHJlY3QgeD0iNiIgeT0iOCIgd2lkdGg9IjEyIiBoZWlnaHQ9IjEuNSIgcng9IjAuNzUiIGZpbGw9IndoaXRlIi8+CiAgPHJlY3QgeD0iNiIgeT0iMTEiIHdpZHRoPSI4IiBoZWlnaHQ9IjEuNSIgcng9IjAuNzUiIGZpbGw9IndoaXRlIi8+CiAgPHJlY3QgeD0iNiIgeT0iMTQiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxLjUiIHJ4PSIwLjc1IiBmaWxsPSJ3aGl0ZSIvPgogIDxyZWN0IHg9IjYiIHk9IjE3IiB3aWR0aD0iOCIgaGVpZ2h0PSIxLjUiIHJ4PSIwLjc1IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K'
-    },
-    center: {
-        defaultMessage: 'Center',
-        description: 'Menu bar alignment option: center',
-        id: 'tw.menuBar.align.center',
-        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPCEtLSBDaXJjdWxhciBiYWNrZ3JvdW5kIC0tPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjExIiBmaWxsPSIjNEVDREM0IiBzdHJva2U9IiMyNkE2OUEiIHN0cm9rZS13aWR0aD0iMSIvPgogIAogIDwhLS0gQ2VudGVyLWFsaWduZWQgdGV4dCBsaW5lcyBpbiB3aGl0ZSAtLT4KICA8cmVjdCB4PSI2IiB5PSI4IiB3aWR0aD0iMTIiIGhlaWdodD0iMS41IiByeD0iMC43NSIgZmlsbD0id2hpdGUiLz4KICA8cmVjdCB4PSI4IiB5PSIxMSIgd2lkdGg9IjgiIGhlaWdodD0iMS41IiByeD0iMC43NSIgZmlsbD0id2hpdGUiLz4KICA8cmVjdCB4PSI2IiB5PSIxNCIgd2lkdGg9IjEyIiBoZWlnaHQ9IjEuNSIgcng9IjAuNzUiIGZpbGw9IndoaXRlIi8+CiAgPHJlY3QgeD0iOCIgeT0iMTciIHdpZHRoPSI4IiBoZWlnaHQ9IjEuNSIgcng9IjAuNzUiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo='
-    },
-    right: {
-        defaultMessage: 'Right',
-        description: 'Menu bar alignment option: right',
-        id: 'tw.menuBar.align.right',
-        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPCEtLSBDaXJjdWxhciBiYWNrZ3JvdW5kIC0tPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjExIiBmaWxsPSIjRkZCODREIiBzdHJva2U9IiNGRjk4MDAiIHN0cm9rZS13aWR0aD0iMSIvPgogIAogIDwhLS0gUmlnaHQtYWxpZ25lZCB0ZXh0IGxpbmVzIGluIHdoaXRlIC0tPgogIDxyZWN0IHg9IjYiIHk9IjgiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxLjUiIHJ4PSIwLjc1IiBmaWxsPSJ3aGl0ZSIvPgogIDxyZWN0IHg9IjEwIiB5PSIxMSIgd2lkdGg9IjgiIGhlaWdodD0iMS41IiByeD0iMC43NSIgZmlsbD0id2hpdGUiLz4KICA8cmVjdCB4PSI2IiB5PSIxNCIgd2lkdGg9IjEyIiBoZWlnaHQ9IjEuNSIgcng9IjAuNzUiIGZpbGw9IndoaXRlIi8+CiAgPHJlY3QgeD0iMTAiIHk9IjE3IiB3aWR0aD0iOCIgaGVpZ2h0PSIxLjUiIHJ4PSIwLjc1IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K'
-    }
-};
-const MENUBAR_ALIGN_DEFAULT = 'left';
-
-const GUI_LIGHT = 'light';
-const GUI_GENESIS_LIGHT = 'genesis light';
-const GUI_MODENWHITE = 'modernwhite';
-const GUI_DARK = 'dark';
-const GUI_GENESIS_DARK = 'genesis dark';
-const GUI_DEEPDARK = 'deepdark';
-const GUI_MIDNIGHT = 'midnight';
-const GUI_MAP = {
-    [GUI_LIGHT]: guiLight,
-    [GUI_GENESIS_LIGHT]: guiGenesisLight,
-    [GUI_MODENWHITE]: guiModenwhite,
-    [GUI_DARK]: guiDark,
-    [GUI_GENESIS_DARK]: guiGenesisDark,
-    [GUI_DEEPDARK]: guiDeepDark,
-    [GUI_MIDNIGHT]: guiMidnight
-};
-const GUI_DEFAULT = GUI_LIGHT;
+import {GUI_MAP, GUI_DEFAULT} from './gui';
+import {MENUBAR_ALIGN, MENUBAR_ALIGN_DEFAULT} from './menubar';
 
 const BLOCKS_THREE = 'three';
 const BLOCKS_DARK = 'dark';
@@ -73,12 +26,12 @@ const BLOCKS_MAP = {
         blocksMediaFolder: 'blocks-media/high-contrast',
         colors: defaultsDeep({}, blocksHighContrast.blockColors, defaultBlockColors),
         extensions: blocksHighContrast.extensions,
-        customExtensionColors: blocksHighContrast.customExtensionColors,        
+        customExtensionColors: blocksHighContrast.customExtensionColors,
         useForStage: true
     },
     [BLOCKS_DARK]: {
         blocksMediaFolder: 'blocks-media/default',
-        colors: defaultsDeep({}, blocksDark.blockColors, defaultBlockColors),   
+        colors: defaultsDeep({}, blocksDark.blockColors, defaultBlockColors),
         extensions: blocksDark.extensions,
         customExtensionColors: blocksDark.customExtensionColors,
         useForStage: false
@@ -96,7 +49,8 @@ const BLOCKS_MAP = {
 let themeObjectsCreated = 0;
 
 class Theme {
-    constructor (accent, gui, blocks, menuBarAlign, wallpaper, fonts) {
+    constructor (accent, gui, blocks, menuBarAlign, wallpaper, fonts, name, appearance = {}) {
+        if (!name) name = gui;
         // do not modify these directly
         /** @readonly */
         this.id = ++themeObjectsCreated;
@@ -107,36 +61,59 @@ class Theme {
         /** @readonly */
         this.blocks = Object.prototype.hasOwnProperty.call(BLOCKS_MAP, blocks) ? blocks : BLOCKS_DEFAULT;
         /** @readonly */
-        this.menuBarAlign = Object.keys(MENUBAR_ALIGN).includes(menuBarAlign) ? menuBarAlign : MENUBAR_ALIGN_DEFAULT;
+        this.menuBarAlign = Object
+            .keys(MENUBAR_ALIGN)
+            .includes(menuBarAlign) ?
+            menuBarAlign : MENUBAR_ALIGN_DEFAULT;
+    
         /** @readonly */
         this.wallpaper = wallpaper || {url: '', opacity: 0.3, darkness: 0, gridVisible: true, history: []};
         /** @readonly */
         this.fonts = fonts || {system: [], google: [], history: []};
         /** @readonly */
-        this.name = GUI_MAP[this.gui].name;
+        this.appearance = appearance || {};
+
+        /** @readonly */
+        this.name = name;
     }
 
     static defaults = Object.create(null);
-    static light = new Theme(ACCENT_DEFAULT, GUI_LIGHT, BLOCKS_DEFAULT, MENUBAR_ALIGN_DEFAULT);        
-    static dark = new Theme(ACCENT_DEFAULT, GUI_DARK, BLOCKS_DEFAULT, MENUBAR_ALIGN_DEFAULT);
-    static midnight = new Theme(ACCENT_DEFAULT, GUI_MIDNIGHT, BLOCKS_DEFAULT, MENUBAR_ALIGN_DEFAULT);
-    static highContrast = new Theme(ACCENT_DEFAULT, GUI_DEFAULT, BLOCKS_HIGH_CONTRAST, MENUBAR_ALIGN_DEFAULT);
+
+    _getOptions () {
+        return {
+            accent: this.accent,
+            gui: this.gui,
+            blocks: this.blocks,
+            menuBarAlign: this.menuBarAlign,
+            wallpaper: this.wallpaper,
+            fonts: this.fonts,
+            name: this.name,
+            appearance: this.appearance
+        };
+    }
+
+    _create (options) {
+        return new Theme(
+            options.accent,
+            options.gui,
+            options.blocks,
+            options.menuBarAlign,
+            options.wallpaper,
+            options.fonts,
+            options.name,
+            options.appearance
+        );
+    }
 
     set (what, to) {
-        if (what === 'accent') {
-            return new Theme(to, this.gui, this.blocks, this.menuBarAlign, this.wallpaper, this.fonts);
-        } else if (what === 'gui') {
-            return new Theme(this.accent, to, this.blocks, this.menuBarAlign, this.wallpaper, this.fonts);
-        } else if (what === 'blocks') {
-            return new Theme(this.accent, this.gui, to, this.menuBarAlign, this.wallpaper, this.fonts);
-        } else if (what === 'menuBarAlign') {
-            return new Theme(this.accent, this.gui, this.blocks, to, this.wallpaper, this.fonts);
-        } else if (what === 'wallpaper') {
-            return new Theme(this.accent, this.gui, this.blocks, this.menuBarAlign, to, this.fonts);
-        } else if (what === 'fonts') {
-            return new Theme(this.accent, this.gui, this.blocks, this.menuBarAlign, this.wallpaper, to);
-        }
-        throw new Error(`Unknown theme property: ${what}`);
+        const next = this._getOptions();
+        if (!Object.prototype.hasOwnProperty.call(next, what)) throw new Error(`Unknown theme property: ${what}`);
+        next[what] = to;
+        return this._create(next);
+    }
+
+    setAppearance (changes) {
+        return this.set('appearance', {...this.appearance, ...changes});
     }
 
     getBlocksMediaFolder () {
@@ -146,16 +123,16 @@ class Theme {
     getGuiColors () {
         return defaultsDeep(
             {},
-            (ACCENT_MAP[this.accent] && ACCENT_MAP[this.accent].accent && ACCENT_MAP[this.accent].accent.guiColors) || {},
+            ACCENT_MAP[this.accent].guiColors,
             GUI_MAP[this.gui].guiColors,
-            guiLight.guiColors
+            BLOCKS_MAP[this.blocks].colors
         );
     }
 
     getBlockColors () {
         return defaultsDeep(
             {},
-            (ACCENT_MAP[this.accent] && ACCENT_MAP[this.accent].accent && ACCENT_MAP[this.accent].accent.blockColors) || {},
+            ACCENT_MAP[this.accent].blockColors,
             GUI_MAP[this.gui].blockColors,
             BLOCKS_MAP[this.blocks].colors
         );
@@ -173,19 +150,25 @@ class Theme {
         if (BLOCKS_MAP[this.blocks].useForStage) {
             return this.getBlockColors();
         }
-        return Theme.light.getBlockColors();
+        return Theme.defaults.light.getBlockColors();
     }
 
     getCustomExtensionColors () {
         return BLOCKS_MAP[this.blocks].customExtensionColors;
     }
-}
 
-// Create default theme objects for each GUI theme
+    getBlocksThemeId () {
+        return `${this.blocks}-${BLOCKS_MAP[this.blocks].blocksMediaFolder}`;
+    }
+}
 const keys = Object.keys(GUI_MAP);
 for (const key of keys) {
     Theme.defaults[key] = new Theme(
-        ACCENT_DEFAULT, key, BLOCKS_DEFAULT, MENUBAR_ALIGN_DEFAULT, {url: '', opacity: 0.3, darkness: 0, gridVisible: true, history: []}, {system: [], google: [], history: []}
+        ACCENT_DEFAULT, key, BLOCKS_DEFAULT, MENUBAR_ALIGN_DEFAULT,
+        {url: '', opacity: 0.3, darkness: 0, gridVisible: true, history: []},
+        {system: [], google: [], history: []},
+        GUI_MAP[key].name
+        
     );
 }
 
@@ -194,23 +177,16 @@ export {
     defaultBlockColors,
 
     ACCENT_MAP,
-    ACCENT_DEFAULT,
-
-    GUI_LIGHT,
-    GUI_GENESIS_LIGHT,
-    GUI_MODENWHITE,
-    GUI_DARK,
-    GUI_GENESIS_DARK,
-    GUI_DEEPDARK,
-    GUI_MIDNIGHT,
     GUI_MAP,
+    MENUBAR_ALIGN,
+
+    ACCENT_DEFAULT,
+    GUI_DEFAULT,
+    MENUBAR_ALIGN_DEFAULT,
 
     BLOCKS_THREE,
     BLOCKS_DARK,
     BLOCKS_HIGH_CONTRAST,
     BLOCKS_CUSTOM,
-    BLOCKS_MAP,
-
-    MENUBAR_ALIGN,
-    MENUBAR_ALIGN_DEFAULT
+    BLOCKS_MAP
 };

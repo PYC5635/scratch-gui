@@ -45,7 +45,9 @@ export default function NativeFindBar ({vm, locale, activeTabIndex, isPlayerOnly
             if (didUnmount) return;
 
             const msg = (id, args) => formatAddonMessage(messages, `find-bar/${id}`, args);
-            const msgAny = (fullId, args) => formatAddonMessage(messages, fullId, args);
+            // Addon l10n entries use keys without a leading slash
+            // (e.g. "_general/blocks/green-flag"), so strip it before lookup.
+            const msgAny = (fullId, args) => formatAddonMessage(messages, fullId.replace(/^\//, ''), args);
 
             const utils = new Utils(vm, ScratchBlocks);
 

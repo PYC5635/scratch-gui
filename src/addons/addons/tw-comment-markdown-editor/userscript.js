@@ -1,8 +1,24 @@
-export default async function ({ addon, console }) {
+export default async function ({ addon, console, msg }) {
   const vm = addon.tab.traps.vm;
 
   // 等待Blockly加载
   const Blockly = await addon.tab.traps.getBlockly();
+
+  // 加载scratchblocks库
+  let scratchblocks = window.scratchblocks;
+  if (!scratchblocks) {
+    await new Promise((resolve, reject) => {
+      // 不加载 CSS，避免影响全局样式
+      const script = document.createElement('script');
+      script.src = 'https://scratchblocks.github.io/js/scratchblocks-v3.6.4-min.js';
+      script.onload = () => {
+        scratchblocks = window.scratchblocks;
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
 
   // 处理注释元素的函数
   const processCommentElements = () => {
@@ -20,7 +36,7 @@ export default async function ({ addon, console }) {
       const textarea = commentEl.querySelector('textarea');
       if (!textarea) return;
 
-      // 查找顶部栏（拖动栏）
+      // 查找顶部栏(拖动栏)
       const topBar = commentEl.querySelector('.scratchCommentBody') || commentEl.querySelector('[class*="TopBar"]') || commentEl.firstElementChild;
       if (!topBar) return;
 
@@ -31,20 +47,14 @@ export default async function ({ addon, console }) {
       const toggleContainer = document.createElement('div');
       toggleContainer.className = 'tw-md-toggle-container';
 
-      // 创建模式指示器
-      const modeIndicator = document.createElement('span');
-      modeIndicator.className = 'tw-md-mode-indicator';
-      modeIndicator.textContent = '编辑模式';
-
       // 创建切换按钮
       const toggleButton = document.createElement('button');
       toggleButton.className = 'tw-md-toggle-button';
-      toggleButton.innerHTML = '编辑';
+      toggleButton.innerHTML = msg('edit');
       toggleButton.dataset.mode = 'edit';
-      toggleButton.title = '切换到预览模式 (Ctrl+M)';
+      toggleButton.title = msg('toggle-to-preview');
 
       // 将元素添加到容器
-      toggleContainer.appendChild(modeIndicator);
       toggleContainer.appendChild(toggleButton);
 
       // 创建预览容器
@@ -53,6 +63,7 @@ export default async function ({ addon, console }) {
       previewContainer.style.display = 'none';
 
       // 将元素添加到DOM
+      toggleContainer.appendChild(toggleButton);
       topBar.appendChild(toggleContainer);
 
       // 找到注释内容区域并添加预览容器
@@ -65,6 +76,7 @@ export default async function ({ addon, console }) {
       toggleButton.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
+
         toggleMode();
       });
 
@@ -94,10 +106,8 @@ export default async function ({ addon, console }) {
         if (mode === 'edit') {
           // 切换到预览模式
           toggleButton.dataset.mode = 'preview';
-          toggleButton.innerHTML = '预览';
-          toggleButton.title = '切换到编辑模式 (Ctrl+M)';
-          modeIndicator.textContent = '预览模式';
-          modeIndicator.classList.add('preview-mode');
+          toggleButton.innerHTML = msg('preview');
+          toggleButton.title = msg('toggle-to-edit');
           textarea.style.display = 'none';
           previewContainer.style.display = 'block';
 
@@ -106,10 +116,8 @@ export default async function ({ addon, console }) {
         } else {
           // 切换到编辑模式
           toggleButton.dataset.mode = 'edit';
-          toggleButton.innerHTML = '编辑';
-          toggleButton.title = '切换到预览模式 (Ctrl+M)';
-          modeIndicator.textContent = '编辑模式';
-          modeIndicator.classList.remove('preview-mode');
+          toggleButton.innerHTML = msg('edit');
+          toggleButton.title = msg('toggle-to-preview');
           textarea.style.display = 'block';
           previewContainer.style.display = 'none';
 
@@ -124,15 +132,116 @@ export default async function ({ addon, console }) {
           renderMarkdown(textarea.value, previewContainer);
         }
       });
+
+      console.log('Processed comment element:', commentEl);
     });
   };
+
+  // 获取当前Scratch语言
+  function getScratchLocale() {
+    // 硬编码使用英语
+    return 'en';
+  }
+
+  // 渲染scratchblocks代码块为图片
+  function renderScratchblocks(code, container) {
+    try {
+      const locale = getScratchLocale();
+      const doc = scratchblocks.parse(code, {
+        languages: [locale, 'en'],
+      });
+      const docView = scratchblocks.newView(doc, {
+        style: 'scratch3',
+        scale: 0.675,
+      });
+      const svg = docView.render();
+      svg.classList.add('scratchblocks-style-scratch3');
+      container.innerHTML = '';
+      container.appendChild(svg);
+    } catch (e) {
+      container.innerHTML = `<pre><code>${code}</code></pre>`;
+      console.error('scratchblocks render error:', e);
+    }
+  }
 
   // 增强的Markdown渲染函数
   function renderMarkdown(text, container) {
     // 清空容器
     container.innerHTML = '';
 
-    // 增强的Markdown渲染实现
+    // 先处理scratchblocks代码块
+    const scratchblocksRegex = /```(?:scratchblocks|scratch|sb3|sb2)\n([\s\S]*?)```/gi;
+    const scratchblocksBlocks = [];
+    let match;
+
+    // 提取所有scratchblocks代码块
+    while ((match = scratchblocksRegex.exec(text)) !== null) {
+      scratchblocksBlocks.push({
+        code: match[1].trim(),
+        index: scratchblocksBlocks.length
+      });
+    }
+
+    // 分割文本，提取所有部分(包括scratchblocks代码块和普通文本)
+    const parts = [];
+    let lastIndex = 0;
+    scratchblocksRegex.lastIndex = 0;
+
+    while ((match = scratchblocksRegex.exec(text)) !== null) {
+      // 添加匹配之前的普通文本
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.slice(lastIndex, match.index)
+        });
+      }
+      // 添加scratchblocks代码块
+      parts.push({
+        type: 'scratchblocks',
+        code: match[1].trim()
+      });
+      lastIndex = match.index + match[0].length;
+    }
+
+    // 添加剩余的普通文本
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.slice(lastIndex)
+      });
+    }
+
+    // 如果没有scratchblocks代码块，使用原来的渲染方式
+    if (scratchblocksBlocks.length === 0) {
+      renderMarkdownSimple(text, container);
+      return;
+    }
+
+    // 逐个处理每个部分
+    parts.forEach(part => {
+      if (part.type === 'scratchblocks') {
+        // 创建scratchblocks容器并渲染
+        const scratchblocksContainer = document.createElement('div');
+        scratchblocksContainer.className = 'scratchblocks-preview';
+        scratchblocksContainer.style.cssText = 'background: white; border-radius: 8px; padding: 12px; margin: 8px 0;';
+        renderScratchblocks(part.code, scratchblocksContainer);
+        container.appendChild(scratchblocksContainer);
+      } else {
+        // 渲染普通文本为HTML
+        const tempDiv = document.createElement('div');
+        renderMarkdownSimple(part.content, tempDiv);
+        // 移动所有子节点到主容器
+        while (tempDiv.firstChild) {
+          container.appendChild(tempDiv.firstChild);
+        }
+      }
+    });
+  }
+
+  // 简单的Markdown渲染(用于非scratchblocks内容)
+  function renderMarkdownSimple(text, container) {
+    container.innerHTML = '';
+
     let html = text
       // 引用 - 必须在其他处理之前
       .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
@@ -141,8 +250,12 @@ export default async function ({ addon, console }) {
       .replace(/^## (.*$)/gm, '<h2>$1</h2>')
       .replace(/^# (.*$)/gm, '<h1>$1</h1>')
       // 粗体和斜体
+      .replace(/\*\*\*(.*?)\*\*\*/gm, '<strong><em>$1</em></strong>')
       .replace(/\*\*(.*?)\*\*/gm, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/gm, '<em>$1</em>')
+      // 删除线和下划线
+      .replace(/~~(.*?)~~/gm, '<del>$1</del>')
+      .replace(/__(.*?)__/gm, '<u>$1</u>')
       // 代码块
       .replace(/```([\s\S]*?)```/gm, '<pre><code>$1</code></pre>')
       // 行内代码
@@ -154,6 +267,9 @@ export default async function ({ addon, console }) {
       // 列表项
       .replace(/^\* (.*$)/gm, '<li>$1</li>')
       .replace(/^- (.*$)/gm, '<li>$1</li>')
+      // 水平线
+      .replace(/^---$/gm, '<hr>')
+      .replace(/^\*\*\*$/gm, '<hr>')
       // 换行
       .replace(/\n/g, '<br>');
 
@@ -214,10 +330,15 @@ export default async function ({ addon, console }) {
         textarea.style.display = 'block';
       }
     });
+
+    console.log('Markdown comment editor addon disabled');
   });
 
   // 插件启用时重新处理
   addon.self.addEventListener('enabled', () => {
     setTimeout(processCommentElements, 500);
+    console.log('Markdown comment editor addon enabled');
   });
+
+  console.log('Markdown comment editor addon loaded');
 }

@@ -83,13 +83,20 @@ const SNAPSHOT = {
     BEGIN: 'snapshot-begin',
     CHUNK: 'snapshot-chunk',
     ACK: 'snapshot-ack',
-    COMPLETE: 'snapshot-complete'
+    COMPLETE: 'snapshot-complete',
+    // Client -> host: the client replaced its local project and pushes the
+    // new .sb3 bytes so the host can adopt it and re-snapshot the room.
+    PUSH: 'snapshot-push',
+    PUSH_COMPLETE: 'snapshot-push-complete'
 };
 
 const ASSET = {
     REQUEST: 'asset-request',
     BEGIN: 'asset-begin',
-    CHUNK: 'asset-chunk'
+    CHUNK: 'asset-chunk',
+    // Host -> client: some requested assets do not exist on the host, so
+    // the requesting client must not wait forever for them.
+    UNAVAILABLE: 'asset-unavailable'
 };
 
 const PRESENCE = {
@@ -123,8 +130,16 @@ const LIMITS = {
     MAX_CHUNK_BYTES: 256 * 1024,
     MAX_CHUNK_COUNT: 65536,
     MAX_TRANSFER_BYTES: 512 * 1024 * 1024,
-    MAX_ASSET_REFS: 64,
-    MAX_USERS: 128
+    // A sprite-add carries one ref per costume and sound, so this has to
+    // clear a realistically fat sprite, not just a costume or two.
+    MAX_ASSET_REFS: 512,
+    MAX_USERS: 128,
+    // Custom extensions can be loaded from arbitrarily long URLs (GitHub
+    // raw links with query strings, data URLs, ...). The snapshot shares the
+    // host's loaded-extension list; if the URL cap is too tight the whole
+    // BEGIN message fails validation and onboarding never happens, so peers
+    // silently keep different projects. Allow plenty of slack.
+    MAX_EXTENSION_URL: 16 * 1024
 };
 
 const isPlainObject = value =>
@@ -164,6 +179,7 @@ const isUserInfo = value =>
     isPlainObject(value) &&
     isNonEmptyString(value.id, LIMITS.MAX_ID) &&
     isNonEmptyString(value.username, LIMITS.MAX_USERNAME) &&
+    isOptionalString(value.handle, LIMITS.MAX_USERNAME) &&
     typeof value.isHost === 'boolean';
 
 const isMd5Ext = value =>
@@ -333,6 +349,7 @@ const PAYLOAD_VALIDATORS = {
     [CTRL.HELLO]: payload => {
         if (!isNonNegativeInt(payload.protocolVersion)) return 'hello requires protocolVersion';
         if (!isNonEmptyString(payload.username, LIMITS.MAX_USERNAME)) return 'hello requires username';
+        if (!isOptionalString(payload.handle, LIMITS.MAX_USERNAME)) return 'hello handle must be a string';
         if (!isNonEmptyString(payload.roomId, LIMITS.MAX_ROOM_ID)) return 'hello requires roomId';
         if (typeof payload.lastAppliedSeq !== 'undefined' && !isNonNegativeInt(payload.lastAppliedSeq)) {
             return 'hello lastAppliedSeq must be a non-negative integer';
@@ -402,8 +419,8 @@ const PAYLOAD_VALIDATORS = {
             }
             for (const entry of payload.extensions) {
                 if (!isPlainObject(entry) ||
-                    !isNonEmptyString(entry.id, LIMITS.MAX_STRING) ||
-                    !isOptionalString(entry.url, LIMITS.MAX_STRING)) {
+                    !isNonEmptyString(entry.id, LIMITS.MAX_EXTENSION_URL) ||
+                    !isOptionalString(entry.url, LIMITS.MAX_EXTENSION_URL)) {
                     return 'snapshot-begin invalid extensions entry';
                 }
             }
@@ -423,6 +440,19 @@ const PAYLOAD_VALIDATORS = {
     },
     [SNAPSHOT.COMPLETE]: payload =>
         (isNonEmptyString(payload.transferId, LIMITS.MAX_ID) ? null : 'snapshot-complete requires transferId'),
+
+    [SNAPSHOT.PUSH]: payload => {
+        if (!isNonEmptyString(payload.transferId, LIMITS.MAX_ID)) return 'snapshot-push requires transferId';
+        if (!isNonNegativeInt(payload.totalBytes) || payload.totalBytes > LIMITS.MAX_TRANSFER_BYTES) {
+            return 'snapshot-push invalid totalBytes';
+        }
+        if (!isNonNegativeInt(payload.chunkCount) || payload.chunkCount > LIMITS.MAX_CHUNK_COUNT) {
+            return 'snapshot-push invalid chunkCount';
+        }
+        return null;
+    },
+    [SNAPSHOT.PUSH_COMPLETE]: payload =>
+        (isNonEmptyString(payload.transferId, LIMITS.MAX_ID) ? null : 'snapshot-push-complete requires transferId'),
 
     [ASSET.REQUEST]: payload => {
         if (!Array.isArray(payload.md5exts) || payload.md5exts.length === 0 ||
@@ -448,6 +478,14 @@ const PAYLOAD_VALIDATORS = {
         if (!isChunkData(payload.data)) return 'asset-chunk invalid data';
         return null;
     },
+    [ASSET.UNAVAILABLE]: payload => {
+        if (!Array.isArray(payload.md5exts) || payload.md5exts.length === 0 ||
+            payload.md5exts.length > LIMITS.MAX_ASSET_REFS) {
+            return 'asset-unavailable requires md5exts array';
+        }
+        if (!payload.md5exts.every(isMd5Ext)) return 'asset-unavailable contains invalid md5ext';
+        return null;
+    },
 
     [PRESENCE.CURSOR]: payload => {
         if (!isFiniteNumber(payload.x) || !isFiniteNumber(payload.y)) return 'cursor requires x/y';
@@ -458,8 +496,18 @@ const PAYLOAD_VALIDATORS = {
     [PRESENCE.CURSOR_CHAT]: payload =>
         // Missing/empty text clears the remote chat bubble.
         (isOptionalString(payload.text, LIMITS.MAX_CHAT) ? null : 'cursor-chat text too long'),
-    [PRESENCE.EDITING_TARGET]: payload =>
-        (isOptionalString(payload.targetId, LIMITS.MAX_ID) ? null : 'editing-target invalid targetId')
+    // Where a peer is working: which sprite, which tab, and which costume or
+    // sound within that tab. Peers on older builds send targetId alone.
+    [PRESENCE.EDITING_TARGET]: payload => {
+        if (!isOptionalString(payload.targetId, LIMITS.MAX_ID)) return 'editing-target invalid targetId';
+        if (typeof payload.tab !== 'undefined' && !isNonNegativeInt(payload.tab)) {
+            return 'editing-target invalid tab';
+        }
+        if (typeof payload.assetIndex !== 'undefined' && !isNonNegativeInt(payload.assetIndex)) {
+            return 'editing-target invalid assetIndex';
+        }
+        return null;
+    }
 };
 
 /**

@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, injectIntl, intlShape} from 'react-intl';
 
 import {GradientUtils} from '../../lib/themes/custom-themes.js';
 import showAlert from '../../addons/window-system/alert';
@@ -49,6 +49,7 @@ const GRADIENT_DIRECTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
 const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
 
 const GradientBuilder = props => {
+    const intl = props.intl;
     const isEdit = props.mode === 'edit';
     const [name, setName] = React.useState(props.initialName || '');
     const [description, setDescription] = React.useState(props.initialDescription || '');
@@ -79,7 +80,10 @@ const GradientBuilder = props => {
         }
 
         if (!name.trim()) {
-            await showAlert('Please enter a theme name first');
+            await showAlert(intl.formatMessage({
+                id: 'tw.customThemes.gradientBuilder.enterNameFirst',
+                defaultMessage: 'Please enter a theme name first'
+            }));
             return;
         }
 
@@ -191,7 +195,10 @@ const GradientBuilder = props => {
                                     type="button"
                                     onClick={() => handleRemoveColorStop(index)}
                                     className={styles.gcStopRemove}
-                                    title="Remove color"
+                                    title={intl.formatMessage({
+                                        id: 'tw.customThemes.gradientBuilder.removeColor',
+                                        defaultMessage: 'Remove color'
+                                    })}
                                 >
                                     {'×'}
                                 </button>
@@ -304,7 +311,10 @@ const GradientBuilder = props => {
                         type="text"
                         value={name}
                         onChange={e => setName(e.target.value)}
-                        placeholder="My Gradient Theme"
+                        placeholder={intl.formatMessage({
+                            id: 'tw.customThemes.gradientBuilder.namePlaceholder',
+                            defaultMessage: 'My Gradient Theme'
+                        })}
                         className={styles.gcInput}
                         maxLength={50}
                     />
@@ -319,7 +329,10 @@ const GradientBuilder = props => {
                     <textarea
                         value={description}
                         onChange={e => setDescription(e.target.value)}
-                        placeholder="Describe your gradient theme..."
+                        placeholder={intl.formatMessage({
+                            id: 'tw.customThemes.gradientBuilder.descriptionPlaceholder',
+                            defaultMessage: 'Describe your gradient theme...'
+                        })}
                         className={styles.gcTextarea}
                         maxLength={200}
                         rows={2}
@@ -333,7 +346,10 @@ const GradientBuilder = props => {
                         className={classNames(styles.gcBtn, isPreviewActive && styles.gcBtnActive)}
                         onClick={handlePreview}
                         disabled={!name.trim()}
-                        title="Apply this theme to see how it looks"
+                        title={intl.formatMessage({
+                            id: 'tw.customThemes.gradientBuilder.applyPreview',
+                            defaultMessage: 'Apply this theme to see how it looks'
+                        })}
                     >
                         {isPreviewActive ? (
                             <FormattedMessage
@@ -394,7 +410,8 @@ GradientBuilder.propTypes = {
     initialPrimaryColor: PropTypes.string,
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
-    onPreview: PropTypes.func
+    onPreview: PropTypes.func,
+    intl: intlShape
 };
 
-export default GradientBuilder;
+export default injectIntl(GradientBuilder);

@@ -27,7 +27,8 @@ import {
     handleProjectSyncStart as handleProjectSyncStartExternal,
     handleProjectSyncChunk as handleProjectSyncChunkExternal,
     handleProjectStreamEnd as handleProjectStreamEndExternal,
-    debugTargetStates as debugTargetStatesExternal
+    debugTargetStates as debugTargetStatesExternal,
+    resetSyncState as resetSyncStateExternal
 } from './collaboration/sync-manager.js';
 import {
     getTargetIdForMessage,
@@ -62,7 +63,7 @@ import {
     bindViewportSyncListeners as bindViewportSyncListenersExternal,
     unbindViewportSyncListeners as unbindViewportSyncListenersExternal
 } from './collaboration/cursor-sync.js';
-import {APP_NAME as APPNAME} from './constants/brand.js';
+import {APPNAME} from './constants/brand.js';
 
 let collaborationServiceInstance = null;
 
@@ -275,8 +276,6 @@ class CollaborationService {
 
     wrapVMLoadProject () {
         if (!this.vm || !this.vm.loadProject) return;
-        if (this._vmLoadProjectWrapped) return;
-        this._vmLoadProjectWrapped = true;
 
         const originalLoadProject = this.vm.loadProject.bind(this.vm);
         const service = this;
@@ -286,15 +285,7 @@ class CollaborationService {
         }
 
         this.vm.loadProject = function (input) {
-            // 快速路径：未连接协作且非同步加载，直接走原方法
-            // 避免 99% 场景下（单人编辑）的协作逻辑开销
             const isSyncLoad = service.isSyncOperation || service.isApplyingRemoteChange;
-            if (!service.isConnected && !isSyncLoad) {
-                service.lastLoadTime = Date.now();
-                return originalLoadProject(input);
-            }
-
-            // 以下为协作场景才执行的逻辑
             const now = Date.now();
             const timeSinceLastLoad = now - service.lastLoadTime;
 
@@ -319,25 +310,23 @@ class CollaborationService {
                 service.isLoadingProject = true;
             }
 
-            const hasConnections = service.isHost && service.connections.size > 0;
-            if (service.isHost && service.isConnected && !isSyncLoad && hasConnections) {
+            if (service.isHost && service.isConnected && !isSyncLoad && service.connections.size > 0) {
                 service.sendMessage('host-loading-start', {timestamp: Date.now()});
             }
 
-            const shouldTrackProgress = service.isHost && service.isConnected && !isSyncLoad;
             const progressHandler = (finished, total) => {
-                if (total > 0) {
+                if (service.isHost && service.isConnected && total > 0) {
                     const progress = Math.round((finished / total) * 100);
                     service.sendMessage('host-loading-progress', {progress, finished, total});
                 }
             };
 
-            if (shouldTrackProgress) {
+            if (service.isHost && service.isConnected && !isSyncLoad) {
                 service.vm.on('ASSET_PROGRESS', progressHandler);
             }
 
             return originalLoadProject(input).then(() => {
-                if (shouldTrackProgress) {
+                if (service.isHost && service.isConnected && !isSyncLoad) {
                     service.vm.off('ASSET_PROGRESS', progressHandler);
                 }
 
@@ -347,7 +336,7 @@ class CollaborationService {
                         service.scheduledSyncTimeout = null;
                     }
 
-                    if (hasConnections) {
+                    if (service.connections.size > 0) {
                         service.sendMessage('host-loading-complete', {timestamp: Date.now()});
 
                         const shouldScheduleSync = service._syncRequestedOnApproval === false;
@@ -701,8 +690,7 @@ class CollaborationService {
         try {
             const updates = payload.updates || [];
             updates.forEach(update => {
-                const mappedId = this.targetMapping[update.targetId] || update.targetId;
-                const targetId = this.isHost ? update.targetId : mappedId;
+                const targetId = this.isHost ? update.targetId : (this.targetMapping[update.targetId] || update.targetId);
                 const target = this.vm.runtime.getTargetById(targetId);
                 if (target) {
                     if ('x' in update && 'y' in update) target.setXY(update.x, update.y);
@@ -1396,7 +1384,7 @@ class CollaborationService {
             this.peerConfig.port = config.port;
         }
         if ('key' in config) {
-            if (config.key === '' || typeof config.key === 'undefined') {
+            if (config.key === '' || config.key === undefined) {
                 delete this.peerConfig.key;
             } else {
                 this.peerConfig.key = config.key;
@@ -1411,11 +1399,10 @@ class CollaborationService {
     }
 
     getPeerConfig () {
-        const keyIsUndefined = typeof this.peerConfig.key === 'undefined';
         return {
             host: this.peerConfig.host,
             port: this.peerConfig.port,
-            key: keyIsUndefined ? '' : this.peerConfig.key,
+            key: this.peerConfig.key === undefined ? '' : this.peerConfig.key,
             path: this.peerConfig.path,
             secure: this.peerConfig.secure
         };

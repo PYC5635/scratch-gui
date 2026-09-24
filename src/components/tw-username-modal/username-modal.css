@@ -16,7 +16,7 @@
 
 .text-input {
     margin-bottom: 1rem;
-    width: 100%;
+    width: calc(100% - 2rem);
     border: 1px solid $ui-black-transparent;
     border-radius: 5px;
     padding: 0 1rem;

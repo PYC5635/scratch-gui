@@ -7,14 +7,12 @@ import VM from 'scratch-vm';
 import {injectIntl, intlShape} from 'react-intl';
 
 import ErrorBoundaryHOC from '../lib/components/error-boundary-hoc.jsx';
-import SuperRefactorModal from './super-refactor-modal.jsx';
 import {
     getIsError,
     getIsShowingProject,
     requestNewProject,
     manualUpdateProject,
-    saveProjectAsCopy,
-    projectError
+    saveProjectAsCopy
 } from '../reducers/project-state';
 import {
     activateTab,
@@ -24,8 +22,8 @@ import {
 } from '../reducers/editor-tab';
 import {STAGE_SIZE_MODES} from '../lib/constants/layout-constants';
 import {setStageSize} from '../reducers/stage-size';
+import {setProjectUnchanged} from '../reducers/project-changed';
 import {setFullScreen} from '../reducers/mode';
-import collaborationService from '../lib/collaboration-service.js';
 
 import {
     closeCostumeLibrary,
@@ -36,17 +34,14 @@ import {
     closeExtensionLibrary,
     openCustomExtensionModal,
     openCustomGalleryModal,
+    closeCustomGalleryModal,
     openExtensionManagerModal,
     openSpriteLibrary,
     openCostumeLibrary,
     openSoundLibrary,
     openSettingsModal,
     openRestorePointModal,
-    openShortcutManagerModal,
-    openSimpleDialog,
-    openInvalidProjectModal,
-    openRoturLoginModal,
-    closeRoturLoginModal
+    openSimpleDialog
 } from '../reducers/modals';
 
 import FontLoaderHOC from '../lib/components/font-loader-hoc.jsx';
@@ -59,18 +54,18 @@ import ProjectSaverHOC from '../lib/components/project-saver-hoc.jsx';
 import storage from '../lib/persistence/storage';
 import vmListenerHOC from '../lib/components/vm-listener-hoc.jsx';
 import vmManagerHOC from '../lib/components/vm-manager-hoc.jsx';
-import {applySkipAssetLoading} from '../lib/mw-skip-asset-loading';
 import cloudManagerHOC from '../lib/components/cloud-manager-hoc.jsx';
+import CollaborationService from '../lib/collaboration/index.js';
 
 import GUIComponent from '../components/gui/gui.jsx';
 import {setIsScratchDesktop} from '../lib/utils/isScratchDesktop.js';
 import TWFullScreenResizerHOC from '../lib/components/tw-fullscreen-resizer-hoc.jsx';
 import TWThemeManagerHOC from './tw-theme-manager-hoc.jsx';
-import {initialize as initializeShortcuts} from
+import {initialize as initializeShortcuts, updateShortcuts} from
     '../lib/shortcuts/event-router.js';
 import startFractchLiveReload from '../lib/fractch-live';
 import smartSave from '../lib/mw/smart-save.js';
-import rwcBridge from '../lib/mw/rwc-bridge.js';
+import {getItem as getStorageItem} from '../lib/utils/safe-storage.js';
 
 const {RequestMetadata, setMetadata, unsetMetadata} = storage.scratchFetch;
 
@@ -87,24 +82,17 @@ const setProjectIdMetadata = projectId => {
 class GUI extends React.Component {
     constructor (props) {
         super(props);
+        setIsScratchDesktop(this.props.isScratchDesktop);
         this.state = {
-            enableStageResize: localStorage.getItem('mw:enable-stage-resize') !== 'false'
+            enableStageResize: getStorageItem('mw:enable-stage-resize', 'true') !== 'false'
         };
         this.handleStorageChange = this.handleStorageChange.bind(this);
     }
 
     componentDidMount () {
-        setIsScratchDesktop(this.props.isScratchDesktop);
         this.props.onStorageInit(storage);
         this.props.onVmInit(this.props.vm);
         setProjectIdMetadata(this.props.projectId);
-        // Apply the "skip assets on load" preference to the VM so every project
-        // load path (file, cloud, URL, git, ...) sees it immediately.
-        applySkipAssetLoading(this.props.vm);
-
-        rwcBridge.init();
-
-        window.addEventListener('storage', this.handleStorageChange);
 
         initializeShortcuts(
             {
@@ -137,17 +125,44 @@ class GUI extends React.Component {
                     );
                 },
                 setFullScreen: () => {
-                    this.props.onSetFullScreen(!this.props.isFullScreen);
+                    // Toggle browser fullscreen (F11 style), not stage fullscreen
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(e => {
+                            console.warn('Failed to enter fullscreen:', e);
+                        });
+                    } else {
+                        document.exitFullscreen().catch(e => {
+                            console.warn('Failed to exit fullscreen:', e);
+                        });
+                    }
                 }
             }
         );
-    }
-    componentDidUpdate (prevProps) {
-        if (window.location.search.includes('testError=1') && !prevProps.invalidProjectModalVisible) {
-            console.log('Test error triggered in componentDidUpdate');
-            this.props.onOpenInvalidProjectModal();
-        }
 
+        // 监听localStorage变化
+        window.addEventListener('storage', this.handleStorageChange);
+
+        this.fractchLiveReloadDispose = startFractchLiveReload(this.props.vm);
+    }
+
+    componentWillUnmount () {
+        window.removeEventListener('storage', this.handleStorageChange);
+        if (this.fractchLiveReloadDispose) {
+            this.fractchLiveReloadDispose();
+            this.fractchLiveReloadDispose = null;
+        }
+    }
+
+    handleStorageChange () {
+        try {
+            const newValue = getStorageItem('mw:enable-stage-resize', 'false') === 'true';
+            this.setState({enableStageResize: newValue});
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    componentDidUpdate (prevProps) {
         if (this.props.projectId !== prevProps.projectId) {
             if (this.props.projectId !== null) {
                 this.props.onUpdateProjectId(this.props.projectId);
@@ -159,14 +174,14 @@ class GUI extends React.Component {
             // At this time the project view in www doesn't need to know when a project is unloaded
 
             // Log total loading time
-            if (window.MISTWARP_LOAD_START_TIME) {
-                const totalLoadTime = Date.now() - window.MISTWARP_LOAD_START_TIME;
-                console.log(`🚀 MistWarp project loaded in ${totalLoadTime}ms (${(totalLoadTime / 1000).toFixed(2)}s)`);
+            if (window.BILUP_LOAD_START_TIME) {
+                const totalLoadTime = Date.now() - window.BILUP_LOAD_START_TIME;
+                console.log(`🚀 Bilup project loaded in ${totalLoadTime}ms (${(totalLoadTime / 1000).toFixed(2)}s)`);
 
                 // Also use Performance API if available
                 if (window.performance && window.performance.mark && window.performance.measure) {
-                    window.performance.mark('mistwarp-load-end');
-                    window.performance.measure('mistwarp-total-load', 'mistwarp-load-start', 'mistwarp-load-end');
+                    window.performance.mark('bilup-load-end');
+                    window.performance.measure('bilup-total-load', 'bilup-load-start', 'bilup-load-end');
                 }
             }
 
@@ -176,12 +191,15 @@ class GUI extends React.Component {
         // Sync costume when tab changes from costumes tab
         if (prevProps.activeTabIndex === COSTUMES_TAB_INDEX &&
             this.props.activeTabIndex !== COSTUMES_TAB_INDEX) {
-            if (collaborationService) {
-                const serviceInstance = collaborationService.getInstance();
-                if (serviceInstance) {
-                    serviceInstance.syncCurrentCostume();
-                }
+            const collaborationService = CollaborationService.getInstance();
+            if (collaborationService && collaborationService.syncCurrentCostume) {
+                collaborationService.syncCurrentCostume();
             }
+        }
+
+        // Update shortcuts when customShortcuts change
+        if (prevProps.customShortcuts !== this.props.customShortcuts) {
+            updateShortcuts(this.props.customShortcuts);
         }
     }
     render () {
@@ -210,8 +228,10 @@ class GUI extends React.Component {
             openSpriteLibrary,
             projectHost,
             projectId,
+            projectTitle,
             requestNewProject,
             saveProjectAsCopy,
+            onProjectUnchanged,
             /* eslint-enable no-unused-vars */
             children,
             fetchingProject,
@@ -229,20 +249,6 @@ class GUI extends React.Component {
             </GUIComponent>
         );
     }
-
-    handleStorageChange () {
-        try {
-            const newValue = localStorage.getItem('mw:enable-stage-resize') === 'true';
-            this.setState({enableStageResize: newValue});
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    componentWillUnmount () {
-        window.removeEventListener('storage', this.handleStorageChange);
-        collaborationService.getInstance()?.disconnect();
-    }
 }
 
 GUI.propTypes = {
@@ -259,10 +265,7 @@ GUI.propTypes = {
     isScratchDesktop: PropTypes.bool,
     isShowingProject: PropTypes.bool,
     isTotallyNormal: PropTypes.bool,
-    invalidProjectModalVisible: PropTypes.bool,
     loadingStateVisible: PropTypes.bool,
-    onError: PropTypes.func,
-    onOpenInvalidProjectModal: PropTypes.func,
     onProjectLoaded: PropTypes.func,
     onSeeCommunity: PropTypes.func,
     onStorageInit: PropTypes.func,
@@ -270,9 +273,12 @@ GUI.propTypes = {
     onVmInit: PropTypes.func,
     projectHost: PropTypes.string,
     projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    projectTitle: PropTypes.string,
+    onProjectUnchanged: PropTypes.func,
     telemetryModalVisible: PropTypes.bool,
     vm: PropTypes.instanceOf(VM).isRequired,
-    activeTabIndex: PropTypes.number
+    activeTabIndex: PropTypes.number,
+    customShortcuts: PropTypes.object
 };
 
 GUI.defaultProps = {
@@ -305,6 +311,7 @@ const mapStateToProps = state => {
         isShowingProject: getIsShowingProject(loadingState),
         loadingStateVisible: state.scratchGui.modals.loadingProject,
         projectId: state.scratchGui.projectState.projectId,
+        projectTitle: state.scratchGui.projectTitle,
         soundLibraryVisible: state.scratchGui.modals.soundLibrary,
         soundsTabVisible: state.scratchGui.editorTab.activeTabIndex === SOUNDS_TAB_INDEX,
         targetIsStage: (
@@ -316,12 +323,15 @@ const mapStateToProps = state => {
         usernameModalVisible: state.scratchGui.modals.usernameModal,
         settingsModalVisible: state.scratchGui.modals.settingsModal,
         customExtensionModalVisible: state.scratchGui.modals.customExtensionModal,
+        customGalleryModalVisible: state.scratchGui.modals.customGalleryModal,
         fontsModalVisible: state.scratchGui.modals.fontsModal,
+        assetsModalVisible: state.scratchGui.modals.assetsModal,
         unknownPlatformModalVisible: state.scratchGui.modals.unknownPlatformModal,
         invalidProjectModalVisible: state.scratchGui.modals.invalidProjectModal,
         gitModalVisible: state.scratchGui.modals.gitModal,
-        roturLoginModalVisible: state.scratchGui.modals.roturLoginModal,
-        vm: state.scratchGui.vm
+        projectMetadataModalVisible: state.scratchGui.modals.projectMetadataModal,
+        vm: state.scratchGui.vm,
+        customShortcuts: state.scratchGui.shortcuts.customShortcuts
     };
 };
 
@@ -345,16 +355,13 @@ const mapDispatchToProps = dispatch => ({
     requestNewProject: needSave => dispatch(requestNewProject(needSave)),
     manualUpdateProject: () => dispatch(manualUpdateProject()),
     saveProjectAsCopy: () => dispatch(saveProjectAsCopy()),
+    onProjectUnchanged: () => dispatch(setProjectUnchanged()),
     openSpriteLibrary: () => dispatch(openSpriteLibrary()),
     openCostumeLibrary: () => dispatch(openCostumeLibrary()),
     openSoundLibrary: () => dispatch(openSoundLibrary()),
     openExtensionManagerModal: () => dispatch(openExtensionManagerModal()),
     openSettingsModal: () => dispatch(openSettingsModal()),
-    openRestorePointModal: () => dispatch(openRestorePointModal()),
-    onError: error => dispatch(projectError(error)),
-    onOpenInvalidProjectModal: () => dispatch(openInvalidProjectModal()),
-    openRoturLoginModal: () => dispatch(openRoturLoginModal()),
-    onRequestCloseRoturLogin: () => dispatch(closeRoturLoginModal())
+    openRestorePointModal: () => dispatch(openRestorePointModal())
 });
 
 const ConnectedGUI = injectIntl(connect(

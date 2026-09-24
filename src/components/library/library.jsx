@@ -1,8 +1,10 @@
 import classNames from 'classnames';
+import {getItem as getStorageItem} from '../../lib/utils/safe-storage.js';
 import bindAll from 'lodash.bindall';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {defineMessages, injectIntl, intlShape, FormattedMessage} from 'react-intl';
+import {defineMessages, injectIntl, intlShape} from 'react-intl';
+import {Search} from 'lucide-react';
 
 import LibraryItem from '../../containers/library-item.jsx';
 import Modal from '../../containers/windowed-modal.jsx';
@@ -12,6 +14,13 @@ import TagButton from '../../containers/tag-button.jsx';
 import Spinner from '../spinner/spinner.jsx';
 import Separator from '../tw-extension-separator/separator.jsx';
 import RemovedTrademarks from '../tw-removed-trademarks/removed-trademarks.jsx';
+import {
+    ModalSidebar,
+    ModalSidebarGroup,
+    ModalSidebarGroupHeader,
+    ModalSidebarItem,
+    ModalSidebarLayout
+} from '../modal-sidebar/modal-sidebar.jsx';
 import {APP_NAME} from '../../lib/constants/brand.js';
 
 import styles from './library.css';
@@ -48,22 +57,22 @@ class LibraryComponent extends React.Component {
             'setFilteredDataRef'
         ]);
         const favorites = this.readFavoritesFromStorage();
-        this._mounted = false;
+        this._isMounted = false;
         this.state = {
             playingItem: null,
             filterQuery: '',
-            selectedTag: props.selectedTag || ALL_TAG.tag,
+            selectedTag: ALL_TAG.tag,
             canDisplay: false,
             favorites,
             initialFavorites: favorites
         };
     }
     componentDidMount () {
-        this._mounted = true;
+        this._isMounted = true;
         // Rendering all the items in the library can take a bit, so we'll always
         // show one frame with a loading spinner.
         setTimeout(() => {
-            if (this._mounted) {
+            if (this._isMounted) {
                 this.setState({
                     canDisplay: true
                 });
@@ -72,16 +81,9 @@ class LibraryComponent extends React.Component {
         if (this.props.setStopHandler) this.props.setStopHandler(this.handlePlayingEnd);
     }
     componentWillUnmount () {
-        this._mounted = false;
+        this._isMounted = false;
     }
     componentDidUpdate (prevProps, prevState) {
-        if (prevProps.selectedTag && prevProps.selectedTag !== this.props.selectedTag) {
-            this.setState({
-                filterQuery: '',
-                selectedTag: this.props.selectedTag
-            });
-        }
-
         if (prevState.filterQuery !== this.state.filterQuery ||
             prevState.selectedTag !== this.state.selectedTag) {
             this.scrollToTop();
@@ -102,7 +104,7 @@ class LibraryComponent extends React.Component {
     readFavoritesFromStorage () {
         let data;
         try {
-            data = JSON.parse(localStorage.getItem(this.getFavoriteStorageKey()));
+            data = JSON.parse(getStorageItem(this.getFavoriteStorageKey()));
         } catch (error) {
             // ignore
         }
@@ -131,10 +133,6 @@ class LibraryComponent extends React.Component {
         }
     }
     handleTagClick (tag) {
-        if (this.props.onSelectTag) {
-            this.props.onSelectTag(tag);
-            return;
-        }
         if (this.state.playingItem === null) {
             this.setState({
                 filterQuery: '',
@@ -203,18 +201,13 @@ class LibraryComponent extends React.Component {
                     key: `favorite-${dataItem[this.props.persistableKey]}`
                 }));
 
-            const nonFavoriteItems = this.props.data
-                .filter(dataItem => (
-                    !this.state.initialFavorites.includes(dataItem[this.props.persistableKey])
-                ));
-
             if (favoriteItems.length) {
                 favoriteItems.push('---');
             }
 
             return [
                 ...favoriteItems,
-                ...nonFavoriteItems
+                ...this.props.data
             ];
         }
 
@@ -271,11 +264,16 @@ class LibraryComponent extends React.Component {
     setFilteredDataRef (ref) {
         this.filteredDataRef = ref;
     }
+    labelOf (tag) {
+        if (typeof tag.intlLabel === 'string') return tag.intlLabel;
+        return this.props.intl.formatMessage(tag.intlLabel);
+    }
     render () {
         const filteredData = this.state.canDisplay && this.props.data && this.getFilteredData();
+        const sidebarTags = [ALL_TAG, ...(this.props.tags || [])];
         return (
             <Modal
-                fullScreen
+                className={styles.libraryModalContent}
                 contentLabel={this.props.title}
                 id={this.props.id}
                 visible={this.props.visible}
@@ -283,58 +281,51 @@ class LibraryComponent extends React.Component {
                 width={1000}
                 height={750}
             >
-                <div className={classNames(styles.libraryModalContent, {[styles.withSidebar]: this.props.sidebar})}>
-                    {this.props.sidebar && (
-                        <div className={styles.librarySidebar}>
-                            {this.props.sidebar}
-                        </div>
-                    )}
-                    <div className={styles.libraryMainContent}>
-                        {(this.props.filterable || this.props.tags) && (
-                            <div className={styles.filterBar}>
-                                {this.props.filterable && (
-                                    <Filter
-                                        className={classNames(
-                                            styles.filterBarItem,
-                                            styles.filter
-                                        )}
-                                        filterQuery={this.state.filterQuery}
-                                        inputClassName={styles.filterInput}
-                                        placeholderText={this.props.intl.formatMessage(messages.filterPlaceholder)}
-                                        onChange={this.handleFilterChange}
-                                        onClear={this.handleFilterClear}
+                <ModalSidebarLayout className={styles.layout}>
+                    {this.props.tags && (
+                        <ModalSidebar
+                            ariaLabel={this.props.title}
+                            width="wide"
+                        >
+                            <ModalSidebarGroup>
+                                <ModalSidebarGroupHeader label={this.props.title} />
+                                {sidebarTags.map(tag => (
+                                    <ModalSidebarItem
+                                        key={tag.tag}
+                                        label={this.labelOf(tag)}
+                                        selected={this.state.selectedTag === tag.tag.toLowerCase()}
+                                        onClick={() => this.handleTagClick(tag.tag)}
                                     />
-                                )}
-                                {this.props.filterable && this.props.tags && (
-                                    <Divider className={classNames(styles.filterBarItem, styles.divider)} />
-                                )}
-                                {this.props.tags &&
-                                    <div className={styles.tagWrapper}>
-                                        {tagListPrefix.concat(this.props.tags).map((tagProps, id) => (
-                                            <TagButton
-                                                active={this.state.selectedTag === tagProps.tag.toLowerCase()}
-                                                className={classNames(
-                                                    styles.filterBarItem,
-                                                    styles.tagButton,
-                                                    tagProps.className
-                                                )}
-                                                key={`tag-button-${id}`}
-                                                onClick={this.handleTagClick}
-                                                onRetry={this.props.onRetryTag}
-                                                {...tagProps}
-                                            />
-                                        ))}
-                                    </div>
-                                }
+                                ))}
+                            </ModalSidebarGroup>
+                        </ModalSidebar>
+                    )}
+                    <div className={styles.content}>
+                        {this.props.filterable && (
+                            <div className={styles.searchRow}>
+                                <Search
+                                    className={styles.searchIcon}
+                                    size={18}
+                                />
+                                <input
+                                    className={styles.search}
+                                    placeholder={this.props.intl.formatMessage(messages.filterPlaceholder)}
+                                    value={this.state.filterQuery}
+                                    onChange={this.handleFilterChange}
+                                    autoFocus
+                                />
                             </div>
                         )}
                         <div
-                            className={classNames(styles.libraryScrollGrid, {
-                                [styles.withFilterBar]: this.props.filterable || this.props.tags
-                            })}
+                            className={styles.libraryScroll}
                             ref={this.setFilteredDataRef}
                         >
-                            {filteredData && this.getFilteredData().map((dataItem, index) => (
+                            <div
+                                className={classNames(styles.libraryScrollGrid, {
+                                    [styles.withFilterBar]: this.props.filterable || this.props.tags
+                                })}
+                            >
+                                {filteredData && this.getFilteredData().map((dataItem, index) => (
                                 dataItem === '---' ? (
                                     <Separator key={index} />
                                 ) : (
@@ -351,17 +342,15 @@ class LibraryComponent extends React.Component {
                                         iconRawURL={dataItem.rawURL}
                                         icons={dataItem.costumes}
                                         id={index}
+                                        isBackdrop={this.props.id === 'backdropLibrary'}
+                                        isSound={this.props.id === 'soundLibrary'}
                                         incompatibleWithScratch={dataItem.incompatibleWithScratch}
                                         favorite={this.state.favorites.includes(dataItem[this.props.persistableKey])}
                                         onFavorite={this.handleFavorite}
                                         insetIconURL={dataItem.insetIconURL}
                                         internetConnectionRequired={dataItem.internetConnectionRequired}
                                         isPlaying={this.state.playingItem === index}
-                                        key={dataItem.key || (
-                                            typeof dataItem.name === 'string' ?
-                                                dataItem.name :
-                                                dataItem.rawURL
-                                        )}
+                                        key={`${dataItem.key || (typeof dataItem.name === 'string' ? dataItem.name : dataItem.rawURL || 'unknown')}-${index}`}
                                         name={dataItem.name}
                                         credits={dataItem.credits}
                                         samples={dataItem.samples}
@@ -382,25 +371,17 @@ class LibraryComponent extends React.Component {
                                 </React.Fragment>
                             )}
                             {!filteredData && (
-                                <div className={styles.spinnerWrapper}>
-                                    <Spinner
-                                        large
-                                        level="primary"
-                                    />
-                                </div>
-                            )}
-                            {filteredData && filteredData.length === 0 && (
-                                <div className={styles.emptyState}>
-                                    <FormattedMessage
-                                        defaultMessage="Loading extensions..."
-                                        description="Message shown when a tag category is loading"
-                                        id="gui.library.loadingExtensions"
-                                    />
-                                </div>
-                            )}
+                                    <div className={styles.spinnerWrapper}>
+                                        <Spinner
+                                            large
+                                            level="primary"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </ModalSidebarLayout>
             </Modal>
         );
     }
@@ -438,11 +419,7 @@ LibraryComponent.propTypes = {
     tags: PropTypes.arrayOf(PropTypes.shape(TagButton.propTypes)),
     title: PropTypes.string.isRequired,
     visible: PropTypes.bool,
-    onRetryTag: PropTypes.func,
-    removedTrademarks: PropTypes.bool,
-    selectedTag: PropTypes.string,
-    onSelectTag: PropTypes.func,
-    sidebar: PropTypes.node
+    removedTrademarks: PropTypes.bool
 };
 
 LibraryComponent.defaultProps = {

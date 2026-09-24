@@ -3,12 +3,24 @@ import React from 'react';
 import bindAll from 'lodash.bindall';
 import VM from 'scratch-vm';
 import PaintEditor from '../lib/tw-scratch-paint';
-import {inlineSvgFonts, sanitizeSvg} from '@turbowarp/scratch-svg-renderer';
+import {inlineSvgFonts, sanitizeSvg} from '@bilup/scratch-svg-renderer';
 import ErrorBoundaryHOC from '../lib/components/error-boundary-hoc.jsx';
 import {openFontsModal} from '../reducers/modals';
 
 import {connect} from 'react-redux';
 import {Theme} from '../lib/themes/index.js';
+
+let cachedSvgId = null;
+let cachedSvgSource = null;
+let cachedSanitizedSvg = null;
+const sanitizeSvgOnce = (imageId, source) => {
+    if (imageId !== cachedSvgId || source !== cachedSvgSource) {
+        cachedSvgId = imageId;
+        cachedSvgSource = source;
+        cachedSanitizedSvg = sanitizeSvg.sanitizeSvgText(source);
+    }
+    return cachedSanitizedSvg;
+};
 
 class PaintEditorWrapper extends React.Component {
     constructor (props) {
@@ -23,10 +35,10 @@ class PaintEditorWrapper extends React.Component {
             fonts: this.props.vm.runtime.fontManager.getFonts()
         };
     }
-    componentDidMount () {
+    componentDidMount() {
         this.props.vm.runtime.fontManager.on('change', this.handleUpdateFonts);
     }
-    shouldComponentUpdate (nextProps, nextState) {
+    shouldComponentUpdate(nextProps, nextState) {
         return this.props.imageId !== nextProps.imageId ||
             this.props.rtl !== nextProps.rtl ||
             this.props.name !== nextProps.name ||
@@ -34,10 +46,10 @@ class PaintEditorWrapper extends React.Component {
             this.props.customStageSize !== nextProps.customStageSize ||
             this.state.fonts !== nextState.fonts;
     }
-    componentWillUnmount () {
+    componentWillUnmount() {
         this.props.vm.runtime.fontManager.off('change', this.handleUpdateFonts);
     }
-    handleUpdateFonts () {
+    handleUpdateFonts() {
         this.setState({
             fonts: this.props.vm.runtime.fontManager.getFonts()
         });
@@ -62,7 +74,14 @@ class PaintEditorWrapper extends React.Component {
         }
     }
     fontInlineFn (svgString) {
-        return inlineSvgFonts(svgString, this.props.vm.renderer.customFonts);
+        try {
+            const customFonts = this.props.vm.renderer && this.props.vm.renderer.customFonts;
+            if (!customFonts) return svgString;
+            return inlineSvgFonts(svgString, customFonts);
+        } catch (e) {
+            console.warn('Font inlining failed, continuing with original SVG:', e);
+            return svgString;
+        }
     }
     render () {
         if (!this.props.imageId) return null;
@@ -75,7 +94,7 @@ class PaintEditorWrapper extends React.Component {
         return (
             <PaintEditor
                 {...componentProps}
-                image={this.props.imageFormat === 'svg' ? sanitizeSvg.sanitizeSvgText(costume) : costume}
+                image={this.props.imageFormat === 'svg' ? sanitizeSvgOnce(this.props.imageId, costume) : costume}
                 onUpdateImage={this.handleUpdateImage}
                 onUpdateName={this.handleUpdateName}
                 fontInlineFn={this.fontInlineFn}

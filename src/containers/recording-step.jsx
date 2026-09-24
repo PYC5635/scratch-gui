@@ -48,8 +48,22 @@ class RecordingStep extends React.Component {
     handleLevelUpdate (level) {
         this.setState({
             level: level,
-            levels: this.props.recording ? (this.state.levels || []).concat([level]) : this.state.levels
+            levels: this.props.recording ? this._appendLevel(level) : this.state.levels
         });
+    }
+
+    // 录音期间以 ~60fps 收到音量采样，若不限制，levels 数组会无界增长
+    // 耗尽内存（录音时间越长内存占用越高，最终导致应用卡死/崩溃）。
+    // 只保留最近 4096 个采样（约 68 秒）用于波形预览，足够渲染又不会失控。
+    // 完整录音数据由 audioRecorder.stop() 另行返回，不影响最终保存。
+    _appendLevel (level) {
+        const prev = this.state.levels || [];
+        if (prev.length < 4096) {
+            return prev.concat([level]);
+        }
+        // 数组已满：移除最早的一半再追加，避免每次 concat 都复制整个数组
+        const tail = prev.slice(Math.floor(prev.length / 2));
+        return tail.concat([level]);
     }
     handleRecord () {
         this.audioRecorder.startRecording();

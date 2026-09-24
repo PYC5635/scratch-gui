@@ -1,25 +1,25 @@
-/* 舞台全屏模式时隐藏顶部菜单栏的样式 */
-/* 这些样式由 userscript.js 动态应用 */
+[class*="stage-wrapper_full-screen"] {
+  top: 0rem !important;
+}
 
-/* 菜单栏幻影头部样式 - 用于触发菜单栏显示 */
-.menu-bar-phantom-header {
+[class*="stage-header_stage-header-wrapper-overlay"] {
+  display: block;
+  top: var(--sa-menu-bar-height, 0px) !important;
+  transform: translateY(calc(-101% - var(--sa-menu-bar-height, 0px)));
+  transition: transform 0.3s;
+}
+
+.phantom-header {
   position: fixed;
   top: 0px;
   left: 0px;
   right: 0px;
   height: 8px;
-  z-index: 5000;
-  cursor: default;
-}
-
-/* 确保舞台全屏时顶部没有间距 */
-[class*="stage-wrapper"][class*="full-screen"] {
-  top: 0rem !important;
-}
-
-/* 舞台头部在全屏模式下的样式 */
-[class*="stage-header_stage-header-wrapper-overlay"] {
   display: block;
-  top: 0px !important;
-  transition: transform 0.3s;
+  z-index: 5000;
+}
+
+.stage-header-hover {
+  transform: translateY(0%);
+  transition: transform 0.3s 0.25s;
 }

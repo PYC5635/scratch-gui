@@ -8,11 +8,15 @@ import {APP_NAME} from '../../lib/constants/brand';
 
 const hosts = [
     {
-        name: 'US East',
+        name: 'Hong Kong (Bilup)',
+        cloudHost: 'wss://clouddata.bilup.org'
+    },
+    {
+        name: 'US East (TurboWarp)',
         cloudHost: 'wss://clouddata.turbowarp.org'
     },
     {
-        name: 'EU',
+        name: 'EU (9gr)',
         cloudHost: 'wss://clouddata-eu.turbowarp.org',
         provider: {
             name: '9gr',
@@ -72,7 +76,7 @@ const CloudVariableBadge = props => {
                     />
                     {hosts.map(i => (
                         <CloudServerButton
-                            key={i.ws}
+                            key={i.cloudHost}
                             name={i.name}
                             cloudHost={i.cloudHost}
                             selected={props.cloudHost === i.cloudHost}
@@ -114,7 +118,7 @@ const CloudVariableBadge = props => {
             <a
                 target="_blank"
                 rel="noreferrer"
-                href="https://docs.PineEditor.org/cloud-variables"
+                href="https://docs.bilup.org/advanced/cloud-variables"
             >
                 <FormattedMessage
                     defaultMessage="Learn more about cloud variables."

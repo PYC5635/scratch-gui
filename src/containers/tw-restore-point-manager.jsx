@@ -16,6 +16,7 @@ import downloadBlob from '../lib/utils/download-blob.js';
 
 const SAVE_DELAY = 250;
 const MINIMUM_SAVE_TIME = 1000;
+const MAX_SAVE_DURATION_BEFORE_COOLDOWN = 2000; // If a save takes > 2s, apply cooldown
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -55,16 +56,14 @@ class TWRestorePointManager extends React.Component {
             'handleClickCreate',
             'handleClickDelete',
             'handleClickDeleteAll',
+            'handleClickRefresh',
             'handleChangeInterval',
             'handleClickExport',
             'handleClickLoad',
             'isExportingRestorePoint',
-            'refreshCloudRestorePoints',
-            'handlePushToCloud',
-            'handleDeleteCloudRestorePoint',
-            'handleCopyCloudLink',
-            'handleOpenInEditor',
-            'handleTabChange'
+            'showConfirmDialog',
+            'handleConfirmDialog',
+            'handleCancelDialog'
         ]);
         this.state = {
             loading: true,
@@ -73,15 +72,13 @@ class TWRestorePointManager extends React.Component {
             error: null,
             interval: RestorePointAPI.readInterval(),
             exportingRestorePoints: [],
-            cloudRestorePoints: [],
-            cloudLoading: false,
-            cloudError: null,
-            activeTab: 'local',
-            storedVersion: null,
-            storedHash: null,
-            pushingToCloud: false
+            // 自定义确认对话框状态：{message, onConfirm}
+            // 替代原生 confirm()，样式与扩展管理弹窗保持一致
+            confirmDialog: null
         };
         this.timeout = null;
+        this._lastSaveDuration = 0;
+        this._saveCooldownUntil = 0;
     }
 
     componentDidMount () {
@@ -90,6 +87,12 @@ class TWRestorePointManager extends React.Component {
         // compensate for time already passed.
         if (this.props.projectChanged && this.props.hasEverEnteredEditor) {
             this.queueRestorePoint();
+        }
+
+        // 防御：组件挂载时若还原点窗口已经处于打开状态，立即刷新一次，
+        // 确保首次打开窗口就显示最新的还原点列表
+        if (this.props.isModalVisible) {
+            this.refreshState();
         }
 
         RestorePointAPI.deleteLegacyRestorePoint();
@@ -126,50 +129,85 @@ class TWRestorePointManager extends React.Component {
             });
     }
 
+    handleClickRefresh () {
+        this.refreshState();
+    }
+
     handleClickDelete (id) {
         const projectTitle = this.state.restorePoints.find(i => i.id === id).title;
-        if (!confirm(this.props.intl.formatMessage(messages.confirmDelete, {projectTitle}))) {
-            return;
-        }
-
-        this.setState({
-            loading: true
-        });
-        RestorePointAPI.deleteRestorePoint(id)
-            .then(() => {
-                this.refreshState();
-            })
-            .catch(error => {
-                this.handleModalError(error);
-            });
+        this.showConfirmDialog(
+            this.props.intl.formatMessage(messages.confirmDelete, {projectTitle}),
+            () => {
+                this.setState({
+                    loading: true
+                });
+                RestorePointAPI.deleteRestorePoint(id)
+                    .then(() => {
+                        this.refreshState();
+                    })
+                    .catch(error => {
+                        this.handleModalError(error);
+                    });
+            }
+        );
     }
 
     handleClickDeleteAll () {
-        if (!confirm(this.props.intl.formatMessage(messages.confirmDeleteAll))) {
-            return;
-        }
-
-        this.setState({
-            loading: true
-        });
-        RestorePointAPI.deleteAllRestorePoints()
-            .then(() => {
-                this.refreshState();
-            })
-            .catch(error => {
-                this.handleModalError(error);
-            });
+        this.showConfirmDialog(
+            this.props.intl.formatMessage(messages.confirmDeleteAll),
+            () => {
+                this.setState({
+                    loading: true
+                });
+                RestorePointAPI.deleteAllRestorePoints()
+                    .then(() => {
+                        this.refreshState();
+                    })
+                    .catch(error => {
+                        this.handleModalError(error);
+                    });
+            }
+        );
     }
 
-    canLoadProject () {
+    // 加载还原点：若项目有未保存修改，先弹出确认对话框
+    handleClickLoad (id) {
         if (!this.props.isShowingProject) {
             // Loading a project now will break the state machine
-            return false;
+            return;
         }
-        if (this.props.projectChanged && !confirm(this.props.intl.formatMessage(messages.confirmLoad))) {
-            return false;
+        if (this.props.projectChanged) {
+            this.showConfirmDialog(
+                this.props.intl.formatMessage(messages.confirmLoad),
+                () => this.loadRestorePoint(id)
+            );
+            return;
         }
-        return true;
+        this.loadRestorePoint(id);
+    }
+
+    loadRestorePoint (id) {
+        this.props.onCloseModal();
+        this.props.onStartLoadingRestorePoint(this.props.loadingState);
+
+        const backup = this.props.projectChanged ?
+            RestorePointAPI.createSafetyRestorePoint(this.props.vm, this.props.projectTitle) :
+            Promise.resolve();
+        backup
+            .then(() => RestorePointAPI.loadRestorePoint(this.props.vm, id))
+            .then(() => {
+                this.props.onFinishLoadingRestorePoint(true, this.props.loadingState);
+                setTimeout(() => {
+                    this.props.vm.renderer.draw();
+                });
+            })
+            .catch(error => {
+                log.error(error);
+                alert(this.props.intl.formatMessage(messages.loadError, {
+                    error
+                }));
+                this.props.onFinishLoadingRestorePoint(false, this.props.loadingState);
+            });
     }
 
     handleClickExport (id) {
@@ -189,6 +227,10 @@ class TWRestorePointManager extends React.Component {
 
         RestorePointAPI.exportRestorePoint(id)
             .then(result => {
+                // The project title may be blank (new project that was never
+                // named), which would produce a download named ".sb3". Fall back
+                // to a default name so the exported file always has a useful
+                // "作品名.sb3" style filename.
                 const title = (result.title || '').trim();
                 downloadBlob(`${title || 'project'}.sb3`, result.blob);
                 removeFromExportingList();
@@ -206,30 +248,6 @@ class TWRestorePointManager extends React.Component {
         return this.state.exportingRestorePoints.includes(id);
     }
 
-    handleClickLoad (id) {
-        if (!this.canLoadProject()) {
-            return;
-        }
-
-        this.props.onCloseModal();
-        this.props.onStartLoadingRestorePoint(this.props.loadingState);
-
-        RestorePointAPI.loadRestorePoint(this.props.vm, id)
-            .then(() => {
-                this.props.onFinishLoadingRestorePoint(true, this.props.loadingState);
-                setTimeout(() => {
-                    this.props.vm.renderer.draw();
-                });
-            })
-            .catch(error => {
-                log.error(error);
-                alert(this.props.intl.formatMessage(messages.loadError, {
-                    error
-                }));
-                this.props.onFinishLoadingRestorePoint(false, this.props.loadingState);
-            });
-    }
-
     handleChangeInterval (e) {
         const interval = +e.target.value;
         RestorePointAPI.setInterval(interval);
@@ -245,6 +263,12 @@ class TWRestorePointManager extends React.Component {
 
     queueRestorePoint () {
         if (this.timeout || this.state.interval < 0) {
+            return;
+        }
+        // If the last save was slow (large project), apply a cooldown so the
+        // editor doesn't stutter from rapid consecutive saves.
+        const now = Date.now();
+        if (now < this._saveCooldownUntil) {
             return;
         }
         this.timeout = setTimeout(() => {
@@ -269,6 +293,7 @@ class TWRestorePointManager extends React.Component {
         }
 
         this.props.onStartCreatingRestorePoint();
+        const startedAt = Date.now();
         return Promise.all([
             // Wait a little bit before saving so UI can update before saving, which can cause stutter
             sleep(SAVE_DELAY)
@@ -280,6 +305,14 @@ class TWRestorePointManager extends React.Component {
             sleep(MINIMUM_SAVE_TIME)
         ])
             .then(() => {
+                const elapsed = Date.now() - startedAt;
+                this._lastSaveDuration = elapsed;
+                // If the last save took longer than the threshold (large
+                // project), apply a cooldown equal to the save duration so
+                // the editor doesn't stutter from rapid consecutive saves.
+                if (elapsed > MAX_SAVE_DURATION_BEFORE_COOLDOWN) {
+                    this._saveCooldownUntil = Date.now() + elapsed;
+                }
                 this.props.onFinishCreatingRestorePoint();
                 if (this.props.isModalVisible) {
                     this.refreshState();
@@ -321,131 +354,31 @@ class TWRestorePointManager extends React.Component {
         });
     }
 
-    handleTabChange (tab) {
+    // 打开自定义确认对话框（替代原生 confirm()）
+    showConfirmDialog (message, onConfirm) {
         this.setState({
-            activeTab: tab,
-            error: null,
-            cloudError: null
+            confirmDialog: {
+                message,
+                onConfirm
+            }
         });
-        if (tab === 'cloud') {
-            this.refreshCloudRestorePoints();
-        } else {
-            this.refreshState();
-        }
     }
 
-    refreshCloudRestorePoints (showPushInfo = false, pushHash = null) {
+    handleConfirmDialog () {
+        const dialog = this.state.confirmDialog;
         this.setState({
-            cloudLoading: true,
-            cloudError: null
+            confirmDialog: null
+        }, () => {
+            if (dialog && typeof dialog.onConfirm === 'function') {
+                dialog.onConfirm();
+            }
         });
-
-        const {version, hash} = RestorePointAPI.getStoredVersion();
-
-        RestorePointAPI.getCloudRestorePoints()
-            .then(restorePoints => {
-                let filteredPoints = restorePoints;
-                if (version) {
-                    filteredPoints = restorePoints.filter(rp => rp.version > version);
-                }
-
-                filteredPoints.forEach(rp => {
-                    if (!rp.version && hash) {
-                        rp.version = hash;
-                    }
-                });
-
-                // 按时间从新到旧排序
-                filteredPoints.sort((a, b) => (b.created || 0) - (a.created || 0));
-
-                this.setState({
-                    cloudLoading: false,
-                    cloudRestorePoints: filteredPoints,
-                    // 仅在推送后显示推送信息，初始连接/加载列表时不显示
-                    storedVersion: showPushInfo ? version : null,
-                    storedHash: showPushInfo ? (pushHash || hash) : null
-                });
-            })
-            .catch(error => {
-                log.error('Cloud restore point error', error);
-                this.setState({
-                    cloudLoading: false,
-                    cloudError: `${error}`
-                });
-            });
     }
 
-    handlePushToCloud () {
-        if (this.state.pushingToCloud) {
-            return;
-        }
-
+    handleCancelDialog () {
         this.setState({
-            pushingToCloud: true
+            confirmDialog: null
         });
-
-        RestorePointAPI.pushToCloud(this.props.vm, this.props.projectTitle)
-            .then(result => {
-                this.setState({
-                    pushingToCloud: false
-                });
-                // 推送后显示推送信息（传入推送返回的最新 hash）
-                this.refreshCloudRestorePoints(true, result ? result.hash : null);
-                this.props.onFinishCreatingRestorePoint();
-            })
-            .catch(error => {
-                log.error('Push to cloud error', error);
-                this.setState({
-                    pushingToCloud: false,
-                    cloudError: `${error}`
-                });
-                this.props.onErrorCreatingRestorePoint();
-            });
-    }
-
-    handleDeleteCloudRestorePoint (id) {
-        const restorePoint = this.state.cloudRestorePoints.find(rp => rp.id === id);
-        const filename = restorePoint ? restorePoint.filename : null;
-        RestorePointAPI.deleteCloudRestorePoint(id, filename)
-            .then(() => {
-                this.refreshCloudRestorePoints();
-            })
-            .catch(error => {
-                log.error('Delete cloud restore point error', error);
-                this.setState({
-                    cloudError: `${error}`
-                });
-            });
-    }
-
-    handleCopyCloudLink (id) {
-        const restorePoint = this.state.cloudRestorePoints.find(rp => rp.id === id);
-        const filename = restorePoint ? restorePoint.filename : null;
-        RestorePointAPI.copyCloudRestorePointLink(id, filename)
-            .then(() => {
-                try {
-                    this.props.onCloudLinkCopied();
-                } catch (e) {
-                    log.error('Failed to show link copied alert', e);
-                }
-            })
-            .catch(error => {
-                log.error('Copy cloud link error', error);
-                this.setState({
-                    cloudError: `${error}`
-                });
-            });
-    }
-
-    handleOpenInEditor (id) {
-        const restorePoint = this.state.cloudRestorePoints.find(rp => rp.id === id);
-        if (!restorePoint || !restorePoint.downloadUrl) {
-            return;
-        }
-        const searchParams = new URLSearchParams(location.search);
-        searchParams.set('project_url', restorePoint.downloadUrl);
-        const newSearch = searchParams.toString();
-        location.href = `${location.pathname}?${newSearch}${location.hash}`;
     }
 
     render () {
@@ -458,6 +391,7 @@ class TWRestorePointManager extends React.Component {
                     onClickDeleteAll={this.handleClickDeleteAll}
                     onClickExport={this.handleClickExport}
                     onClickLoad={this.handleClickLoad}
+                    onClickRefresh={this.handleClickRefresh}
                     interval={this.state.interval}
                     onChangeInterval={this.handleChangeInterval}
                     isExporting={this.isExportingRestorePoint}
@@ -465,18 +399,9 @@ class TWRestorePointManager extends React.Component {
                     totalSize={this.state.totalSize}
                     restorePoints={this.state.restorePoints}
                     error={this.state.error}
-                    activeTab={this.state.activeTab}
-                    onTabChange={this.handleTabChange}
-                    cloudRestorePoints={this.state.cloudRestorePoints}
-                    cloudLoading={this.state.cloudLoading}
-                    cloudError={this.state.cloudError}
-                    onPushToCloud={this.handlePushToCloud}
-                    pushingToCloud={this.state.pushingToCloud}
-                    onDeleteCloudRestorePoint={this.handleDeleteCloudRestorePoint}
-                    onCopyCloudLink={this.handleCopyCloudLink}
-                    onOpenInEditor={this.handleOpenInEditor}
-                    storedVersion={this.state.storedVersion}
-                    storedHash={this.state.storedHash}
+                    confirmDialog={this.state.confirmDialog}
+                    onConfirmDialog={this.handleConfirmDialog}
+                    onCancelDialog={this.handleCancelDialog}
                 />
             );
         }
@@ -532,8 +457,7 @@ const mapDispatchToProps = dispatch => ({
         dispatch(closeLoadingProject());
         dispatch(setFileHandle(null));
     },
-    onCloseModal: () => dispatch(closeRestorePointModal()),
-    onCloudLinkCopied: () => showAlertWithTimeout(dispatch, 'twCloudLinkCopied')
+    onCloseModal: () => dispatch(closeRestorePointModal())
 });
 
 export default injectIntl(connect(

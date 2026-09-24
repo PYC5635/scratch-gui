@@ -1,10 +1,14 @@
 import React from 'react';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import bindAll from 'lodash.bindall';
 import VM from 'scratch-vm';
 import log from '../utils/log';
 import {defineMessages, intlShape, injectIntl} from 'react-intl';
+import {initAppearanceSettings} from '../mw-appearance-settings';
+import {initStyleSettings} from '../mw-style-settings';
+import {initMenuBarLayout} from '../mw-menu-bar-layout';
 
 import {
     setUsername
@@ -22,6 +26,7 @@ import {
     setFullScreen
 } from '../../reducers/mode';
 import {generateRandomUsername} from '../utils/tw-username';
+import CollaborationService from '../collaboration/index.js';
 import {setSearchParams} from '../utils/navigation';
 import {defaultStageSize} from '../../reducers/custom-stage-size';
 
@@ -56,7 +61,7 @@ const setLocalStorage = (key, value) => {
 
 const getLocalStorage = key => {
     try {
-        return localStorage.getItem(key);
+        return getStorageItem(key);
     } catch (e) {
         // ignore
     }
@@ -170,8 +175,7 @@ class WildcardRouter extends Router {
                 history.replaceState(null, null, `${location.pathname}${location.search}`);
             }
         } else {
-            // Do not detect page type here as it is already setup by index.html, editor.html, etc.
-            this.parseURL(false);
+            this.parseURL(true);
         }
     }
 
@@ -216,15 +220,30 @@ class WildcardRouter extends Router {
     }
 
     generateURL ({projectId, isPlayerOnly, isFullScreen}) {
+        // If the current URL doesn't match a known WildcardRouter format,
+        // don't rewrite it — this preserves paths like /settings, /explore, etc.
+        const currentPath = location.pathname.substr(this.root.length);
+        const currentParts = currentPath.split('/').filter(Boolean);
+        if (currentParts.length > 0) {
+            const isNumeric = +currentParts[0] && Number.isFinite(+currentParts[0]);
+            const isKnownPageType = ['editor', 'fullscreen', 'embed'].includes(currentParts[0]);
+            if (!isNumeric && !isKnownPageType) {
+                return null;
+            }
+        }
+
         const parts = [];
 
         if (projectId !== '0') {
             parts.push(projectId);
         }
-        if (isFullScreen) {
-            parts.push('fullscreen');
-        } else if (!isPlayerOnly) {
+        // In the editor, fullscreen is an in-page CSS fullscreen (the stage
+        // expands over the editor UI), so the URL stays on /editor. The
+        // /fullscreen path is only for the player's dedicated fullscreen page.
+        if (!isPlayerOnly) {
             parts.push('editor');
+        } else if (isFullScreen) {
+            parts.push('fullscreen');
         }
 
         const path = `${this.root}${parts.join('/')}`;
@@ -284,11 +303,16 @@ const TWStateManager = function (WrappedComponent) {
                 'onSetProjectId',
                 'onSetIsPlayerOnly',
                 'onSetIsFullScreen',
-                'handleRoomCode'
+                'handleRoomCode',
+                'handleParentIdentity'
             ]);
         }
         componentDidMount () {
             const urlParams = new URLSearchParams(location.search);
+
+            initAppearanceSettings();
+            initStyleSettings();
+            initMenuBarLayout();
 
             if (urlParams.has('fps')) {
                 const fps = +urlParams.get('fps');
@@ -392,6 +416,49 @@ const TWStateManager = function (WrappedComponent) {
                 }
             }
 
+            // Handle collab parameter for peerJS config
+            if (urlParams.has('collab')) {
+                try {
+                    const collabParam = urlParams.get('collab');
+                    const decoded = decodeURIComponent(collabParam);
+                    const collabConfig = JSON.parse(decoded);
+
+                    // Update peerJS config if provided
+                    if (typeof window !== 'undefined' && window.CollaborationService) {
+                        try {
+                            const service = window.CollaborationService.getInstance();
+                            if (service && service.updatePeerConfig && collabConfig.peer) {
+                                service.updatePeerConfig(collabConfig.peer);
+                                console.log('[STATE MANAGER] Applied peer config from collab parameter');
+                            }
+                        } catch (e) {
+                            console.warn('[STATE MANAGER] Failed to update peer config:', e);
+                        }
+                    }
+
+                    // Handle room code from collab config
+                    if (collabConfig.room) {
+                        const roomCode = collabConfig.room;
+
+                        // Clear pending room code if any
+                        this.pendingRoomCode = roomCode;
+
+                        // Remove room and username params from URL (keep collab)
+                        const currentUrl = new URL(location.href);
+                        currentUrl.searchParams.delete('room');
+                        currentUrl.searchParams.delete('username');
+                        history.replaceState(null, null, currentUrl.toString());
+
+                        if (this.props.username) {
+                            this.handleRoomCode(roomCode);
+                        }
+                    }
+                    // Don't remove collab parameter - keep it for persistence
+                } catch (e) {
+                    console.error('[STATE MANAGER] Failed to parse collab parameter:', e);
+                }
+            }
+
             const routerCallbacks = {
                 onSetProjectId: this.onSetProjectId,
                 onSetIsPlayerOnly: this.onSetIsPlayerOnly,
@@ -401,30 +468,73 @@ const TWStateManager = function (WrappedComponent) {
             this.router.onhashchange();
             window.addEventListener('hashchange', this.handleHashChange);
             window.addEventListener('popstate', this.handlePopState);
+            if (this.props.isEmbedded) {
+                window.addEventListener('message', this.handleParentIdentity);
+            }
+
+            // One-shot fullscreen entry (used by /project?project_url=... which
+            // the community bundle bounces here with ?startFullscreen=1): enter
+            // fullscreen once, then drop the flag so refreshing the page later
+            // doesn't keep forcing fullscreen.
+            if (urlParams.has('startFullscreen')) {
+                this.props.onSetIsFullScreen(true);
+                const nextParams = new URLSearchParams(location.search);
+                nextParams.delete('startFullscreen');
+                setSearchParams(nextParams);
+            }
         }
         componentDidUpdate (prevProps) {
             if (this.props.username !== prevProps.username && this.props.username !== this.doNotPersistUsername) {
                 // TODO: this always restores the current username once at startup, which is unnecessary
                 setLocalStorage(USERNAME_KEY, this.props.username);
-                
-                // Sync username with collaboration service if connected
-                if (typeof window !== 'undefined' &&
-                    window.CollaborationService &&
-                    prevProps.username && this.props.username) {
-                    try {
-                        const service = window.CollaborationService.getInstance();
-                        if (service && service.isConnectedToHostPeer()) {
-                            service.changeUsername(this.props.username);
-                        }
-                    } catch (error) {
-                        console.warn('Could not sync username with collaboration service:', error);
-                    }
-                }
-                
+
                 // Check if we have a pending room code to handle now that username is available
                 if (this.pendingRoomCode && this.props.username && !prevProps.username) {
                     this.handleRoomCode(this.pendingRoomCode);
                     this.pendingRoomCode = null; // Clear the pending room code
+                }
+            }
+
+            // Signed-in users are known online by their Bilup Accounts handle, which never changes mid-session,
+            // so only a guest's custom name gets pushed to the room.
+            if (
+                !this.props.roturUsername &&
+                this.props.username !== prevProps.username &&
+                this.props.username
+            ) {
+                try {
+                    const service = CollaborationService.getInstance();
+                    if (service && service.isConnectedToHostPeer()) {
+                        service.changeUsername(this.props.username);
+                    }
+                } catch (error) {
+                    console.warn('Could not sync username with collaboration service:', error);
+                }
+            }
+
+            if (
+                this.props.roturUsername !== prevProps.roturUsername ||
+                this.props.usernameOverride !== prevProps.usernameOverride
+            ) {
+                this.applyRoturIdentity();
+            }
+
+            // When the cloud identity is restored after the user has already
+            // connected to a collaboration room (e.g. auto-join via URL param
+            // before identity restore completes), update the display name in
+            // the room so peers see the cloud handle, not the local fallback.
+            if (
+                this.props.roturUsername &&
+                this.props.roturUsername !== prevProps.roturUsername
+            ) {
+                try {
+                    const service = CollaborationService.getInstance();
+                    if (service && service.isConnectedToHostPeer()) {
+                        const name = this.props.usernameOverride || `@${this.props.roturUsername}`;
+                        service.changeUsername(name);
+                    }
+                } catch (error) {
+                    console.warn('Could not sync cloud username with collaboration service:', error);
                 }
             }
 
@@ -530,6 +640,17 @@ const TWStateManager = function (WrappedComponent) {
         componentWillUnmount () {
             window.removeEventListener('hashchange', this.handleHashChange);
             window.removeEventListener('popstate', this.handlePopState);
+            window.removeEventListener('message', this.handleParentIdentity);
+        }
+        handleParentIdentity (event) {
+            const data = event.data;
+            if (!data || data.type !== 'mw:rotur-user' || event.source !== window.parent) return;
+            const name = data.user && data.user.loggedIn ?
+                (data.displayName || `@${data.user.username}`) :
+                null;
+            if (!name || name === this.props.username) return;
+            this.doNotPersistUsername = name;
+            this.props.onSetUsername(name);
         }
         handleHashChange () {
             this.router.onhashchange();
@@ -560,6 +681,16 @@ const TWStateManager = function (WrappedComponent) {
         }
         onSetIsFullScreen (isFullScreen) {
             this.props.onSetIsFullScreen(isFullScreen);
+        }
+        applyRoturIdentity () {
+            if (this.props.roturUsername) {
+                const name = this.props.usernameOverride || `@${this.props.roturUsername}`;
+                this.doNotPersistUsername = name;
+                this.props.onSetUsername(name);
+                return;
+            }
+            const nickname = getLocalStorage(USERNAME_KEY);
+            this.props.onSetUsername(nickname === null ? generateRandomUsername() : nickname);
         }
         handleRoomCode (roomCode) {
             const username = this.props.username;
@@ -598,6 +729,8 @@ const TWStateManager = function (WrappedComponent) {
                 reduxProjectId,
                 routingStyle,
                 username,
+                roturUsername,
+                usernameOverride,
                 vm,
                 /* eslint-enable no-unused-vars */
                 ...props
@@ -637,6 +770,8 @@ const TWStateManager = function (WrappedComponent) {
         onSetIsPlayerOnly: PropTypes.func,
         onSetProjectId: PropTypes.func,
         onSetUsername: PropTypes.func,
+        roturUsername: PropTypes.string,
+        usernameOverride: PropTypes.string,
         onSetCollaborationRoomId: PropTypes.func,
         onOpenCollaborationModal: PropTypes.func,
         confirmWithMessage: PropTypes.func,
@@ -662,6 +797,8 @@ const TWStateManager = function (WrappedComponent) {
         interpolation: state.scratchGui.tw.interpolation,
         turbo: state.scratchGui.vmStatus.turbo,
         username: state.scratchGui.tw.username,
+        roturUsername: state.scratchGui.rotur.username,
+        usernameOverride: state.scratchGui.rotur.usernameOverride,
         vm: state.scratchGui.vm
     });
     const mapDispatchToProps = dispatch => ({

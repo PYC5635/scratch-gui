@@ -21,3 +21,7 @@
 .fps-container > span::after {
   content: attr(data-content);
 }
+
+.sa-small-stage .fps-container-container {
+  display: none !important;
+}

@@ -1,3 +1,4 @@
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 const STORAGE_PREFIX = 'mw:menu-bar:';
 const CHANGE_EVENT = 'mw-menu-bar-settings-changed';
 
@@ -85,7 +86,7 @@ const byId = Object.fromEntries(DEFINITIONS.map(definition => [definition.id, de
 
 const readLegacy = () => {
     try {
-        return JSON.parse(localStorage.getItem('tw:addons')) || {};
+        return JSON.parse(getStorageItem('tw:addons')) || {};
     } catch (_) {
         return {};
     }
@@ -135,7 +136,7 @@ const getSetting = id => {
     if (!definition) return null;
     let stored = null;
     try {
-        stored = localStorage.getItem(`${STORAGE_PREFIX}${id}`);
+        stored = getStorageItem(`${STORAGE_PREFIX}${id}`);
     } catch (_) {
         return definition.default;
     }

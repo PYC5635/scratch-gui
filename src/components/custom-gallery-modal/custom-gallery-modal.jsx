@@ -4,26 +4,27 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import Box from '../box/box.jsx';
 import Modal from '../../containers/modal.jsx';
+import {loadCustomGallery} from '../../lib/custom-gallery-parser';
 import styles from './custom-gallery-modal.css';
 
 const messages = defineMessages({
     title: {
-        defaultMessage: '加载自定义扩展库',
+        defaultMessage: 'Load Custom Extension Gallery',
         description: 'Title for custom extension gallery modal',
         id: 'tw.customExtensionGallery.title'
     },
     nameLabel: {
-        defaultMessage: '扩展库名称',
+        defaultMessage: 'Gallery Name',
         description: 'Custom gallery name field label',
         id: 'tw.customExtensionGallery.nameLabel'
     },
     namePlaceholder: {
-        defaultMessage: '我的扩展库',
+        defaultMessage: 'My Extensions',
         description: 'Custom gallery name field placeholder',
         id: 'tw.customExtensionGallery.namePlaceholder'
     },
     urlLabel: {
-        defaultMessage: '扩展库 URL',
+        defaultMessage: 'Gallery URL',
         description: 'Custom gallery metadata JSON URL field label',
         id: 'tw.customExtensionGallery.urlLabel'
     },
@@ -38,64 +39,65 @@ const messages = defineMessages({
         id: 'tw.customExtensionGallery.typeUrl'
     },
     typeFile: {
-        defaultMessage: '文件',
+        defaultMessage: 'File',
         description: 'Tab to load a custom gallery from a local JSON file',
         id: 'tw.customExtensionGallery.typeFile'
     },
     filePrompt: {
-        defaultMessage: '选择本地 JSON 文件：',
+        defaultMessage: 'Select a local JSON file:',
         description: 'Label that appears when loading a custom gallery from a file',
         id: 'tw.customExtensionGallery.filePrompt'
     },
     fileSelected: {
-        defaultMessage: '已选择文件：{fileName}',
+        defaultMessage: 'Selected file: {fileName}',
         description: 'Shown after a local JSON file has been selected',
         id: 'tw.customExtensionGallery.fileSelected'
     },
     hint: {
-        // eslint-disable-next-line max-len
-        defaultMessage: '指向一个 JSON 元数据文件，格式与内置扩展库相同：一个包含 extensions 数组的对象，或纯扩展对象数组。加载后，扩展库会出现在侧边栏并带有自己的状态指示灯。',
+        defaultMessage: 'Points to a JSON metadata file using the same format as the built-in galleries: ' +
+            'an object containing an extensions array, or a plain array of extension objects. ' +
+            'After loading, the gallery appears in the sidebar with its own status dot.',
         description: 'Hint about the expected custom gallery JSON format',
         id: 'tw.customExtensionGallery.hint'
     },
     loading: {
-        defaultMessage: '正在加载扩展库...',
+        defaultMessage: 'Loading gallery...',
         description: 'Status shown while the custom gallery is loading',
         id: 'tw.customExtensionGallery.loading'
     },
     loaded: {
-        defaultMessage: '找到 {count} 个扩展',
+        defaultMessage: 'Found {count} extensions',
         description: 'Status shown when the custom gallery loaded successfully',
         id: 'tw.customExtensionGallery.loaded'
     },
     error: {
-        defaultMessage: '加载扩展库失败：{message}',
+        defaultMessage: 'Failed to load gallery: {message}',
         description: 'Status shown when the custom gallery failed to load',
         id: 'tw.customExtensionGallery.error'
     },
     add: {
-        defaultMessage: '添加到扩展库',
+        defaultMessage: 'Add to Library',
         description: 'Button to add the loaded gallery to the extension library',
         id: 'tw.customExtensionGallery.add'
     },
     load: {
-        defaultMessage: '加载',
+        defaultMessage: 'Load',
         description: 'Button to load the custom gallery',
         id: 'tw.customExtensionGallery.load'
     },
     unsandboxed: {
-        defaultMessage: '此扩展库中的扩展不经过沙盒运行',
+        defaultMessage: 'Run extensions in this gallery without the sandbox',
         description: 'Checkbox label for running custom gallery extensions unsandboxed',
         id: 'tw.customExtensionGallery.unsandboxed'
     },
     unsandboxedWarning: {
         // eslint-disable-next-line max-len
-        defaultMessage: '不经过沙盒加载扩展是危险的，如果你不了解其含义请勿启用。官方扩展始终不经过沙盒加载，不受此选项影响。',
+        defaultMessage: 'Loading extensions without the sandbox is dangerous and should not be enabled if you don\'t know what you\'re doing. Official extensions are always loaded without the sandbox regardless of this option.',
         description: 'Warning shown when the unsandboxed option is enabled',
         id: 'tw.customExtensionGallery.unsandboxedWarning'
     },
     cancel: {
-        defaultMessage: '取消',
+        defaultMessage: 'Cancel',
         description: 'Button to cancel',
         id: 'tw.simpleDialog.cancel'
     }
@@ -171,15 +173,7 @@ class CustomGalleryModalComponent extends React.Component {
         }
         this.setState({status: 'loading', errorMessage: null, count: null});
         try {
-            const res = await fetch(source);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`);
-            }
-            const data = await res.json();
-            const extensions = Array.isArray(data) ? data : (data.extensions || []);
-            if (!Array.isArray(extensions) || extensions.length === 0) {
-                throw new Error('No extensions found in gallery');
-            }
+            const extensions = await loadCustomGallery(source);
             this.setState({status: 'loaded', count: extensions.length});
         } catch (err) {
             this.setState({

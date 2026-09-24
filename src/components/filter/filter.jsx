@@ -1,7 +1,6 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {Search} from 'lucide-react';
 
 import TWRenderRecoloredImage from '../../lib/tw-recolor/render.jsx';
 import filterIcon from '!../../lib/tw-recolor/build!./icon--filter.svg';
@@ -23,9 +22,9 @@ const FilterComponent = props => {
                 [styles.isActive]: filterQuery.length > 0
             })}
         >
-            <Search
-                className={styles.searchIcon}
-                size={16}
+            <TWRenderRecoloredImage
+                className={styles.filterIcon}
+                src={filterIcon}
             />
             <input
                 className={classNames(styles.filterInput, inputClassName)}

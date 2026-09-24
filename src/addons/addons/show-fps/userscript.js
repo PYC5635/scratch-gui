@@ -1,4 +1,6 @@
-export default async function ({ addon, console }) {
+import addSmallStageClass from "../../libraries/common/cs/small-stage.js";
+
+export default async function ({ addon, console, msg }) {
   // 创建 FPS 显示容器
   const fpsContainerContainer = document.createElement("div");
   addon.tab.displayNoneWhileDisabled(fpsContainerContainer, { display: "flex" });
@@ -14,10 +16,11 @@ export default async function ({ addon, console }) {
 
   const vm = addon.tab.traps.vm;
 
-  // FPS 计算逻辑
+  // FPS 计算逻辑 - 参考 debugger/performance.js
   const renderTimes = [];
   let lastFpsTime = performance.now();
   let currentFps = 60;
+  let updateInterval = null;
 
   const updateFps = () => {
     if (addon.self.disabled) return;
@@ -57,6 +60,8 @@ export default async function ({ addon, console }) {
 
   // 初始化显示
   fpsText.setAttribute("data-content", "60 FPS");
+
+  addSmallStageClass();
 
   while (true) {
     await addon.tab.waitForElement('[class*="controls_controls-container"]', {

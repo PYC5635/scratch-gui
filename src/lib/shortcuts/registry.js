@@ -6,7 +6,8 @@ export const SHORTCUT_CATEGORIES = {
     EDITOR_NAVIGATION: 'editorNavigation',
     LIBRARY_ACCESS: 'libraryAccess',
     SPRITE_MANAGEMENT: 'spriteManagement',
-    WINDOW_MANAGEMENT: 'windowManagement'
+    WINDOW_MANAGEMENT: 'windowManagement',
+    COLLABORATION: 'collaboration'
 };
 
 export const getCategoryLabel = category => {
@@ -18,7 +19,8 @@ export const getCategoryLabel = category => {
         [SHORTCUT_CATEGORIES.EDITOR_NAVIGATION]: 'Editor Navigation',
         [SHORTCUT_CATEGORIES.LIBRARY_ACCESS]: 'Library Access',
         [SHORTCUT_CATEGORIES.SPRITE_MANAGEMENT]: 'Sprite Management',
-        [SHORTCUT_CATEGORIES.WINDOW_MANAGEMENT]: 'Windows'
+        [SHORTCUT_CATEGORIES.WINDOW_MANAGEMENT]: 'Windows',
+        [SHORTCUT_CATEGORIES.COLLABORATION]: 'Collaboration'
     };
     return labels[category] || category;
 };
@@ -29,8 +31,8 @@ export const getDefaultShortcuts = () => [
         key: 'Ctrl+S',
         defaultKey: 'Ctrl+S',
         category: SHORTCUT_CATEGORIES.FILE,
-        actionType: 'redux',
-        action: 'manualUpdateProject',
+        actionType: 'callback',
+        action: 'saveSmart',
         params: [],
         label: 'Save'
     },
@@ -66,13 +68,23 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'restorePoints',
-        key: 'Alt+R',
-        defaultKey: 'Alt+R',
+        key: 'Ctrl+Shift+P',
+        defaultKey: 'Ctrl+Shift+P',
         category: SHORTCUT_CATEGORIES.FILE,
         actionType: 'redux',
         action: 'openRestorePointModal',
         params: [],
         label: 'Restore Points'
+    },
+    {
+        id: 'spotlightSearch',
+        key: 'Ctrl+K',
+        defaultKey: 'Ctrl+K',
+        category: SHORTCUT_CATEGORIES.EDITOR_NAVIGATION,
+        actionType: 'callback',
+        action: 'openSpotlight',
+        params: [],
+        label: 'Spotlight Search'
     },
     {
         id: 'settings',
@@ -96,8 +108,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'blocksTab',
-        key: 'Alt+1',
-        defaultKey: 'Alt+1',
+        key: 'Ctrl+1',
+        defaultKey: 'Ctrl+1',
         category: SHORTCUT_CATEGORIES.EDITOR_NAVIGATION,
         actionType: 'redux',
         action: 'activateTab',
@@ -106,8 +118,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'costumesTab',
-        key: 'Alt+2',
-        defaultKey: 'Alt+2',
+        key: 'Ctrl+2',
+        defaultKey: 'Ctrl+2',
         category: SHORTCUT_CATEGORIES.EDITOR_NAVIGATION,
         actionType: 'redux',
         action: 'activateTab',
@@ -116,8 +128,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'soundsTab',
-        key: 'Alt+3',
-        defaultKey: 'Alt+3',
+        key: 'Ctrl+3',
+        defaultKey: 'Ctrl+3',
         category: SHORTCUT_CATEGORIES.EDITOR_NAVIGATION,
         actionType: 'redux',
         action: 'activateTab',
@@ -146,8 +158,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'spriteLibrary',
-        key: 'Alt+S',
-        defaultKey: 'Alt+S',
+        key: 'Ctrl+Shift+A',
+        defaultKey: 'Ctrl+Shift+A',
         category: SHORTCUT_CATEGORIES.LIBRARY_ACCESS,
         actionType: 'redux',
         action: 'openSpriteLibrary',
@@ -156,8 +168,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'costumeLibrary',
-        key: 'Alt+C',
-        defaultKey: 'Alt+C',
+        key: 'Ctrl+Shift+C',
+        defaultKey: 'Ctrl+Shift+C',
         category: SHORTCUT_CATEGORIES.LIBRARY_ACCESS,
         actionType: 'redux',
         action: 'openCostumeLibrary',
@@ -166,8 +178,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'soundLibrary',
-        key: 'Alt+K',
-        defaultKey: 'Alt+K',
+        key: 'Ctrl+Shift+M',
+        defaultKey: 'Ctrl+Shift+M',
         category: SHORTCUT_CATEGORIES.LIBRARY_ACCESS,
         actionType: 'redux',
         action: 'openSoundLibrary',
@@ -186,8 +198,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'extensionManager',
-        key: 'Alt+E',
-        defaultKey: 'Alt+E',
+        key: 'Ctrl+Shift+E',
+        defaultKey: 'Ctrl+Shift+E',
         category: SHORTCUT_CATEGORIES.LIBRARY_ACCESS,
         actionType: 'redux',
         action: 'openExtensionManagerModal',
@@ -196,8 +208,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'duplicateSprite',
-        key: 'Alt+Shift+D',
-        defaultKey: 'Alt+Shift+D',
+        key: 'Ctrl+Shift+D',
+        defaultKey: 'Ctrl+Shift+D',
         category: SHORTCUT_CATEGORIES.SPRITE_MANAGEMENT,
         actionType: 'vm',
         action: 'duplicateSprite',
@@ -206,8 +218,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'toggleBackpack',
-        key: 'Alt+B',
-        defaultKey: 'Alt+B',
+        key: 'Ctrl+Shift+B',
+        defaultKey: 'Ctrl+Shift+B',
         category: SHORTCUT_CATEGORIES.VIEW,
         actionType: 'callback',
         action: 'toggleBackpack',
@@ -216,8 +228,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'deleteSprite',
-        key: 'Alt+Shift+X',
-        defaultKey: 'Alt+Shift+X',
+        key: 'Ctrl+Shift+X',
+        defaultKey: 'Ctrl+Shift+X',
         category: SHORTCUT_CATEGORIES.SPRITE_MANAGEMENT,
         actionType: 'vm',
         action: 'deleteSprite',
@@ -226,8 +238,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'stageFullScreen',
-        key: 'Alt+F',
-        defaultKey: 'Alt+F',
+        key: 'Ctrl+Shift+F',
+        defaultKey: 'Ctrl+Shift+F',
         category: SHORTCUT_CATEGORIES.VIEW,
         actionType: 'callback',
         action: 'setFullScreen',
@@ -246,8 +258,8 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'redo',
-        key: 'Ctrl+Shift+Z',
-        defaultKey: 'Ctrl+Shift+Z',
+        key: 'Ctrl+Y',
+        defaultKey: 'Ctrl+Y',
         category: SHORTCUT_CATEGORIES.EDIT,
         actionType: 'vm',
         action: 'postRedo',
@@ -280,13 +292,31 @@ export const getDefaultShortcuts = () => [
     },
     {
         id: 'closeWindow',
-        key: 'Alt+Q',
-        defaultKey: 'Alt+Q',
+        key: 'Ctrl+Shift+K',
+        defaultKey: 'Ctrl+Shift+K',
         category: SHORTCUT_CATEGORIES.WINDOW_MANAGEMENT,
         actionType: 'callback',
         action: 'closeTopWindow',
         params: [],
         label: 'Close Window'
+    },
+    {
+        id: 'toggleWindowFullScreen',
+        key: 'Alt+W',
+        defaultKey: 'Alt+W',
+        category: SHORTCUT_CATEGORIES.WINDOW_MANAGEMENT,
+        actionType: 'callback',
+        action: 'toggleWindowFullScreen',
+        params: [],
+        label: 'Toggle Window Fullscreen'
+    },
+    {
+        id: 'collaborationChat',
+        key: '/',
+        defaultKey: '/',
+        category: SHORTCUT_CATEGORIES.COLLABORATION,
+        actionType: null,
+        label: 'Collaboration Chat'
     }
 ];
 

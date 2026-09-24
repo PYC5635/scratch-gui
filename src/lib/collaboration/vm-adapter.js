@@ -154,6 +154,18 @@ class VMAdapter {
             Date.now() < this._suppressUntil;
     }
 
+    /**
+     * Like isSuppressed() but omits the _suppressUntil time window.
+     * Used by the VM capture wrapper (vm-capture.js) for sprite/costume/
+     * sound ops: those operations trigger workspaceUpdate as a side
+     * effect, which would set _suppressUntil and cause isSuppressed()
+     * to return true, but the workspace rebuild window should only
+     * suppress Blockly events, not the VM-level capture.
+     */
+    isVmCaptureSuppressed () {
+        return this._suppressed || this.applier.isApplyingRemote;
+    }
+
     _isSuppressed () {
         return this.isSuppressed();
     }

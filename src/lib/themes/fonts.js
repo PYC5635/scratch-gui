@@ -58,17 +58,41 @@ const applyThemeFonts = async fonts => {
     
     const fontFamily = fontStack.join(', ');
     
+    // Elements excluded from the theme font (stage contents and renderer HTML overlays keep their own fonts)
+    const fontExclusions = [
+        '[class^="paint-editor_text-area_"]',
+        '[class*="stage_"]',
+        '[class*="stage_"] *',
+        '.scratch-render-overlays',
+        '.scratch-render-overlays *',
+        '.xterm',
+        '.xterm *'
+    ].map(selector => `:not(${selector})`).join('');
+
     // Create style element
     const newFontStyleElement = document.createElement('style');
     newFontStyleElement.id = 'theme-fonts';
     newFontStyleElement.textContent = `
         /* Theme Fonts - High Priority Overrides */
-        *:not([data-font-preview]):not([class*="paint-editor"]) {
-            font-family: ${fontFamily} !important;
+        *${fontExclusions} {
+            font-family: var(--theme-font, ${fontFamily}) !important;
+        }
+
+        /* Ensure key UI elements inherit correctly */
+        body, html,
+        .gui, 
+        .blocklySvg,
+        [class*="gui_"],
+        [class*="menu-bar_"],
+        [class*="settings-menu_"],
+        .blocklyHtmlInput,
+        button, input, textarea[class^="paint-editor_text-area_*"], select,
+        .menu-bar, .menu-item {
+            font-family: inherit !important;
         }
         
         /* SVG text elements in Blockly */
-        text:not(.paint-editor *), tspan:not(.paint-editor *) {
+        text, tspan {
             font-family: ${fontFamily} !important;
         }
     `;

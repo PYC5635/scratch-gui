@@ -8,10 +8,44 @@ const RECEIVE_TIMEOUT_MS = 60 * 1000;
 // stops re-downloading in a loop and surfaces a real error instead.
 const MAX_RESYNC_ATTEMPTS = 5;
 
+/**
+ * Convert an ArrayBuffer to a base64 string. PeerJS serializes objects as
+ * JSON, which loses embedded ArrayBuffer fields — base64 encoding keeps
+ * binary data intact through the JSON transport.
+ * @param {ArrayBuffer} buffer Binary data.
+ * @returns {string} Base64-encoded string.
+ */
+const arrayBufferToBase64 = buffer => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+};
+
+/**
+ * Convert a base64 string back to an ArrayBuffer.
+ * @param {string} base64 Base64-encoded string.
+ * @returns {ArrayBuffer} Decoded binary data.
+ */
+const base64ToArrayBuffer = base64 => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+};
+
 const toArrayBuffer = data => {
     if (data instanceof ArrayBuffer) return data;
     if (ArrayBuffer.isView(data)) {
         return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    }
+    // Support base64-encoded strings (PeerJS JSON serialization safe).
+    if (typeof data === 'string') {
+        return base64ToArrayBuffer(data);
     }
     throw new Error('snapshot data must be binary');
 };
@@ -27,6 +61,9 @@ const toArrayBuffer = data => {
  *  - 'upload-progress' ({peerId, sent, total})
  *  - 'upload-complete' ({peerId})
  *  - 'upload-error' ({peerId, error})
+ *  - 'project-pushed' ({peerId, buffer}) — a client pushed a whole-project
+ *    replacement (it loaded a project locally). The host should adopt it
+ *    and re-snapshot the room.
  */
 class HostSnapshotService extends Emitter {
     /**
@@ -48,6 +85,7 @@ class HostSnapshotService extends Emitter {
         // ones with no blocks in the project (sb3 drops those).
         this.getExtensions = getExtensions || null;
         this._transfers = new Map(); // peerId -> transfer state
+        this._pushes = new Map(); // peerId -> client->host push state
         this._transferCounter = 0;
 
         this._onSnapshotNeeded = ({peerId}) => {
@@ -58,10 +96,17 @@ class HostSnapshotService extends Emitter {
                 this._onAck(peerId, envelope.payload);
             } else if (envelope.type === SNAPSHOT.REQUEST) {
                 this.startTransfer(peerId);
+            } else if (envelope.type === SNAPSHOT.PUSH) {
+                this._onPushBegin(peerId, envelope.payload);
+            } else if (envelope.type === SNAPSHOT.CHUNK) {
+                this._onPushChunk(peerId, envelope.payload);
+            } else if (envelope.type === SNAPSHOT.PUSH_COMPLETE) {
+                this._onPushComplete(peerId, envelope.payload);
             }
         };
         this._onUserLeft = user => {
             this._transfers.delete(user.id);
+            this._pushes.delete(user.id);
         };
         session.on('snapshot-needed', this._onSnapshotNeeded);
         session.on('snapshot-message', this._onSnapshotMessage);
@@ -73,6 +118,7 @@ class HostSnapshotService extends Emitter {
         this.session.off('snapshot-message', this._onSnapshotMessage);
         this.session.off('user-left', this._onUserLeft);
         this._transfers.clear();
+        this._pushes.clear();
         this.removeAllListeners();
     }
 
@@ -97,9 +143,14 @@ class HostSnapshotService extends Emitter {
             // during serialization are not in the snapshot, and the client
             // replays everything after atSeq, so it must not skip them.
             atSeq = this.session.seq;
+            buffer = toArrayBuffer(await this.getProjectData());
+            // Capture the target id map and extension list AFTER serializing
+            // so they describe exactly what the snapshot contains. Capturing
+            // them before would leave peers with stale target ids for sprites
+            // added while serializing, so later id-keyed ops would miss and
+            // the peers' projects would drift apart.
             targetIds = this.getTargetIds ? this.getTargetIds() : null;
             extensions = this.getExtensions ? this.getExtensions() : null;
-            buffer = toArrayBuffer(await this.getProjectData());
         } catch (error) {
             this._transfers.delete(peerId);
             this.emit('upload-error', {peerId, error});
@@ -137,7 +188,10 @@ class HostSnapshotService extends Emitter {
         if (transfer.nextIndex >= transfer.chunkCount) return;
         const index = transfer.nextIndex++;
         const start = index * CHUNK_SIZE;
-        const data = transfer.buffer.slice(start, Math.min(start + CHUNK_SIZE, transfer.buffer.byteLength));
+        const raw = transfer.buffer.slice(start, Math.min(start + CHUNK_SIZE, transfer.buffer.byteLength));
+        // Encode as base64: PeerJS serializes objects as JSON, which would
+        // lose the embedded ArrayBuffer. The protocol allows string data.
+        const data = arrayBufferToBase64(raw);
         this.transport.send(peerId, makeSnapshot(SNAPSHOT.CHUNK, {
             transferId: transfer.transferId,
             index,
@@ -160,6 +214,44 @@ class HostSnapshotService extends Emitter {
             return;
         }
         this._sendNextChunk(peerId, transfer);
+    }
+
+    // ----- Client -> host project push (a peer loaded a local project) -----
+
+    _onPushBegin (peerId, {transferId, totalBytes, chunkCount}) {
+        this._pushes.set(peerId, {
+            transferId,
+            totalBytes,
+            chunkCount,
+            chunks: new Array(chunkCount),
+            receivedCount: 0,
+            receivedBytes: 0
+        });
+    }
+
+    _onPushChunk (peerId, {transferId, index, data}) {
+        const push = this._pushes.get(peerId);
+        if (!push || push.transferId !== transferId) return;
+        if (index >= push.chunkCount || push.chunks[index]) return;
+        push.chunks[index] = toArrayBuffer(data);
+        push.receivedCount++;
+        push.receivedBytes += push.chunks[index].byteLength;
+    }
+
+    _onPushComplete (peerId, {transferId}) {
+        const push = this._pushes.get(peerId);
+        if (!push || push.transferId !== transferId) return;
+        this._pushes.delete(peerId);
+        if (push.receivedCount !== push.chunkCount || push.receivedBytes !== push.totalBytes) {
+            return; // corrupt transfer; drop silently
+        }
+        const combined = new Uint8Array(push.receivedBytes);
+        let offset = 0;
+        push.chunks.forEach(chunk => {
+            combined.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+        });
+        this.emit('project-pushed', {peerId, buffer: combined.buffer});
     }
 }
 
@@ -236,6 +328,36 @@ class ClientSnapshotService extends Emitter {
         }
         this.session.beginResync();
         this.transport.sendToHost(makeSnapshot(SNAPSHOT.REQUEST, {}));
+    }
+
+    /**
+     * Push our locally loaded project to the host (member -> host whole-
+     * project replacement). The host adopts it and re-snapshots the room,
+     * so every peer — including us — converges on the pushed project.
+     * Chunks are base64-encoded for the JSON transport, like snapshots.
+     * @param {ArrayBuffer} buffer The serialized project bytes.
+     */
+    pushProject (buffer) {
+        if (!buffer || buffer.byteLength === 0) return;
+        const transferId = `push-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 10)}`;
+        const chunkCount = Math.max(1, Math.ceil(buffer.byteLength / CHUNK_SIZE));
+        this.transport.sendToHost(makeSnapshot(SNAPSHOT.PUSH, {
+            transferId,
+            totalBytes: buffer.byteLength,
+            chunkCount
+        }));
+        for (let index = 0; index < chunkCount; index++) {
+            const start = index * CHUNK_SIZE;
+            const raw = buffer.slice(start, Math.min(start + CHUNK_SIZE, buffer.byteLength));
+            this.transport.sendToHost(makeSnapshot(SNAPSHOT.CHUNK, {
+                transferId,
+                index,
+                data: arrayBufferToBase64(raw)
+            }));
+        }
+        this.transport.sendToHost(makeSnapshot(SNAPSHOT.PUSH_COMPLETE, {transferId}));
     }
 
     _onBegin ({transferId, totalBytes, chunkCount, atSeq, targetIds, extensions}) {

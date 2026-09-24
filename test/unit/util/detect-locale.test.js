@@ -1,4 +1,4 @@
-import {detectLocale} from '../../../src/lib/detect-locale.js';
+import {detectLocale} from '../../../src/lib/utils/detect-locale.js';
 
 const supportedLocales = ['en', 'es', 'pt-br', 'de', 'it'];
 

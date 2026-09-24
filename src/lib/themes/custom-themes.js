@@ -1,9 +1,15 @@
 /**
- * Custom theme management for PineEditor
+ * Custom theme management for Bilup
  * Handles creation, storage, and management of user-defined themes including custom gradients and accents
  */
 
+import defaultsDeep from 'lodash.defaultsdeep';
+import * as blocksThree from './blocks/three.js';
+import * as blocksHighContrast from './blocks/high-contrast.js';
+import * as blocksDark from './blocks/dark.js';
 import {Theme, GUI_MAP} from './index.js';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
+import {mergeStoredAppearance} from './appearance.js';
 
 const CUSTOM_THEMES_STORAGE_KEY = 'tw:custom-themes';
 const MAX_CUSTOM_THEMES = 50; // Reasonable limit to prevent storage issues
@@ -319,96 +325,17 @@ class GradientUtils {
 }
 
 /**
- * Utility functions for pixel art theme creation
- */
-class PixelUtils {
-    /**
-     * Create a CSS background image from pixel data
-     * @param {Array} pixelData - 2D array of pixel colors
-     * @param {number} pixelSize - Size of each pixel in pixels
-     * @returns {string} CSS background-image string
-     */
-    static createPixelBackground(pixelData, pixelSize = 1) {
-        if (!Array.isArray(pixelData) || pixelData.length === 0) {
-            return '';
-        }
-
-        const width = pixelData[0].length;
-        const height = pixelData.length;
-        const canvas = document.createElement('canvas');
-        canvas.width = width * pixelSize;
-        canvas.height = height * pixelSize;
-        const ctx = canvas.getContext('2d');
-
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const color = pixelData[y][x];
-                if (color) {
-                    ctx.fillStyle = color;
-                    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-                }
-            }
-        }
-
-        return canvas.toDataURL('image/png');
-    }
-
-    /**
-     * Create a pixel art accent theme
-     * @param {Array} pixelData - 2D array of pixel colors
-     * @param {string} primaryColor - Primary accent color
-     * @param {object} options - Additional options
-     * @returns {object} Custom accent theme object
-     */
-    static createPixelAccent(pixelData, primaryColor, options = {}) {
-        const baseColors = GradientUtils.generateAccentColors(primaryColor, options);
-        const pixelSize = options.pixelSize || 2;
-        const pixelBackground = this.createPixelBackground(pixelData, pixelSize);
-
-        return {
-            guiColors: {
-                ...baseColors,
-                'menu-bar-background-image': `url(${pixelBackground})`,
-                'menu-bar-background-repeat': 'repeat',
-                'menu-bar-background-size': `${pixelSize * 10}px ${pixelSize * 10}px`
-            },
-            blockColors: {
-                checkboxActiveBackground: primaryColor,
-                checkboxActiveBorder: GradientUtils.darkenColor(primaryColor, 10)
-            },
-            pixelData: pixelData,
-            pixelSize: pixelSize
-        };
-    }
-
-    /**
-     * Generate a default pixel art pattern
-     * @param {number} width - Width of the pattern
-     * @param {number} height - Height of the pattern
-     * @returns {Array} 2D array of pixel colors
-     */
-    static generateDefaultPixelPattern(width = 10, height = 10) {
-        const pattern = [];
-        for (let y = 0; y < height; y++) {
-            const row = [];
-            for (let x = 0; x < width; x++) {
-                row.push((x + y) % 2 === 0 ? '#ffffff' : '#000000');
-            }
-            pattern.push(row);
-        }
-        return pattern;
-    }
-}
-
-/**
  * CustomTheme class extends Theme with additional metadata
  */
 class CustomTheme extends Theme {
-    constructor (name, description, accent, gui, blocks, menuBarAlign, wallpaper, fonts, author = 'User') {
+    constructor (
+        name, description, accent, gui, blocks, menuBarAlign, wallpaper, fonts, author = 'User',
+        appearance = {}
+    ) {
         // If accent is an object (custom gradient),
         // pass a default string to parent and store the custom accent separately
         const accentKey = typeof accent === 'object' ? 'red' : accent; // Default to 'red' as fallback
-        super(accentKey, gui, blocks, menuBarAlign, wallpaper, fonts);
+        super(accentKey, gui, blocks, menuBarAlign, wallpaper, fonts, null, appearance);
 
         /** @readonly */
         this.name = name;
@@ -421,9 +348,16 @@ class CustomTheme extends Theme {
         /** @readonly */
         this.uuid = this.generateUUID();
 
-        // Check if it's a full accent object (with guiColors)
-        const isFullAccent = typeof accent === 'object' && accent.guiColors;
-        this.customAccent = isFullAccent ? accent : null;
+        // Raw gradient data ({colors, direction}) becomes a full accent, same as import()
+        const isGradientData = accent && typeof accent === 'object' && Array.isArray(accent.colors);
+        const resolved = isGradientData ?
+            GradientUtils.createGradientAccent(
+                accent.colors,
+                accent.colors[0] ? accent.colors[0].color : '#ff6b6b',
+                {direction: accent.direction || '90'}
+            ) :
+            accent;
+        this.customAccent = resolved && typeof resolved === 'object' && resolved.guiColors ? resolved : null;
 
         // Store the original accent data (either gradient format or full accent object)
         this.originalAccent = accent;
@@ -440,9 +374,6 @@ class CustomTheme extends Theme {
      */
     getGuiColors () {
         if (this.customAccent) {
-            // Use dynamic imports to avoid circular dependency issues
-            const defaultsDeep = require('lodash.defaultsdeep');
-
             // Get the base GUI colors directly without importing from index.js
             let baseGuiColors = {};
 
@@ -472,51 +403,28 @@ class CustomTheme extends Theme {
         return super.getGuiColors();
     }
 
-    /**
-     * @param {string} what - The property to change (e.g., 'gui', 'blocks', 'accent')
-     * @param {*} to - The new value for the property
-     * @returns {Theme|CustomTheme} A new theme instance with the updated property
-     */
-    set (what, to) {
-        if (what === 'accent') {
-            return super.set(what, to);
-        }
+    _getOptions () {
+        return {
+            ...super._getOptions(),
+            accent: this.originalAccent || this.accent
+        };
+    }
 
-        if (this.customAccent) {
-            const next = {
-                name: this.name,
-                description: this.description,
-                author: this.author,
-                accent: this.customAccent,
-                gui: this.gui,
-                blocks: this.blocks,
-                menuBarAlign: this.menuBarAlign,
-                wallpaper: this.wallpaper,
-                fonts: this.fonts
-            };
-
-            if (Object.prototype.hasOwnProperty.call(next, what)) {
-                next[what] = to;
-            } else if (what === 'name') {
-                next.name = to;
-            } else {
-                return super.set(what, to);
-            }
-
-            return new CustomTheme(
-                next.name,
-                next.description,
-                next.accent,
-                next.gui,
-                next.blocks,
-                next.menuBarAlign,
-                next.wallpaper,
-                next.fonts,
-                next.author
-            );
-        }
-
-        return super.set(what, to);
+    _create (options) {
+        const theme = new CustomTheme(
+            options.name,
+            this.description,
+            options.accent,
+            options.gui,
+            options.blocks,
+            options.menuBarAlign,
+            options.wallpaper,
+            options.fonts,
+            this.author,
+            options.appearance
+        );
+        theme.createdAt = this.createdAt;
+        return theme;
     }
 
     /**
@@ -525,9 +433,6 @@ class CustomTheme extends Theme {
      */
     getBlockColors () {
         if (this.customAccent) {
-            // Use dynamic imports to avoid circular dependency issues
-            const defaultsDeep = require('lodash.defaultsdeep');
-
             // Get base block colors directly without importing from index.js
             let baseGuiColors = {};
             let baseBlockColors = {};
@@ -535,13 +440,10 @@ class CustomTheme extends Theme {
             try {
                 // Import block theme modules directly
                 if (this.blocks === 'high-contrast') {
-                    const blocksHighContrast = require('./blocks/high-contrast.js');
                     baseBlockColors = blocksHighContrast.blockColors || {};
                 } else if (this.blocks === 'dark') {
-                    const blocksDark = require('./blocks/dark.js');
                     baseBlockColors = blocksDark.blockColors || {};
                 } else {
-                    const blocksThree = require('./blocks/three.js');
                     baseBlockColors = blocksThree.blockColors || {};
                 }
  
@@ -575,22 +477,10 @@ class CustomTheme extends Theme {
      * @returns {object} Theme data
      */
     export () {
-        let accentExport = null;
-        
-        // Check if it's a pixel theme
-        if (this.customAccent && this.customAccent.pixelData) {
-            accentExport = {
-                pixelData: this.customAccent.pixelData,
-                pixelSize: this.customAccent.pixelSize || 2,
-                primaryColor: (this.customAccent.guiColors &&
-                    this.customAccent.guiColors['motion-primary']) || '#ff6b6b',
-                guiColors: this.customAccent.guiColors,
-                blockColors: this.customAccent.blockColors
-            };
-        } else {
-            // Otherwise export as gradient
-            accentExport = this._exportGradient();
-        }
+        const accentExport = this._exportGradient();
+
+        const menuBarForeground = this.customAccent && this.customAccent.guiColors &&
+            this.customAccent.guiColors['menu-bar-foreground'];
 
         return {
             uuid: this.uuid,
@@ -598,10 +488,12 @@ class CustomTheme extends Theme {
             name: this.name,
             description: this.description,
             author: this.author,
-            accent: accentExport || null,
+            accent: accentExport || (typeof this.originalAccent === 'string' ? this.originalAccent : null),
+            menuBarForeground: menuBarForeground || null,
             gui: this.gui,
             blocks: this.blocks,
             menuBarAlign: this.menuBarAlign,
+            appearance: this.appearance,
             wallpaper: this.wallpaper || {url: '', opacity: 0.3, darkness: 0, gridVisible: true, history: []},
             fonts: this.fonts || {system: [], google: [], history: []}
         };
@@ -660,8 +552,11 @@ class CustomTheme extends Theme {
             return this.originalAccent;
         }
 
-        const menuBarImage = document.documentElement.style
-            .getPropertyValue('--menu-bar-background-image');
+        // Only ever derive the gradient from this theme's own stored colors.
+        // Reading the live DOM here would export whatever theme is currently
+        // applied and silently overwrite every other theme with it.
+        const menuBarImage = (this.customAccent && this.customAccent.guiColors &&
+            this.customAccent.guiColors['menu-bar-background-image']) || '';
 
         if (!menuBarImage) return null;
 
@@ -777,23 +672,22 @@ class CustomTheme extends Theme {
             accentToUse = {
                 guiColors: GradientUtils.generateAccentColors('#ff6b6b')
             };
-        } else if (accentToUse && typeof accentToUse === 'object' && accentToUse.pixelData && Array.isArray(accentToUse.pixelData)) {
-            // 像素主题：直接读取 pixelData 二维数组
-            const pixelData = accentToUse.pixelData;
-            const primaryColor = accentToUse.primaryColor ||
-                (accentToUse.guiColors && accentToUse.guiColors['motion-primary']) ||
-                '#ff6b6b';
-            const pixelSize = accentToUse.pixelSize || 2;
-            accentToUse = PixelUtils.createPixelAccent(pixelData, primaryColor, {pixelSize});
         } else if (accentToUse && typeof accentToUse === 'object' && Array.isArray(accentToUse.colors)) {
-            // 普通渐变主题
+            // Check if accent is in gradient format (colors array)
             const colors = accentToUse.colors;
             const direction = accentToUse.direction || '90';
             const primaryColor = colors[0] ? colors[0].color : '#ff6b6b';
             accentToUse = GradientUtils.createGradientAccent(colors, primaryColor, {direction});
-        } else if (accentToUse && typeof accentToUse === 'object' && accentToUse.guiColors) {
-            // 已经是完整 accent 对象，直接使用
-            accentToUse = accentToUse;
+        }
+
+        if (data.menuBarForeground && accentToUse && typeof accentToUse === 'object') {
+            accentToUse = {
+                ...accentToUse,
+                guiColors: {
+                    ...(accentToUse.guiColors || {}),
+                    'menu-bar-foreground': data.menuBarForeground
+                }
+            };
         }
 
         const theme = new CustomTheme(
@@ -805,7 +699,11 @@ class CustomTheme extends Theme {
             data.menuBarAlign,
             data.wallpaper,
             data.fonts,
-            data.author || 'Unknown'
+            data.author || 'Unknown',
+            data.appearance || {
+                menuBarLayout: data.menuBarLayout || null,
+                styles: data.styleSettings || null
+            }
         );
 
         // Preserve original UUID and creation date if available
@@ -814,6 +712,12 @@ class CustomTheme extends Theme {
         }
         if (data.createdAt) {
             Object.defineProperty(theme, 'createdAt', {value: data.createdAt, writable: false});
+        }
+
+        // Keep the stored gradient data as the export source of truth so the
+        // theme round-trips losslessly through import/export cycles.
+        if (data.accent && typeof data.accent === 'object' && Array.isArray(data.accent.colors)) {
+            theme.originalAccent = data.accent;
         }
 
         return theme;
@@ -855,7 +759,7 @@ class CustomThemeManager {
      */
     loadCustomThemes () {
         try {
-            const stored = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
+            const stored = getStorageItem(CUSTOM_THEMES_STORAGE_KEY);
             if (!stored) {
                 console.log('No custom themes found in storage');
                 return;
@@ -896,6 +800,11 @@ class CustomThemeManager {
             if (themesData.length === 0) {
                 localStorage.removeItem(CUSTOM_THEMES_STORAGE_KEY);
                 console.log('Cleared custom themes storage (no themes)');
+                try {
+                    require('../rotur/cloud-sync.js').notifyLocalChange();
+                } catch (_) {
+                    // cloud sync optional
+                }
                 this._emitChange();
                 return;
             }
@@ -910,14 +819,26 @@ class CustomThemeManager {
 
             console.log(`Saved ${themesData.length} custom themes to storage (${jsonString.length} bytes)`);
 
+            try {
+                require('../rotur/cloud-sync.js').notifyLocalChange();
+            } catch (_) {
+                // cloud sync optional
+            }
+
             this._emitChange();
         } catch (e) {
             console.error('Failed to save custom themes to storage:', e);
 
             if (e.name === 'QuotaExceededError') {
-                const currentData = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
-                if (currentData) {
-                    localStorage.setItem(`${CUSTOM_THEMES_STORAGE_KEY}_backup`, currentData);
+                // 备份现有数据时可能因隐私模式/存储被禁再次抛异常，必须兜住，
+                // 否则会把"备份失败"误当主错误抛出，且异常逃逸会导致流程中断
+                try {
+                    const currentData = getStorageItem(CUSTOM_THEMES_STORAGE_KEY);
+                    if (currentData) {
+                        localStorage.setItem(`${CUSTOM_THEMES_STORAGE_KEY}_backup`, currentData);
+                    }
+                } catch (_) {
+                    // 备份失败可忽略，主题仍在内存中
                 }
                 throw new Error('Storage quota exceeded - try deleting some themes');
             }
@@ -998,13 +919,14 @@ class CustomThemeManager {
         const updatedTheme = new CustomTheme(
             updates.name || existingTheme.name,
             typeof updates.description === 'undefined' ? existingTheme.description : updates.description,
-            updates.accent || existingTheme.accent,
+            updates.accent || existingTheme.originalAccent || existingTheme.accent,
             updates.gui || existingTheme.gui,
             updates.blocks || existingTheme.blocks,
             updates.menuBarAlign || existingTheme.menuBarAlign,
             updates.wallpaper || existingTheme.wallpaper,
             updates.fonts || existingTheme.fonts,
-            existingTheme.author
+            existingTheme.author,
+            updates.appearance || existingTheme.appearance
         );
 
         // Preserve original UUID and creation date
@@ -1044,7 +966,8 @@ class CustomThemeManager {
             existingTheme.menuBarAlign,
             existingTheme.wallpaper,
             existingTheme.fonts,
-            existingTheme.author
+            existingTheme.author,
+            existingTheme.appearance
         );
 
         // Preserve original UUID and creation date
@@ -1193,7 +1116,7 @@ class CustomThemeManager {
         const themes = this.getAllThemes().map(theme => theme.export());
         return {
             version: '2.0',
-            platform: 'PineEditor',
+            platform: 'Bilup',
             timestamp: Date.now(),
             themes: themes
         };
@@ -1286,7 +1209,7 @@ class CustomThemeManager {
 
         let themesToImport;
         if (data && Array.isArray(data.themes)) {
-            themesToImport = data.themes.map(t => ({kind: 'PineEditor', data: t}));
+            themesToImport = data.themes.map(t => ({kind: 'bilup', data: t}));
         } else if (Array.isArray(data) && data.every(looksLikeNitroboltTheme)) {
             themesToImport = data.map(t => ({kind: 'nitrobolt', data: t}));
         } else if (looksLikeNitroboltTheme(data)) {
@@ -1303,7 +1226,7 @@ class CustomThemeManager {
 
         for (const entry of themesToImport) {
             try {
-                const theme = entry.kind === 'PineEditor' ?
+                const theme = entry.kind === 'bilup' ?
                     CustomTheme.import(entry.data) :
                     importNitroboltTheme(entry.data);
 
@@ -1363,7 +1286,9 @@ class CustomThemeManager {
             currentTheme.blocks,
             currentTheme.menuBarAlign,
             currentTheme.wallpaper,
-            currentTheme.fonts
+            currentTheme.fonts,
+            'User',
+            mergeStoredAppearance(currentTheme.appearance)
         );
 
         this.addTheme(customTheme);
@@ -1396,7 +1321,9 @@ class CustomThemeManager {
             baseTheme?.blocks || 'three',
             baseTheme?.menuBarAlign || 'left',
             baseTheme?.wallpaper || null,
-            baseTheme?.fonts || null
+            baseTheme?.fonts || null,
+            'User',
+            mergeStoredAppearance(baseTheme?.appearance)
         );
 
         this.addTheme(customTheme);
@@ -1404,104 +1331,67 @@ class CustomThemeManager {
     }
 
     /**
-     * Create a custom pixel art theme
-     * @param {string} name - Theme name
-     * @param {string} description - Theme description
-     * @param {Array} pixelData - 2D array of pixel colors
-     * @param {string} primaryColor - Primary accent color
-     * @param {object} options - Additional options
-     * @param {Theme} baseTheme - Base theme for GUI and block settings
-     * @returns {CustomTheme} the new theme
+     * Whether a theme name is already in use
+     * @param {string} name theme name
+     * @returns {boolean} true if taken
      */
-    createPixelTheme (name, description, pixelData, primaryColor, options = {}, baseTheme) {
-        if (!name || typeof name !== 'string') {
-            throw new Error('Theme name is required');
+    isNameTaken (name) {
+        const trimmed = (name || '').trim().toLowerCase();
+        if (!trimmed) return false;
+        for (const theme of this.themes.values()) {
+            if (theme.name.toLowerCase() === trimmed) return true;
         }
-
-        // Generate pixel art accent
-        const pixelAccent = PixelUtils.createPixelAccent(pixelData, primaryColor, options);
-
-        const customTheme = new CustomTheme(
-            name.trim(),
-            description.trim(),
-            pixelAccent, // Custom pixel accent
-            baseTheme?.gui || 'light',
-            baseTheme?.blocks || 'three',
-            baseTheme?.menuBarAlign || 'left',
-            baseTheme?.wallpaper || null,
-            baseTheme?.fonts || null
-        );
-
-        this.addTheme(customTheme);
-        return customTheme;
+        return false;
     }
 
     /**
-     * Update pixel art for an existing custom theme
-     * @param {string} uuid - Theme UUID
-     * @param {Array} pixelData - New pixel data
-     * @param {string} primaryColor - New primary accent color
-     * @param {object} options - Additional options
-     * @returns {CustomTheme} Updated theme
+     * Produce a unique library name, appending (2), (3), …
+     * @param {string} baseName preferred name
+     * @returns {string} unique name
      */
-    updateThemePixelArt (uuid, pixelData, primaryColor, options = {}) {
-        const existingTheme = this.themes.get(uuid);
-        if (!existingTheme) {
-            throw new Error('Theme not found');
-        }
-
-        // Generate new pixel art accent
-        const pixelAccent = PixelUtils.createPixelAccent(pixelData, primaryColor, options);
-
-        // Create updated theme with new pixel art
-        const updatedTheme = new CustomTheme(
-            existingTheme.name,
-            existingTheme.description,
-            pixelAccent, // Updated pixel accent
-            existingTheme.gui,
-            existingTheme.blocks,
-            existingTheme.menuBarAlign,
-            existingTheme.wallpaper,
-            existingTheme.fonts,
-            existingTheme.author
-        );
-
-        // Preserve original UUID and creation date
-        Object.defineProperty(updatedTheme, 'uuid', {value: uuid, writable: false});
-        Object.defineProperty(updatedTheme, 'createdAt', {value: existingTheme.createdAt, writable: false});
-
-        this.themes.set(uuid, updatedTheme);
-        this.saveCustomThemes();
-
-        return updatedTheme;
+    uniqueName (baseName) {
+        const base = (baseName || 'Imported Theme').trim() || 'Imported Theme';
+        if (!this.isNameTaken(base)) return base;
+        let n = 2;
+        while (this.isNameTaken(`${base} (${n})`)) n += 1;
+        return `${base} (${n})`;
     }
 
     /**
-     * Check if a theme has pixel art
-     * @param {string} uuid - Theme UUID
-     * @returns {boolean} True if theme has pixel art
+     * Add a theme from BilupTheme / Bilup export JSON into the local library.
+     * Always assigns a fresh UUID so marketplace ids never collide with local ones.
+     * @param {object} data export payload ({themes:[…]}) or a single theme object
+     * @param {object} [meta] optional overrides {name, description, author}
+     * @returns {CustomTheme} the saved theme
      */
-    hasPixelArt (uuid) {
-        const theme = this.themes.get(uuid);
-        return theme && theme.customAccent && theme.customAccent.pixelData;
-    }
-
-    /**
-     * Get pixel art information from a custom theme
-     * @param {string} uuid - Theme UUID
-     * @returns {object|null} Pixel art information or null if not a pixel art theme
-     */
-    getThemePixelInfo (uuid) {
-        const theme = this.themes.get(uuid);
-        if (!theme || !this.hasPixelArt(uuid)) {
-            return null;
+    addFromExportData (data, meta = {}) {
+        let config = data;
+        if (data && Array.isArray(data.themes) && data.themes.length > 0) {
+            config = data.themes[0];
+        }
+        if (!config || typeof config !== 'object') {
+            throw new Error('Invalid theme data');
         }
 
-        return {
-            pixelData: theme.customAccent.pixelData,
-            pixelSize: theme.customAccent.pixelSize || 2,
-            primaryColor: theme.customAccent.guiColors['motion-primary'] || '#ff6b6b'
-        };
+        const name = this.uniqueName(meta.name || config.name || 'Imported Theme');
+        const description = typeof meta.description === 'string' ?
+            meta.description :
+            (config.description || '');
+        const author = meta.author || config.author || 'User';
+
+        // Drop marketplace uuid so CustomTheme generates a local one.
+        const rest = Object.assign({}, config);
+        delete rest.uuid;
+        delete rest.createdAt;
+        const theme = CustomTheme.import({
+            ...rest,
+            name,
+            description,
+            author
+        });
+
+        this.addTheme(theme);
+        return theme;
     }
 
     /**
@@ -1510,7 +1400,7 @@ class CustomThemeManager {
      */
     getStorageInfo () {
         try {
-            const stored = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
+            const stored = getStorageItem(CUSTOM_THEMES_STORAGE_KEY);
             const size = stored ? new Blob([stored]).size : 0;
             const parsed = stored ? JSON.parse(stored) : [];
 
@@ -1529,7 +1419,7 @@ class CustomThemeManager {
         } catch (e) {
             return {
                 error: e.message,
-                hasData: !!localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY)
+                hasData: !!getStorageItem(CUSTOM_THEMES_STORAGE_KEY)
             };
         }
     }
@@ -1542,6 +1432,5 @@ export {
     CustomTheme,
     CustomThemeManager,
     GradientUtils,
-    PixelUtils,
     customThemeManager
 };

@@ -47,6 +47,12 @@ const blockColors = {
         tertiary: '#389438',
         quaternary: '#389438'
     },
+    strings: {
+        primary: '#00A6A6',
+        secondary: '#009292',
+        tertiary: '#007A7A',
+        quaternary: '#007A7A'
+    },
     data: {
         primary: '#FF8C1A',
         secondary: '#FF8000',
@@ -60,6 +66,12 @@ const blockColors = {
         secondary: '#FF5500',
         tertiary: '#E64D00',
         quaternary: '#E64D00'
+    },
+    assets: {
+        primary: '#6E7A8A',
+        secondary: '#5E6977',
+        tertiary: '#4F5866',
+        quaternary: '#4F5866'
     },
     more: {
         primary: '#FF6680',
@@ -80,13 +92,17 @@ const blockColors = {
         quaternary: '#1B615F'
     },
     text: '#FFFFFF',
-    blackText: '#575E75',
-    textFieldText: '#575E75',
+    workspace: '#F9F9F9',
     toolboxHover: '#4C97FF',
     toolboxSelected: '#E9EEF2',
+    toolboxText: '#575E75',
+    toolbox: '#FFFFFF',
+    blackText: '#575E75',
+    flyout: '#F9F9F9',
     scrollbar: '#CECDCE',
     scrollbarHover: '#CECDCE',
     textField: '#FFFFFF',
+    textFieldText: '#575E75',
     insertionMarker: '#000000',
     insertionMarkerOpacity: 0.2,
     dragShadowOpacity: 0.6,

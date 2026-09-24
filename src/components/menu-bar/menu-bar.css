@@ -54,12 +54,6 @@
 }
 .main-menu-align-center {
     justify-content: center;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    top: 0;
-    height: 100%;
-    width: max-content
 }
 .main-menu-align-right {
     justify-content: flex-end;
@@ -75,6 +69,17 @@
 
 .scratch-logo.clickable {
     cursor: pointer;
+}
+
+.home-link {
+    gap: 6px;
+    padding: 0 10px;
+    color: inherit;
+}
+
+.home-logo {
+    height: 28px;
+    display: block;
 }
 
 .menu-bar-item {
@@ -100,23 +105,95 @@
 
 .menu-bar-item.growable {
     max-width: $menu-bar-item-max-width;
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .title-field-growable {
-    flex-grow: 1;
+    flex: 1 1 0;
+    min-width: 0;
     width: 2rem;
 }
 
+.main-menu {
+    min-width: 0;
+}
+
 .file-group {
+    display: contents;
+}
+
+.file-group-collapsed {
+    display: none;
+}
+
+.file-group-expanded {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: $z-index-menu-bar;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 220px;
+    padding: 0.5rem;
+    border-radius: 0 0 10px 10px;
+    background: $menu-bar-background;
+    background-image: $menu-bar-background-image;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.file-group.file-group-expanded > * {
+    justify-content: flex-start;
+    box-sizing: border-box;
+    width: 100%;
+    height: $menu-bar-height;
+    padding: 0 0.75rem;
+    border-radius: 6px;
+}
+
+.file-group-expanded .collapsible-label {
+    display: inline;
+    margin-left: 0.5rem;
+}
+
+.more-menu-button {
+    justify-content: center;
+    width: $menu-bar-height;
+    padding: 0;
 }
 
 .file-group .menu-bar-item {
     padding: 0 0.5rem;
+}
+
+.icons-only [class*="settings-menu_dropdown-label"],
+.icons-only .collapsible-label,
+.icons-only .tutorials-label {
+    display: none !important;
+}
+
+.labels-only .file-group > .hoverable > img,
+.labels-only .file-group > .hoverable > svg,
+.labels-only [data-mw-item] > svg:first-child {
+    display: none !important;
+}
+
+.labels-only .hoverable {
+    justify-content: center;
+}
+
+.labels-only .hoverable > span {
+    margin: 0;
+    padding: 0;
+}
+
+@media (max-width: 1024px) {
+    .labels-only .file-group > .hoverable > img,
+    .labels-only .file-group > .hoverable > svg,
+    .labels-only [data-mw-item] > svg:first-child {
+        display: block !important;
+    }
 }
 
 .menu-bar-menu {
@@ -169,32 +246,19 @@
     opacity: 0.5;
 }
 
-.menu-bar:not(:has(> .main-menu-align-right)) > .account-info-group {
+/* Always flex so right-align does not stack Login under the bar */
+.account-info-group {
     display: flex;
     flex-direction: row;
     align-items: center;
-    right: 0;
-    position: absolute;
-    top: 0;
+    flex-shrink: 0;
     height: 100%;
+    min-width: 0;
 }
 
 .account-info-group .menu-bar-item {
-    margin: 0 .25rem;
+    margin: 0;
     padding: 0 0.75rem;
-}
-
-.rotur-account-slot {
-    display: flex;
-    align-items: center;
-    align-self: stretch;
-    height: 100%;
-    flex-shrink: 0;
-}
-
-.rotur-account-slot > * {
-    height: 100%;
-    max-height: 100%;
 }
 
 .mystuff-icon {
@@ -215,6 +279,25 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+}
+
+.menu-bar-layout-item {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.rotur-account-slot {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    height: 100%;
+    flex-shrink: 0;
+}
+
+.rotur-account-slot > * {
+    height: 100%;
+    max-height: 100%;
 }
 
 .profile-icon {
@@ -306,25 +389,16 @@
     transform: rotate(90deg);
 }
 
-/* AI submenu styles */
-.icon {
-    width: 1.5rem;
-}
+@media only screen and (max-width: 900px) {
+    .menu-bar-item.growable {
+        max-width: none;
+    }
 
-.option {
-    display: flex;
-    align-items: center;
-}
+    .account-info-group .menu-bar-item {
+        padding: 0 0.375rem;
+    }
 
-.submenu-label {
-    flex: 1;
-}
-
-.expandCaret {
-    transform: rotate(-90deg);
-    vertical-align: middle;
-}
-
-[dir="rtl"] .expandCaret {
-    transform: rotate(90deg);
+    [data-mw-item="block-count"] {
+        display: none !important;
+    }
 }

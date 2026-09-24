@@ -1,8 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {connect} from 'react-redux';
 import CrashMessageComponent from '../components/crash-message/crash-message.jsx';
 import log from '../lib/utils/log.js';
-import {unlockAchievement} from '../lib/achievements.js';
+import downloadBlob from '../lib/utils/download-blob.js';
+import {projectTitleInitialState} from '../reducers/project-title.js';
+
+const getProjectFilename = (curTitle, defaultTitle) => {
+    let filenameTitle = curTitle;
+    if (!filenameTitle || filenameTitle.length === 0) {
+        filenameTitle = defaultTitle;
+    }
+    return `${filenameTitle.substring(0, 100)}.sb3`;
+};
 
 class ErrorBoundary extends React.Component {
     constructor (props) {
@@ -49,13 +59,17 @@ class ErrorBoundary extends React.Component {
     }
 
     handleReload () {
-        window.location.reload();
+        window.location.replace(window.location.origin + window.location.pathname);
     }
 
-    handleViewRestorePoints () {
-        unlockAchievement('error-restore');
-        // 在新标签页打开独立的还原点管理器页面
-        window.open('https://remixwarp.pages.dev/restore-manager', '_blank');
+    handleSaveProject () {
+        const {vm, projectTitle} = this.props;
+        if (vm && vm.saveProjectSb3) {
+            const filename = getProjectFilename(projectTitle, projectTitleInitialState);
+            vm.saveProjectSb3().then(content => {
+                downloadBlob(filename, content);
+            });
+        }
     }
 
     formatErrorMessage () {
@@ -87,7 +101,7 @@ class ErrorBoundary extends React.Component {
                 <CrashMessageComponent
                     errorMessage={this.formatErrorMessage()}
                     onReload={this.handleReload}
-                    onViewRestorePoints={this.handleViewRestorePoints}
+                    onSaveProject={() => this.handleSaveProject()}
                 />
             );
         }
@@ -97,7 +111,14 @@ class ErrorBoundary extends React.Component {
 
 ErrorBoundary.propTypes = {
     action: PropTypes.string.isRequired, // Used for defining tracking action
-    children: PropTypes.node
+    children: PropTypes.node,
+    projectTitle: PropTypes.string,
+    vm: PropTypes.object
 };
 
-export default ErrorBoundary;
+const mapStateToProps = state => ({
+    projectTitle: state.scratchGui.projectTitle,
+    vm: state.scratchGui.vm
+});
+
+export default connect(mapStateToProps)(ErrorBoundary);

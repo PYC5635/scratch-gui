@@ -3,6 +3,7 @@ import {connect} from 'react-redux';
 import PropTypes from 'prop-types';
 import log from '../utils/log';
 import {getIsShowingProject} from '../../reducers/project-state';
+import RestorePointAPI from '../api/restore-points';
 
 /**
  * Higher Order Component to handle postMessage events for loading SB3 files.
@@ -79,12 +80,20 @@ const SB3PostMessageHOC = function (WrappedComponent) {
         }
 
         handleMessage (e) {
+            const message = e.data;
+
+            // Check if this is an SB3 loading message before validating the
+            // origin so unrelated messages do not log warnings.
+            if (!message || message.type !== 'LOAD_SB3') {
+                return;
+            }
+
             // Allow messages from various sources:
             // 1. Same origin (iframe scenarios)
             // 2. Localhost development servers
             // 3. Parent pages that opened this tab/window
             // 4. File protocol for local testing
-            
+
             const allowedOrigins = [
                 window.location.origin,
                 'http://localhost:3000',
@@ -102,13 +111,6 @@ const SB3PostMessageHOC = function (WrappedComponent) {
                 // Allow parent pages (more permissive for cross-origin scenarios)
             } else {
                 log.warn(`Blocked postMessage from unauthorized origin: ${e.origin}`);
-                return;
-            }
-
-            const message = e.data;
-            
-            // Check if this is an SB3 loading message
-            if (!message || message.type !== 'LOAD_SB3') {
                 return;
             }
 
@@ -180,8 +182,11 @@ const SB3PostMessageHOC = function (WrappedComponent) {
             }
 
             // Stop current project and load new one
-            this.props.vm.quit();
-            this.props.vm.loadProject(arrayBuffer)
+            RestorePointAPI.createSafetyRestorePoint(this.props.vm, 'Before external load')
+                .then(() => {
+                    this.props.vm.quit();
+                    return this.props.vm.loadProject(arrayBuffer);
+                })
                 .then(() => {
                     log.info('SB3 project loaded successfully via postMessage');
                     

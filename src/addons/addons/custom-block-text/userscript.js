@@ -1,5 +1,5 @@
 import { updateAllBlocks } from "../custom-block-shape/update-all-blocks.js";
-import { clearTextWidthCache } from "../middle-click-popup/module.js";
+import { clearTextWidthCache } from "../../../lib/spotlight/module.js";
 
 export default async function ({ addon, console }) {
   let currentTextSize = 100;
@@ -45,7 +45,11 @@ export default async function ({ addon, console }) {
   document.head.appendChild(textShadowCss);
 
   const updateBlockly = () => {
-    blocklyInstance.Field.cacheWidths_ = {}; // Clear text width cache
+    if (typeof blocklyInstance.Field.clearFontCache === "function") {
+      blocklyInstance.Field.clearFontCache();
+    } else {
+      blocklyInstance.Field.cacheWidths_ = {};
+    }
     // If font size has changed, middle click popup needs to clear it's cache too
     clearTextWidthCache();
 

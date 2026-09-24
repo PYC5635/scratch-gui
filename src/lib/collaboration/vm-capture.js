@@ -22,28 +22,21 @@ const sanitizeSound = sound => ({
 });
 
 /**
- * Strip live Asset objects out of a target JSON so it can travel as a
- * plain op payload; the bytes go through the asset channel instead.
- * @param {object} json target.toJSON() output.
- * @returns {{spriteJson: object, assetRefs: Array.<string>}} Clean payload parts.
+ * Serialize a target into a payload the receiving peer can hand straight
+ * to vm.addSprite. It must be a real sprite3 JSON — target.toJSON() is a
+ * runtime dump that fails the VM's sprite schema — so go through the VM's
+ * own sb3 serializer, which also leaves the Asset bytes behind (they can
+ * be megabytes; they travel on the asset channel instead).
+ * @param {VirtualMachine} vm The VM.
+ * @param {string} targetId The sprite to serialize.
+ * @returns {{spriteJson: object, assetRefs: Array.<string>}} Payload parts.
  */
-const sanitizeSpriteJson = json => {
-    // Serialize with Asset objects nulled out (they can be megabytes),
-    // then drop the placeholder keys entirely.
-    const spriteJson = JSON.parse(JSON.stringify(json, (key, value) => (key === 'asset' ? null : value)));
-    (spriteJson.costumes || []).forEach(costume => {
-        delete costume.asset;
-    });
-    (spriteJson.sounds || []).forEach(sound => {
-        delete sound.asset;
-    });
-    const assetRefs = [];
-    (spriteJson.costumes || []).forEach(costume => {
-        if (costume.md5) assetRefs.push(costume.md5);
-    });
-    (spriteJson.sounds || []).forEach(sound => {
-        if (sound.md5) assetRefs.push(sound.md5);
-    });
+const serializeSprite = (vm, targetId) => {
+    const spriteJson = JSON.parse(vm.toJSON(targetId));
+    const assetRefs = []
+        .concat(spriteJson.costumes || [], spriteJson.sounds || [])
+        .map(item => item.md5ext)
+        .filter(Boolean);
     return {spriteJson, assetRefs};
 };
 
@@ -79,9 +72,12 @@ const serializeAudioBuffer = buffer => {
  * @param {VmPatcher} options.patcher Patch registry for this session.
  * @param {Function} options.isSuppressed () => boolean.
  * @param {Function} options.onLocalOp (type, payload) => void.
+ * @param {Function} [options.onProjectLoaded] () => void. Called after a
+ * user-initiated vm.loadProject replaces the whole document (collab
+ * snapshot loads suppress capture, so they never fire this).
  * @returns {Function} A cleanup function for the non-patch listeners.
  */
-const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
+const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp, onProjectLoaded}) => {
     const runtime = vm.runtime;
 
     const editingTargetId = () => (vm.editingTarget ? vm.editingTarget.id : null);
@@ -89,8 +85,8 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
     const captureNewTarget = () => {
         // After addSprite/duplicateSprite the VM selects the new target.
         const target = vm.editingTarget;
-        if (!target || !target.sprite) return;
-        const {spriteJson, assetRefs} = sanitizeSpriteJson(target.toJSON());
+        if (!target || !target.sprite || target.isStage) return;
+        const {spriteJson, assetRefs} = serializeSprite(vm, target.id);
         onLocalOp(OP.SPRITE_ADD, {targetId: target.id, spriteJson, assetRefs});
     };
 
@@ -98,7 +94,7 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
         const result = original(...args);
         if (!isSuppressed() && result && result.then) {
             result.then(() => {
-                if (!isSuppressed()) captureNewTarget();
+                captureNewTarget();
             });
         }
         return result;
@@ -108,7 +104,7 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
         const result = original(...args);
         if (!isSuppressed() && result && result.then) {
             result.then(() => {
-                if (!isSuppressed()) captureNewTarget();
+                captureNewTarget();
             });
         }
         return result;
@@ -146,7 +142,6 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
     const captureCostumeAdd = (result, optTargetId) => {
         if (isSuppressed() || !result || !result.then) return;
         result.then(() => {
-            if (isSuppressed()) return;
             const targetId = optTargetId || editingTargetId();
             const target = targetId ? runtime.getTargetById(targetId) : null;
             if (!target) return;
@@ -214,7 +209,6 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
         const result = original(soundObject, optTargetId);
         if (!isSuppressed() && result && result.then) {
             result.then(() => {
-                if (isSuppressed()) return;
                 const targetId = optTargetId || editingTargetId();
                 const target = targetId ? runtime.getTargetById(targetId) : null;
                 if (!target) return;
@@ -362,9 +356,34 @@ const wrapVmMethods = ({vm, patcher, isSuppressed, onLocalOp}) => {
     }
 
     // Costume selection has no dedicated VM entry point; diff the editing
-    // target's currentCostume on targetsUpdate (debounced).
+    // target's currentCostume on targetsUpdate (debounced). Declared up
+    // front because the loadProject patch below clears it on project load.
     let lastCostumeByTarget = new Map();
     let costumeSelectTimer = null;
+
+    // A whole-project load replaces the document; the collaboration engine
+    // must re-sync every peer. Collab snapshot loads run with capture
+    // suppressed (the adapter is set suppressed first), so only
+    // user-initiated loads (file open, restore point, git checkout) fire.
+    // lastCostumeByTarget is cleared before the load so the post-load
+    // targetsUpdate diff treats the rebuilt targets as a first observation
+    // instead of proposing a spurious COSTUME_SELECT op.
+    if (typeof vm.loadProject === 'function') {
+        patcher.patch(vm, 'loadProject', original => function (input, ...rest) {
+            lastCostumeByTarget.clear();
+            const suppressAtCall = isSuppressed();
+            const result = original.call(vm, input, ...rest);
+            if (result && result.then && !suppressAtCall && onProjectLoaded) {
+                result.then(() => {
+                    onProjectLoaded();
+                }).catch(() => {
+                    // A failed load leaves the old document in place; no sync.
+                });
+            }
+            return result;
+        });
+    }
+
     const onTargetsUpdate = () => {
         if (isSuppressed()) return;
         const target = vm.editingTarget;

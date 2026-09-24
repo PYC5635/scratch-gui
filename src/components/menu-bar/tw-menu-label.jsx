@@ -12,19 +12,47 @@ class MenuLabel extends React.Component {
             'handleClick',
             'handleMouseDown',
             'handleMouseUp',
-            'menuRef'
+            'menuRef',
+            'setDisableClose'
         ]);
         this.mouseDownInsideMenu = false;
+        this._disableClose = props.disableClose || false;
+        this.isAnimating = false;
+        this.animationTimer = null;
     }
     componentDidMount () {
         if (this.props.open) this.addListeners();
     }
     componentDidUpdate (prevProps) {
-        if (this.props.open && !prevProps.open) this.addListeners();
-        if (!this.props.open && prevProps.open) this.removeListeners();
+        if (this.props.open && !prevProps.open) {
+            this.addListeners();
+            this.isAnimating = true;
+            if (this.animationTimer) {
+                clearTimeout(this.animationTimer);
+            }
+            this.animationTimer = setTimeout(() => {
+                this.isAnimating = false;
+                this.animationTimer = null;
+            }, 250);
+        }
+        if (!this.props.open && prevProps.open) {
+            this.isAnimating = false;
+            if (this.animationTimer) {
+                clearTimeout(this.animationTimer);
+                this.animationTimer = null;
+            }
+            this.removeListeners();
+        }
+    }
+    setDisableClose (value) {
+        this._disableClose = value;
     }
     componentWillUnmount () {
         this.removeListeners();
+        if (this.animationTimer) {
+            clearTimeout(this.animationTimer);
+            this.animationTimer = null;
+        }
     }
     addListeners () {
         document.addEventListener('mousedown', this.handleMouseDown);
@@ -43,9 +71,7 @@ class MenuLabel extends React.Component {
         document.removeEventListener('touchend', this.handleMouseUp);
     }
     handleClick (e) {
-        // this is a bit sketchy, but we want to allow clicking on the menu itself and the images
-        // and text directly inside it, but not the items inside the menu, which are under the button
-        // in the DOM.
+        if (this._disableClose) return;
         if (e.target.closest('div') === this.menuEl) {
             if (this.props.open) {
                 this.props.onClose();
@@ -55,20 +81,21 @@ class MenuLabel extends React.Component {
         }
     }
     handleMouseDown (e) {
-        // Track whether the mousedown happened inside the menu
         this.mouseDownInsideMenu = this.menuEl && this.menuEl.contains(e.target);
     }
     handleMouseUp (e) {
-        // Only close the menu if:
-        // 1. The menu is open
-        // 2. The mouseup is outside the menu
-        // 3. The initial mousedown was also outside the menu (indicating a click outside)
+        if (this._disableClose) {
+            this.mouseDownInsideMenu = false;
+            return;
+        }
+        if (this.isAnimating) {
+            return;
+        }
         if (this.props.open &&
             !this.menuEl.contains(e.target) &&
             !this.mouseDownInsideMenu) {
             this.props.onClose();
         }
-        // Reset the flag for the next interaction
         this.mouseDownInsideMenu = false;
     }
     menuRef (c) {
@@ -77,6 +104,7 @@ class MenuLabel extends React.Component {
     render () {
         return (
             <div
+                data-mw-item={this.props.dataItem}
                 className={classNames(styles.menuBarItem, styles.hoverable, {
                     [styles.active]: this.props.open
                 })}
@@ -91,9 +119,11 @@ class MenuLabel extends React.Component {
 
 MenuLabel.propTypes = {
     children: PropTypes.node,
+    dataItem: PropTypes.string,
     open: PropTypes.bool,
     onOpen: PropTypes.func,
-    onClose: PropTypes.func
+    onClose: PropTypes.func,
+    disableClose: PropTypes.bool
 };
 
 export default MenuLabel;

@@ -7,9 +7,14 @@
     background-color: var(--enable-modal-background);
 }
 .sa-background-popup {
+    box-sizing: border-box;
+    width: min(72rem, 92vw);
+    max-width: 92vw;
+    height: min(48rem, 84vh);
+    max-height: 84vh;
     display: flex;
+    flex: 1;
     flex-direction: column;
-    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -85,14 +90,9 @@
 /*让工作区透明*/
 .blocklySvg {
     background-color: var(--enable-workspace-background) !important;
-    --editorTheme3-workspace-background: var(--enable-workspace-background) !important;
 }
 
-.blocks {
-    background-color: var(--enable-workspace-background) !important;
-}
-
-/*不让左边那框产生“空隙”（原来的颜色是透明的不知道咋想的）*/
+/*不让左边那框产生“空隙”(原来的颜色是透明的不知道咋想的)*/
 .injectionDiv {
     border-left: 1px solid var(--ui-secondary) !important
 }

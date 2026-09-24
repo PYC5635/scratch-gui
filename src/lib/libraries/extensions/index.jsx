@@ -68,9 +68,12 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="TurboWarp Blocks"
-                description="Name of the TurboWarp extension category"
-                id="tw.extension.remixWarp.name"
+                defaultMessage="{APP_NAME} Blocks"
+                description="Name of the strange 'TurboWarp Blocks' extension"
+                id="tw.twExtension.name"
+                values={{
+                    APP_NAME
+                }}
             />
         ),
         extensionId: 'tw',
@@ -110,8 +113,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts"
-                description="Name of the PineEditor Accounts extension"
+                defaultMessage="Bilup Accounts"
+                description="Name of the Bilup Accounts extension"
                 id="tw.extension.rotur.name"
             />
         ),
@@ -119,8 +122,8 @@ export default [
         iconURL: roturAccountIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Log in with PineEditor Accounts and read who the player is."
-                description="Description of the PineEditor Accounts extension"
+                defaultMessage="Log in with Bilup Accounts and read who the player is."
+                description="Description of the Bilup Accounts extension"
                 id="tw.extension.rotur.description"
             />
         ),
@@ -131,8 +134,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Economy"
-                description="Name of the PineEditor Accounts Economy extension"
+                defaultMessage="Bilup Accounts Economy"
+                description="Name of the Bilup Accounts Economy extension"
                 id="tw.extension.roturEconomy.name"
             />
         ),
@@ -141,7 +144,7 @@ export default [
         description: (
             <FormattedMessage
                 defaultMessage="Credits, transfers, and daily rewards."
-                description="Description of the PineEditor Accounts Economy extension"
+                description="Description of the Bilup Accounts Economy extension"
                 id="tw.extension.roturEconomy.description"
             />
         ),
@@ -152,8 +155,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Keys"
-                description="Name of the PineEditor Accounts Keys extension"
+                defaultMessage="Bilup Accounts Keys"
+                description="Name of the Bilup Accounts Keys extension"
                 id="tw.extension.roturKeys.name"
             />
         ),
@@ -161,8 +164,8 @@ export default [
         iconURL: roturKeysIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Buy, sell, and check PineEditor Accounts keys."
-                description="Description of the PineEditor Accounts Keys extension"
+                defaultMessage="Buy, sell, and check Bilup Accounts keys."
+                description="Description of the Bilup Accounts Keys extension"
                 id="tw.extension.roturKeys.description"
             />
         ),
@@ -173,8 +176,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Status"
-                description="Name of the PineEditor Accounts Status extension"
+                defaultMessage="Bilup Accounts Status"
+                description="Name of the Bilup Accounts Status extension"
                 id="tw.extension.roturStatus.name"
             />
         ),
@@ -182,8 +185,8 @@ export default [
         iconURL: roturStatusIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Read and set PineEditor Accounts status and presence."
-                description="Description of the PineEditor Accounts Status extension"
+                defaultMessage="Read and set Bilup Accounts status and presence."
+                description="Description of the Bilup Accounts Status extension"
                 id="tw.extension.roturStatus.description"
             />
         ),
@@ -194,8 +197,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Social"
-                description="Name of the PineEditor Accounts Social extension"
+                defaultMessage="Bilup Accounts Social"
+                description="Name of the Bilup Accounts Social extension"
                 id="tw.extension.roturSocial.name"
             />
         ),
@@ -203,8 +206,8 @@ export default [
         iconURL: roturSocialIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Posts, follows, and friends on PineEditor Accounts."
-                description="Description of the PineEditor Accounts Social extension"
+                defaultMessage="Posts, follows, and friends on Bilup Accounts."
+                description="Description of the Bilup Accounts Social extension"
                 id="tw.extension.roturSocial.description"
             />
         ),
@@ -215,8 +218,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Shop"
-                description="Name of the PineEditor Accounts Shop extension"
+                defaultMessage="Bilup Accounts Shop"
+                description="Name of the Bilup Accounts Shop extension"
                 id="tw.extension.roturShop.name"
             />
         ),
@@ -225,7 +228,7 @@ export default [
         description: (
             <FormattedMessage
                 defaultMessage="Items and cosmetics marketplace."
-                description="Description of the PineEditor Accounts Shop extension"
+                description="Description of the Bilup Accounts Shop extension"
                 id="tw.extension.roturShop.description"
             />
         ),
@@ -236,8 +239,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Groups"
-                description="Name of the PineEditor Accounts Groups extension"
+                defaultMessage="Bilup Accounts Groups"
+                description="Name of the Bilup Accounts Groups extension"
                 id="tw.extension.roturGroups.name"
             />
         ),
@@ -245,8 +248,8 @@ export default [
         iconURL: roturGroupsIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Community, characters, and group economies."
-                description="Description of the PineEditor Accounts Groups extension"
+                defaultMessage="Communities, roles, and group economy."
+                description="Description of the Bilup Accounts Groups extension"
                 id="tw.extension.roturGroups.description"
             />
         ),
@@ -257,8 +260,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="PineEditor Accounts Files"
-                description="Name of the PineEditor Accounts Files extension"
+                defaultMessage="Bilup Accounts Files"
+                description="Name of the Bilup Accounts Files extension"
                 id="tw.extension.roturFiles.name"
             />
         ),
@@ -266,8 +269,8 @@ export default [
         iconURL: roturFilesIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Read and manage your PineEditor Accounts file storage."
-                description="Description of the PineEditor Accounts Files extension"
+                defaultMessage="Read and manage your Bilup Accounts file storage."
+                description="Description of the Bilup Accounts Files extension"
                 id="tw.extension.roturFiles.description"
             />
         ),
@@ -299,7 +302,7 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="自定义扩展库"
+                defaultMessage="Custom Extension Gallery"
                 description="Name of library item to load a custom extension gallery from a URL"
                 id="tw.customExtensionGallery.name"
             />
@@ -308,7 +311,7 @@ export default [
         iconURL: customURLIcon,
         description: (
             <FormattedMessage
-                defaultMessage="从 URL 加载自定义扩展库。"
+                defaultMessage="Load extensions from a custom extension gallery URL."
                 description="Description of library item to load extensions from a custom gallery source"
                 id="tw.customExtensionGallery.description"
             />
@@ -345,9 +348,6 @@ export default [
                 id="gui.extension.pen.name"
             />
         ),
-        nameTranslations: {
-            'zh-cn': '画笔'
-        },
         extensionId: 'pen',
         iconURL: penIconURL,
         insetIconURL: penInsetIconURL,
@@ -358,9 +358,6 @@ export default [
                 id="gui.extension.pen.description"
             />
         ),
-        descriptionTranslations: {
-            'zh-cn': '使用角色绘制。'
-        },
         tags: ['scratch'],
         featured: true
     },
@@ -394,7 +391,7 @@ export default [
             />
         ),
         extensionId: 'faceSensing',
-        extensionURL: 'https://rw-extensions.pages.dev/turbowarp/lab/face-sensing.js',
+        extensionURL: 'https://extensions.turbowarp.org/lab/face-sensing.js',
         iconURL: faceSensingIconURL,
         insetIconURL: faceSensingInsetIconURL,
         description: (
@@ -639,7 +636,7 @@ export const galleryLoading = {
             }}
         />
     ),
-    href: 'https://extensions.turbowarp.org/',
+    href: 'https://extensions.bilup.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
     description: (
@@ -650,7 +647,7 @@ export const galleryLoading = {
             id="tw.extensionGallery.loading"
         />
     ),
-    tags: ['tw'],
+    tags: ['tw', 'bilup', 'sharkpool', 'mistium', 'ae'],
     featured: true
 };
 
@@ -665,18 +662,18 @@ export const galleryMore = {
             }}
         />
     ),
-    href: 'https://extensions.turbowarp.org/',
+    href: 'https://extensions.bilup.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
     description: (
         <FormattedMessage
             // eslint-disable-next-line max-len
-            defaultMessage="TurboWarp Extension Library"
+            defaultMessage="Including extensions from TurboWarp, Mistium, Bilup Accounts, SharkPool, Bilup, and AstraEditor."
             description="Appears after the extension list from the gallery was loaded successfully"
             id="tw.extensionGallery.more"
         />
     ),
-    tags: ['tw'],
+    tags: ['tw', 'bilup', 'sharkpool', 'mistium', 'ae', 'rotur'],
     featured: true
 };
 
@@ -691,7 +688,7 @@ export const galleryError = {
             }}
         />
     ),
-    href: 'https://extensions.turbowarp.org/',
+    href: 'https://extensions.bilup.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
     description: (
@@ -702,6 +699,6 @@ export const galleryError = {
             id="tw.extensionGallery.error"
         />
     ),
-    tags: ['tw'],
+    tags: ['tw', 'bilup', 'sharkpool', 'mistium', 'ae'],
     featured: true
 };

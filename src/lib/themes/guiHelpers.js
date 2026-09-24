@@ -1,4 +1,10 @@
-import {Theme, GUI_MAP} from './index.js';
+import {Theme, GUI_MAP, ACCENT_MAP, ACCENT_DEFAULT} from './index.js';
+import {
+    getAccentMenuBar,
+    getMenuBarText,
+    MENU_BAR_TEXT_LIGHT,
+    MENU_BAR_TEXT_DARK
+} from './menu-bar-accent.js';
 import AddonHooks from '../../addons/hooks';
 import {applyThemeFonts} from '../themes/fonts';
 import './global-styles.css';
@@ -13,11 +19,77 @@ const BLOCK_COLOR_NAMES = [
     'sensing',
     'pen',
     'operators',
+    'strings',
     'data',
     'data_lists',
     'more',
     'addons'
 ];
+
+const hslToRgb = (h, s, l) => {
+    const chroma = (1 - Math.abs((2 * l) - 1)) * s;
+    const huePrime = ((h % 360) + 360) % 360 / 60;
+    const x = chroma * (1 - Math.abs((huePrime % 2) - 1));
+    const [r, g, b] = huePrime < 1 ? [chroma, x, 0] :
+        huePrime < 2 ? [x, chroma, 0] :
+            huePrime < 3 ? [0, chroma, x] :
+                huePrime < 4 ? [0, x, chroma] :
+                    huePrime < 5 ? [x, 0, chroma] : [chroma, 0, x];
+    const m = l - (chroma / 2);
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+};
+
+/**
+ * @param {string} color A CSS color (hex, rgb(a) or hsl(a)).
+ * @returns {?Array.<number>} [r, g, b] in 0-255, or null when unparseable.
+ */
+const parseColor = color => {
+    if (typeof color !== 'string') return null;
+    const value = color.trim();
+
+    const hex = value.match(/^#([0-9a-f]{3,8})$/i);
+    if (hex) {
+        let digits = hex[1];
+        if (digits.length === 3 || digits.length === 4) {
+            digits = digits.split('').map(c => c + c)
+                .join('');
+        }
+        if (digits.length < 6) return null;
+        return [0, 2, 4].map(i => parseInt(digits.substr(i, 2), 16));
+    }
+
+    const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgb) {
+        const parts = rgb[1].split(/[\s,/]+/).filter(Boolean);
+        if (parts.length < 3) return null;
+        return parts.slice(0, 3).map(part => (
+            part.endsWith('%') ? (parseFloat(part) / 100) * 255 : parseFloat(part)
+        ));
+    }
+
+    const hsl = value.match(/^hsla?\(([^)]+)\)$/i);
+    if (hsl) {
+        const parts = hsl[1].split(/[\s,/]+/).filter(Boolean);
+        if (parts.length < 3) return null;
+        return hslToRgb(parseFloat(parts[0]), parseFloat(parts[1]) / 100, parseFloat(parts[2]) / 100);
+    }
+
+    return null;
+};
+
+/**
+ * @param {string} color A CSS color.
+ * @returns {number} WCAG relative luminance, 0 (black) to 1 (white).
+ */
+const relativeLuminance = color => {
+    const rgb = parseColor(color);
+    if (!rgb) return 0;
+    const [r, g, b] = rgb.map(channel => {
+        const c = Math.min(Math.max(channel, 0), 255) / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+};
 
 /**
  * @param {string} css CSS color or var(--...)
@@ -60,26 +132,10 @@ const applyTransparencyToElement = (element, hasWallpaper, wallpaperOpacity = 0.
         const backgroundColor = guiColors.startsWith('#') ?
             hexToRgba(guiColors, backgroundOpacity) :
             `rgba(229, 240, 255, ${backgroundOpacity})`;
-        // Use setProperty with !important to override CSS !important rules
-        element.style.setProperty('background-color', backgroundColor, 'important');
+        element.style.backgroundColor = backgroundColor;
     } else {
-        // Use the theme-defined workspace background color
-        let workspaceColor = document.documentElement.style.getPropertyValue('--editorTheme3-workspace-background');
-        
-        // If no workspace color is set or it's transparent, determine based on current theme
-        if (!workspaceColor || workspaceColor === 'transparent') {
-            const themeData = JSON.parse(localStorage.getItem('tw:theme') || '{}');
-            const currentGuiTheme = themeData.gui || 'light';
-            
-            if (currentGuiTheme === 'dark') {
-                workspaceColor = '#1e1e1e'; // Dark theme workspace color
-            } else {
-                workspaceColor = '#FFFFFF'; // Light theme workspace color
-            }
-        }
-        
-        // Use setProperty with !important to override CSS !important rules
-        element.style.setProperty('background-color', workspaceColor, 'important');
+        // Remove transparency styling
+        element.style.backgroundColor = '';
     }
 };
 
@@ -212,7 +268,7 @@ const applyWallpaper = wallpaper => {
         return;
     }
 
-    if (wallpaper && wallpaper.url) {
+    if (wallpaper.url) {
         // Apply opacity by creating a semi-transparent overlay
         const opacity = Math.max(0.1, Math.min(1, wallpaper.opacity || 0.3));
         const overlayOpacity = 1 - opacity;
@@ -239,9 +295,6 @@ const applyWallpaper = wallpaper => {
         // Use CSS custom properties for overlay and darkness
         document.documentElement.style.setProperty('--wallpaper-overlay-opacity', overlayOpacity.toString());
         document.documentElement.style.setProperty('--wallpaper-darkness', darkness.toString());
-        
-        // Set workspace background to transparent so wallpaper shows through
-        document.documentElement.style.setProperty('--editorTheme3-workspace-background', 'transparent');
         
         // Apply JavaScript-based transparency to blocks workspace
         applyBlocksWorkspaceTransparency(true, opacity);
@@ -275,9 +328,6 @@ const applyWallpaper = wallpaper => {
         document.documentElement.style.removeProperty('--wallpaper-overlay-opacity');
         document.documentElement.style.removeProperty('--wallpaper-darkness');
         
-        // Note: Workspace background color is already set by applyGuiColors via CSS variables
-        // We don't need to set it again here to avoid overriding the theme system
-        
         // Remove transparency from blocks workspace
         applyBlocksWorkspaceTransparency(false);
         
@@ -292,8 +342,9 @@ const applyWallpaper = wallpaper => {
 const applyGuiColors = theme => {
     const doc = document.documentElement;
 
-    const defaultGuiColors = (Theme.light && typeof Theme.light.getGuiColors === 'function') ?
-        Theme.light.getGuiColors() :
+    const defaultGuiColors = (Theme.defaults && Theme.defaults.light &&
+                              typeof Theme.defaults.light.getGuiColors === 'function') ?
+        Theme.defaults.light.getGuiColors() :
         (GUI_MAP && GUI_MAP.light && GUI_MAP.light.guiColors) || {};
     for (const [name, value] of Object.entries(defaultGuiColors)) {
         doc.style.setProperty(`--${name}-default`, value);
@@ -357,6 +408,43 @@ const applyGuiColors = theme => {
         doc.style.setProperty('--editorTheme3-grid-color', blockColors.gridColor);
     }
 
+    const accentMenuBar = getAccentMenuBar();
+    let menuBarBackground;
+    if (accentMenuBar) {
+        menuBarBackground = guiColors['looks-secondary'] || guiColors['menu-bar-background'];
+        doc.style.setProperty('--menu-bar-background-image', guiColors['menu-bar-background-image'] || 'none');
+    } else {
+        const baseColors = (GUI_MAP[theme.gui] && GUI_MAP[theme.gui].guiColors) || {};
+        menuBarBackground = baseColors['menu-bar-background'] || guiColors['menu-bar-background'];
+        if (menuBarBackground === 'var(--looks-secondary)') {
+            menuBarBackground = ACCENT_MAP[ACCENT_DEFAULT].guiColors['looks-secondary'];
+        }
+        doc.style.setProperty('--menu-bar-background-image', 'none');
+    }
+    doc.style.setProperty('--menu-bar-background', menuBarBackground);
+
+    const themeMenuBarText = theme.customAccent && theme.customAccent.guiColors &&
+        theme.customAccent.guiColors['menu-bar-foreground'];
+    const menuBarTextPreference = getMenuBarText();
+    let menuBarForeground;
+    if (menuBarTextPreference === 'light') {
+        menuBarForeground = MENU_BAR_TEXT_LIGHT;
+    } else if (menuBarTextPreference === 'dark') {
+        menuBarForeground = MENU_BAR_TEXT_DARK;
+    } else if (themeMenuBarText) {
+        menuBarForeground = themeMenuBarText;
+    } else {
+        menuBarForeground = relativeLuminance(evaluateCSS(menuBarBackground)) > 0.5 ?
+            MENU_BAR_TEXT_DARK :
+            MENU_BAR_TEXT_LIGHT;
+    }
+    doc.style.setProperty('--menu-bar-foreground', menuBarForeground);
+
+    const accentForeground = relativeLuminance(evaluateCSS(guiColors['looks-secondary'])) > 0.5 ?
+        MENU_BAR_TEXT_DARK :
+        MENU_BAR_TEXT_LIGHT;
+    doc.style.setProperty('--accent-foreground', accentForeground);
+
     // Some browsers will color their interfaces to match theme-color, so if we make it the same color as our
     // menu bar, it'll look pretty cool.
     let metaThemeColor = document.head.querySelector('meta[name=theme-color]');
@@ -365,7 +453,7 @@ const applyGuiColors = theme => {
         metaThemeColor.setAttribute('name', 'theme-color');
         document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', evaluateCSS(guiColors['menu-bar-background']));
+    metaThemeColor.setAttribute('content', evaluateCSS(menuBarBackground));
 
     // a horrible hack for icons...
     window.Recolor = {
@@ -378,6 +466,12 @@ const applyGuiColors = theme => {
     
     // Apply fonts (async but don't block UI)
     applyThemeFonts(theme.fonts).catch(console.error);
+
+    // Notify modules that generate CSS with theme-dependent colors
+    // so they can regenerate with the new --color-scheme.
+    if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+        window.dispatchEvent(new window.CustomEvent('mw:theme-applied'));
+    }
 };
 
 export {

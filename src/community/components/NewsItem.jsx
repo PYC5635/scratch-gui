@@ -4,10 +4,18 @@ import {FormattedMessage} from 'react-intl';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
 import api from '../api';
 import {useUser} from '../UserContext.jsx';
-import {timeAgo} from '../format';
 import ReactionButtons from './ReactionButtons.jsx';
 import RichText from './RichText.jsx';
 import styles from './NewsItem.module.css';
+
+// Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).
+const formatDateTime = ms => {
+    if (!ms) return '';
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 const NewsItem = ({item, onChanged}) => {
     const {user} = useUser();
@@ -49,7 +57,7 @@ const NewsItem = ({item, onChanged}) => {
         <article className={styles.item}>
             <div className={styles.head}>
                 <h3>{item.title}</h3>
-                <span className={styles.date}>{timeAgo(item.created)}</span>
+                <span className={styles.date}>{formatDateTime(item.created)}</span>
                 {canDelete ? (
                     <button
                         className={styles.delete}

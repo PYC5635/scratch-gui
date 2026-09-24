@@ -22,15 +22,9 @@
 }
 
 .logo {
-    width: 40px;
     height: 40px;
+    width: auto;
     display: block;
-}
-
-.wordmark {
-    font-weight: 800;
-    font-size: 18px;
-    letter-spacing: -0.02em;
 }
 
 .tagline {

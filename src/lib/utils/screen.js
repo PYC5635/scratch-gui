@@ -4,9 +4,12 @@ import {
     STAGE_DISPLAY_SIZES,
     FIXED_WIDTH
 } from '../constants/layout-constants';
-import {defaultStageSize} from '../../reducers/custom-stage-size';
+
+import getMenuBarHeight from './menu-bar-height';
 
 const maxScaleParam = typeof URLSearchParams !== 'undefined' && new URLSearchParams(location.search).get('scale');
+const isProfilePreview = typeof URLSearchParams !== 'undefined' &&
+    new URLSearchParams(location.search).get('mw_profile_preview') === '1';
 
 /**
  * @typedef {object} StageDimensions
@@ -27,8 +30,6 @@ const STAGE_DIMENSION_DEFAULTS = {
     menuHeightAdjustment: 44
 };
 
-import getMenuBarHeight from './menu-bar-height';
-
 /**
  * Resolve the current GUI and browser state to an actual stage size enum value.
  * @param {STAGE_SIZE_MODES} stageSizeMode - the state of the stage size toggle button.
@@ -36,9 +37,6 @@ import getMenuBarHeight from './menu-bar-height';
  * @return {STAGE_DISPLAY_SIZES} - the stage size enum value we should use in this situation.
  */
 const resolveStageSize = (stageSizeMode, isUnconstrained) => {
-    if (stageSizeMode === STAGE_SIZE_MODES.initial) {
-        return STAGE_DISPLAY_SIZES.initial;
-    }
     if (stageSizeMode === STAGE_SIZE_MODES.full && !isUnconstrained) {
         return STAGE_DISPLAY_SIZES.constrained;
     }
@@ -51,37 +49,33 @@ const resolveStageSize = (stageSizeMode, isUnconstrained) => {
  * @param {{width: number, height: number}} customStageSize Custom stage size
  * @param {boolean} isFullScreen - true if full-screen mode is enabled.
  * @param {?number} stageContainerWidth - optional container width to scale to in non-fullscreen mode.
+ * @param {?number} stageMaxHeight - optional maximum height to scale to in non-fullscreen mode.
  * @return {StageDimensions} - an object describing the dimensions of the stage.
  */
-const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageContainerWidth) => {
-    // 当舞台模式为 initial（宽屏按钮）时，始终使用默认舞台尺寸 480x360
-    // 忽略用户可能设置的自定义舞台尺寸
-    const isInitialMode = stageSize === STAGE_DISPLAY_SIZES.initial;
-    const baseStageSize = isInitialMode ? defaultStageSize : customStageSize;
-
+const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageContainerWidth, stageMaxHeight) => {
     const stageDimensions = {
-        heightDefault: baseStageSize.height,
-        widthDefault: baseStageSize.width,
+        heightDefault: customStageSize.height,
+        widthDefault: customStageSize.width,
         height: 0,
         width: 0,
         scale: 0
     };
 
     if (isFullScreen) {
-        const menuBarHeight = getMenuBarHeight();
+        const menuBarHeight = isProfilePreview ? 0 : getMenuBarHeight();
         stageDimensions.height = window.innerHeight -
             STAGE_DIMENSION_DEFAULTS.menuHeightAdjustment -
             menuBarHeight -
             STAGE_DIMENSION_DEFAULTS.fullScreenSpacingBorderAdjustment;
 
-        stageDimensions.width = stageDimensions.height * (baseStageSize.width / baseStageSize.height);
+        stageDimensions.width = stageDimensions.height * (customStageSize.width / customStageSize.height);
 
         const maxWidth = maxScaleParam ? (
-            Math.min(window.innerWidth, maxScaleParam * baseStageSize.width)
+            Math.min(window.innerWidth, maxScaleParam * customStageSize.width)
         ) : window.innerWidth;
         if (stageDimensions.width > maxWidth) {
             stageDimensions.width = maxWidth;
-            stageDimensions.height = stageDimensions.width * (baseStageSize.height / baseStageSize.width);
+            stageDimensions.height = stageDimensions.width * (customStageSize.height / customStageSize.width);
         }
 
         stageDimensions.scale = stageDimensions.width / stageDimensions.widthDefault;
@@ -104,15 +98,42 @@ const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageConta
         typeof stageContainerWidth === 'number' &&
         Number.isFinite(stageContainerWidth) &&
         stageContainerWidth > 0 &&
-        stageSize !== STAGE_DISPLAY_SIZES.initial) {
-        const metadata = STAGE_DISPLAY_SCALE_METADATA[stageSize];
-        if (!metadata.width) { // Only adjust for container width if not using fixed width
-            const availableContentWidth = Math.max(0, stageContainerWidth - 2);
+        stageDimensions.width > 0) {
+        const availableContentWidth = Math.max(0, stageContainerWidth - 2);
+        // 双向缩放：舞台始终填满面板内容区（拖拽调整大小模式）。
+        // 之前只缩不放（width > availableContentWidth 才缩），导致面板
+        // 变宽时舞台封顶在 480 不再跟随（"舞台主体不跟着缩放"），
+        // 面板变窄时两者又有 2px 级脱钩。
+        // 舞台始终跟随面板缩放，不设 scale 下限保护。
+        // 面板拖拽已通过 hideThreshold 防止无限缩小。
+        if (Math.abs(stageDimensions.width - availableContentWidth) > 0.5) {
             const fitScale = availableContentWidth / stageDimensions.width;
             stageDimensions.scale *= fitScale;
             stageDimensions.width *= fitScale;
             stageDimensions.height *= fitScale;
+            // 确保舞台尺寸不低于 1px
+            stageDimensions.width = Math.max(1, stageDimensions.width);
+            stageDimensions.height = Math.max(1, stageDimensions.height);
         }
+    }
+
+    // On short viewports (mobile landscape, etc.) keep the sprite selector
+    // usable by capping the stage height and scaling the width proportionally.
+    if (!isFullScreen &&
+        typeof stageMaxHeight === 'number' &&
+        Number.isFinite(stageMaxHeight) &&
+        stageMaxHeight > 0 &&
+        stageDimensions.height > 0 &&
+        stageDimensions.height > stageMaxHeight) {
+        // Stretch to fit the available height, without scale threshold.
+        // Math.max(1) below prevents sub-1px sizes.
+        const fitScale = stageMaxHeight / stageDimensions.height;
+        stageDimensions.scale *= fitScale;
+        stageDimensions.width *= fitScale;
+        stageDimensions.height *= fitScale;
+        // Ensure we don't go below 1px
+        stageDimensions.width = Math.max(1, stageDimensions.width);
+        stageDimensions.height = Math.max(1, stageDimensions.height);
     }
 
     // Round off dimensions to prevent resampling/blurriness

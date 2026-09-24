@@ -28,6 +28,7 @@ class WindowedModal extends React.Component {
         this.createdWindow = false;
         this.windowId = this.props.id || 'modal-window';
         this.blocklyWidgetRepositionRaf_ = null;
+        this._resizeContentRafPending = false;
         this.addEventListeners();
     }
     
@@ -73,7 +74,11 @@ class WindowedModal extends React.Component {
                 if (!this.window.isDestroying) {
                     this.window.hide();
                 }
-            } else {
+            } else if (!this.window.isDestroying) {
+                // Likewise, don't call show() while the window is being
+                // destroyed — that would cancel the closing animation, clear
+                // the _animTimer, and re-display the window, leaving an
+                // orphaned element that can never be closed again.
                 this.window.show();
             }
         }
@@ -92,7 +97,11 @@ class WindowedModal extends React.Component {
             window.cancelAnimationFrame(this.blocklyWidgetRepositionRaf_);
             this.blocklyWidgetRepositionRaf_ = null;
         }
-        if (this.window && this.createdWindow) {
+        this._resizeContentRafPending = false;
+        if (this.window) {
+            // If the window is already being destroyed by the window system
+            // (e.g. its close button was clicked), don't hide it again here or
+            // we'd cancel the closing animation that is already in progress.
             if (!this.window.isDestroying) {
                 this.window.hide();
             }
@@ -133,9 +142,14 @@ class WindowedModal extends React.Component {
 
     resizeToContentIfNeeded () {
         if (!this.window || !this.contentContainer) return;
-        if (this.props.id !== 'mwProjectThemeModal') return;
+        if (this.props.id !== 'mwProjectThemeModal' && this.props.id !== 'simpleDialog') return;
+
+        // Avoid queuing multiple RAF callbacks when called rapidly
+        if (this._resizeContentRafPending) return;
+        this._resizeContentRafPending = true;
 
         window.requestAnimationFrame(() => {
+            this._resizeContentRafPending = false;
             if (!this.window || !this.contentContainer) return;
 
             const headerHeight = this.window.headerElement ? this.window.headerElement.offsetHeight : 0;
@@ -144,11 +158,17 @@ class WindowedModal extends React.Component {
 
             if (!desiredHeight || !Number.isFinite(desiredHeight)) return;
 
+            // Skip if height hasn't changed to avoid unnecessary layout recalculations
+            const currentHeight = this.window.height;
+            if (desiredHeight === currentHeight) return;
+
             this.window.height = desiredHeight;
             this.window.element.style.height = `${desiredHeight}px`;
 
-            this.window.minHeight = desiredHeight;
-            this.window.maxHeight = desiredHeight;
+            if (this.props.id === 'mwProjectThemeModal') {
+                this.window.minHeight = desiredHeight;
+                this.window.maxHeight = desiredHeight;
+            }
         });
     }
     
@@ -157,29 +177,44 @@ class WindowedModal extends React.Component {
         if (this.window) {
             return;
         }
-
+        
         const windowId = this.props.id || 'modal-window';
         this.windowId = windowId;
-
-        // If a previous window with the same id is still registered, destroy it
-        // before creating a new one. Reusing a stale window leaves the modal empty
-        // because its React portal was torn down when the component unmounted.
         const existingWindow = WindowManager.getWindow(windowId);
         if (existingWindow) {
-            try {
-                existingWindow.close();
-            } catch (e) {
-                // Ignore errors from closing an already-closing window
+            this.window = existingWindow;
+            this.contentContainer = this.window.contentElement;
+            this.createdWindow = false;
+            
+            this.contentContainer.innerHTML = '';
+            
+            const newTitle = typeof this.props.contentLabel === 'string' ? this.props.contentLabel : 'Dialog';
+            if (this.window.title !== newTitle) {
+                this.window.title = newTitle;
+                const titleElement = this.window.element.querySelector('.addon-window-title');
+                if (titleElement) {
+                    titleElement.textContent = newTitle;
+                }
             }
+            
+            if (this.props.visible === false) {
+                this.window.hide();
+            } else {
+                this.window.show();
+            }
+            this.forceUpdate();
+            this.resizeToContentIfNeeded();
+            
+            return;
         }
-
+        
         const {
             id,
             contentLabel,
             className = '',
             fullScreen = false
         } = this.props;
-
+        
         // Determine window size based on content type
         let width = this.props.width || 600;
         let height = this.props.height || 500;
@@ -196,7 +231,7 @@ class WindowedModal extends React.Component {
         }
         
         this.window = WindowManager.createWindow({
-            id: windowId,
+            id: id || 'modal-window',
             title: typeof contentLabel === 'string' ? contentLabel : 'Dialog',
             width,
             height,
@@ -209,7 +244,7 @@ class WindowedModal extends React.Component {
             closable: true,
             className: `modal-window ${className}`,
             modal: true,
-            alwaysOnTop: id === 'unknownPlatformModal',
+            alwaysOnTop: id === 'unknownPlatformModal' || id === 'securitymanagermodal',
             destroyOnMinimize: true,
             onClose: this.handleWindowClose,
             onMinimize: this.handleWindowMinimize,
@@ -217,7 +252,11 @@ class WindowedModal extends React.Component {
             onResize: this.handleWindowResize
         });
         this.createdWindow = true;
-        
+
+        if (this.props.centered && this.window.center) {
+            this.window.center();
+        }
+
         // Create content container with modal styling
         this.contentContainer = document.createElement('div');
         this.contentContainer.className = 'modal-window-content windowed-modal-content';
@@ -330,6 +369,7 @@ class WindowedModal extends React.Component {
                         minHeight: 0,
                         height: '100%',
                         maxHeight: '100%',
+                        width: '100%',
                         padding: '0',
                         position: 'relative',
                         display: 'flex',
@@ -361,21 +401,49 @@ class WindowedModal extends React.Component {
     }
     
     handleWindowClose = () => {
-        // Notify the parent first so Redux state can be updated while the
-        // window reference is still available for cleanup in componentWillUnmount.
-        if (this.props.onRequestClose) {
-            this.props.onRequestClose();
-        }
-
-        this.contentContainer = null;
-        this.createdWindow = false;
-        this.window = null;
+        // Delay onRequestClose until after the window's closing animation
+        // completes. Calling it synchronously would usually dispatch a Redux
+        // close action, making the parent unmount this modal and clearing the
+        // portal content while the animation is still playing - the content
+        // would vanish instantly and it would look like there is no close
+        // animation at all. Deferring it lets the whole window (content
+        // included) fade out together. If the modal is reopened before the
+        // timer fires, this.window will have been replaced by a fresh window,
+        // so don't clear that one.
+        const closingWindow = this.window;
+        setTimeout(() => {
+            if (this.props.onRequestClose) {
+                const shouldClose = this.props.onRequestClose();
+                if (shouldClose === false) {
+                    return;
+                }
+            }
+            if (this.window === closingWindow) {
+                this.window = null;
+                this.contentContainer = null;
+                this.createdWindow = false;
+            }
+        }, 220);
     };
-
+    
     handleWindowMinimize = () => {
-        this.contentContainer = null;
-        this.createdWindow = false;
-        this.window = null;
+        // Delay Redux update and cleanup until after the close animation completes.
+        // This ensures the portal content stays visible during the animation.
+        // Use 220ms to ensure the destroy() animation (200ms) finishes first.
+        const closingWindow = this.window;
+        setTimeout(() => {
+            if (this.props.onRequestClose) {
+                const shouldClose = this.props.onRequestClose();
+                if (shouldClose === false) {
+                    return;
+                }
+            }
+            if (this.window === closingWindow) {
+                this.window = null;
+                this.contentContainer = null;
+                this.createdWindow = false;
+            }
+        }, 220);
     };
     
     addEventListeners () {
@@ -388,7 +456,9 @@ class WindowedModal extends React.Component {
     
     handlePopState () {
         // Whenever someone navigates, we want to be closed
-        this.props.onRequestClose();
+        if (this.props.onRequestClose) {
+            this.props.onRequestClose();
+        }
     }
     
     get id () {
@@ -415,6 +485,7 @@ WindowedModal.propTypes = {
     onRequestClose: PropTypes.func,
     children: PropTypes.node,
     className: PropTypes.string,
+    centered: PropTypes.bool,
     contentLabel: PropTypes.oneOfType([
         PropTypes.string,
         PropTypes.object

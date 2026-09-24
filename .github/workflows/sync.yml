@@ -1,0 +1,107 @@
+name: CI(sync-mw)
+
+on:
+  push:
+    branches:
+      - sync-mw
+  pull_request:
+    branches:
+      - sync-mw
+
+permissions:
+  contents: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build (production)
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            static/microbit
+            src/generated
+            build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/sync-mw'
+
+    steps:
+    - name: Checkout repo (with push access)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: true
+
+    - name: Download dist
+      uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: .
+
+    - name: Deploy to sync-mw-web branch
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Backup build folder
+        rm -rf /tmp/web-build
+        mkdir -p /tmp/web-build
+        cp -r build/* /tmp/web-build/
+
+        # Fetch sync-mw-web branch if exists
+        git fetch origin sync-mw-web 2>/dev/null || true
+
+        # Create orphan sync-mw-web branch if not exists, otherwise checkout
+        if git show-ref --verify --quiet refs/remotes/origin/sync-mw-web; then
+          git checkout sync-mw-web
+        else
+          git checkout --orphan sync-mw-web
+        fi
+
+        # Clean sync-mw-web branch (keep .git directory)
+        find . -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
+
+        # Copy build contents directly to root
+        cp -r /tmp/web-build/* .
+
+        # Add all files
+        git add -A
+
+        # Commit if changed
+        git commit -m "chore: deploy web build from sync-mw" || echo "No changes"
+
+        # Push to sync-mw-web branch
+        git push origin sync-mw-web --force

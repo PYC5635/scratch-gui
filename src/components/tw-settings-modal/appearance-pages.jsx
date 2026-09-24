@@ -1,16 +1,16 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, injectIntl, intlShape} from 'react-intl';
 import {connect} from 'react-redux';
-import locales from '@turbowarp/scratch-l10n';
+import locales from '@bilup/scratch-l10n';
 
 import Box from '../box/box.jsx';
 import Input from '../forms/input.jsx';
 import FancyCheckbox from '../tw-fancy-checkbox/checkbox.jsx';
-import {Theme, GUI_MAP, ACCENT_MAP, BLOCKS_CUSTOM, BLOCKS_DARK, BLOCKS_HIGH_CONTRAST, BLOCKS_THREE}
+import {Theme, BLOCKS_CUSTOM, BLOCKS_DARK, BLOCKS_HIGH_CONTRAST, BLOCKS_THREE}
     from '../../lib/themes/index.js';
-import {ACCENT_GROUPS} from '../../lib/themes/accents.js';
+import {PageHeader} from './theme-accent-panel.jsx';
 import {setTheme} from '../../reducers/theme.js';
 import {applyTheme} from '../../lib/themes/themePersistance.js';
 import {selectLocale} from '../../reducers/locales.js';
@@ -24,16 +24,6 @@ import highContrastIcon from '../menu-bar/tw-blocks-high-contrast.svg';
 import darkIcon from '../menu-bar/tw-blocks-dark.svg';
 
 import {ExternalLink, Trash} from 'lucide-react';
-
-const PageHeader = ({children}) => (
-    <div className={styles.header}>
-        {children}
-        <div className={styles.divider} />
-    </div>
-);
-PageHeader.propTypes = {
-    children: PropTypes.node
-};
 
 const themeStateToProps = state => ({
     theme: state.scratchGui.theme.theme
@@ -87,28 +77,6 @@ export const LanguagePage = connect(
     dispatch => ({onChangeLanguage: locale => dispatch(selectLocale(locale))})
 )(UnconnectedLanguagePage);
 
-const ACCENT_MESSAGES = {};
-for (const key of Object.keys(ACCENT_MAP)) {
-    ACCENT_MESSAGES[key] = {
-        id: ACCENT_MAP[key].id,
-        defaultMessage: ACCENT_MAP[key].defaultMessage,
-        description: ACCENT_MAP[key].description
-    };
-}
-
-const GuiThemeIcon = ({id}) => (
-    <svg
-        className={styles.themeCardIcon}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        dangerouslySetInnerHTML={{__html: GUI_MAP[id].icon}}
-    />
-);
-GuiThemeIcon.propTypes = {
-    id: PropTypes.string
-};
-
 const BLOCKS_OPTIONS = [
     {
         id: BLOCKS_THREE,
@@ -154,61 +122,27 @@ const UnconnectedThemePage = ({theme, onChangeTheme}) => (
                 id="tw.menuBar.theme"
             />
         </PageHeader>
-        <div className={styles.stylePicker}>
-            {Object.entries(Theme.defaults).map(([themeId, t]) => (
-                <button
-                    key={themeId}
-                    type="button"
-                    className={classNames(styles.styleOption, {
-                        [styles.styleOptionSelected]: theme.gui === themeId
-                    })}
-                    onClick={() => onChangeTheme(theme.set('gui', themeId))}
-                >
-                    <div className={styles.themeCardPreview}>
-                        <GuiThemeIcon id={themeId} />
-                    </div>
-                    <span className={styles.styleOptionLabel}>{t.name || t.gui}</span>
-                </button>
-            ))}
-        </div>
-
-        <PageHeader>
+        <div className={styles.setting}>
             <FormattedMessage
-                defaultMessage="Accent"
-                description="Label for menu to choose accent color (eg. TurboWarp's red, Scratch's purple)"
-                id="tw.menuBar.accent"
+                defaultMessage="Theme and accent colors apply across all of Bilup and live in your Bilup settings."
+                description="Explains that global theming moved to the Bilup site settings"
+                id="mw.settings.themeMoved"
             />
-        </PageHeader>
-        {ACCENT_GROUPS.map(group => (
-            <React.Fragment key={group.label.id}>
-                <div className={styles.accentGroupLabel}>
-                    <FormattedMessage {...group.label} />
-                </div>
-                <div className={styles.accentGrid}>
-                    {group.accents.filter(accentId => ACCENT_MAP[accentId]).map(accentId => (
-                        <button
-                            key={accentId}
-                            type="button"
-                            className={classNames(styles.accentOption, {
-                                [styles.accentOptionSelected]: theme.accent === accentId
-                            })}
-                            onClick={() => onChangeTheme(theme.set('accent', accentId))}
-                        >
-                            <div
-                                className={styles.accentSwatch}
-                                style={{
-                                    backgroundColor: ACCENT_MAP[accentId].guiColors['looks-secondary'],
-                                    backgroundImage: ACCENT_MAP[accentId].guiColors['menu-bar-background-image']
-                                }}
-                            />
-                            <span className={styles.accentName}>
-                                <FormattedMessage {...ACCENT_MESSAGES[accentId]} />
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </React.Fragment>
-        ))}
+        </div>
+        <div className={styles.setting}>
+            <button
+                type="button"
+                className={styles.button}
+                onClick={() => window.open('/settings', '_blank')}
+            >
+                <FormattedMessage
+                    defaultMessage="Edit my Bilup settings"
+                    id="mw.settings.editCommunitySettings"
+                />
+                {' '}
+                <ExternalLink size={14} />
+            </button>
+        </div>
 
         <PageHeader>
             <FormattedMessage
@@ -269,6 +203,7 @@ class UnconnectedWallpaperPage extends React.Component {
         this.state = {
             url: ''
         };
+        this.fileInputRef = React.createRef();
     }
     setWallpaper (patch) {
         const {theme, onChangeTheme} = this.props;
@@ -288,6 +223,18 @@ class UnconnectedWallpaperPage extends React.Component {
             history: (wallpaper.history || []).filter(u => u !== url),
             ...(wallpaper.url === url ? {url: ''} : null)
         });
+    };
+    handleFileUpload = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = loadEvent => {
+            const dataUrl = loadEvent.target.result;
+            const history = [dataUrl, ...(this.props.theme.wallpaper.history || []).filter(u => u !== dataUrl)].slice(0, 10);
+            this.setWallpaper({url: dataUrl, history});
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
     };
     render () {
         const {theme} = this.props;
@@ -316,7 +263,10 @@ class UnconnectedWallpaperPage extends React.Component {
                         <Input
                             type="url"
                             className={styles.textInput}
-                            placeholder="Enter image URL..."
+                            placeholder={this.props.intl.formatMessage({
+                                id: 'mw.settings.wallpaperPlaceholder',
+                                defaultMessage: 'Enter image URL...'
+                            })}
                             value={this.state.url}
                             onChange={e => this.setState({url: e.target.value})}
                         />
@@ -331,6 +281,24 @@ class UnconnectedWallpaperPage extends React.Component {
                                 id="tw.wallpaper.add"
                             />
                         </button>
+                        <button
+                            type="button"
+                            className={styles.button}
+                            onClick={() => this.fileInputRef.current.click()}
+                        >
+                            <FormattedMessage
+                                defaultMessage="Upload Image"
+                                description="Button to upload a wallpaper image from local file"
+                                id="mw.settings.wallpaperUpload"
+                            />
+                        </button>
+                        <input
+                            ref={this.fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            style={{display: 'none'}}
+                            onChange={this.handleFileUpload}
+                        />
                     </div>
                 </form>
 
@@ -345,6 +313,7 @@ class UnconnectedWallpaperPage extends React.Component {
                         </span>
                         <input
                             type="range"
+                            className={styles.gcSlider}
                             min="0.1"
                             max="1"
                             step="0.1"
@@ -363,6 +332,7 @@ class UnconnectedWallpaperPage extends React.Component {
                         </span>
                         <input
                             type="range"
+                            className={styles.gcSlider}
                             min="0"
                             max="0.8"
                             step="0.1"
@@ -435,8 +405,14 @@ class UnconnectedWallpaperPage extends React.Component {
                             <button
                                 type="button"
                                 className={styles.iconButton}
-                                title="Remove wallpaper"
-                                aria-label="Remove wallpaper"
+                                title={this.props.intl.formatMessage({
+                                    id: 'mw.settings.removeWallpaper',
+                                    defaultMessage: 'Remove wallpaper'
+                                })}
+                                aria-label={this.props.intl.formatMessage({
+                                    id: 'mw.settings.removeWallpaper',
+                                    defaultMessage: 'Remove wallpaper'
+                                })}
                                 onClick={e => {
                                     e.stopPropagation();
                                     this.handleRemove(url);
@@ -453,9 +429,11 @@ class UnconnectedWallpaperPage extends React.Component {
 }
 UnconnectedWallpaperPage.propTypes = {
     theme: PropTypes.instanceOf(Theme),
-    onChangeTheme: PropTypes.func
+    onChangeTheme: PropTypes.func,
+    intl: intlShape
 };
-export const WallpaperPage = connect(themeStateToProps, themeDispatchToProps)(UnconnectedWallpaperPage);
+const InjectedWallpaperPage = injectIntl(UnconnectedWallpaperPage);
+export const WallpaperPage = connect(themeStateToProps, themeDispatchToProps)(InjectedWallpaperPage);
 
 class UnconnectedFontsPage extends React.Component {
     static contextTypes = {
@@ -538,7 +516,10 @@ class UnconnectedFontsPage extends React.Component {
                                 type="button"
                                 className={styles.iconButton}
                                 onClick={this.handleReset}
-                                title="Remove font"
+                                title={this.props.intl.formatMessage({
+                                    id: 'mw.settings.removeFont',
+                                    defaultMessage: 'Remove font'
+                                })}
                             >
                                 {'×'}
                             </button>
@@ -605,8 +586,10 @@ UnconnectedFontsPage.propTypes = {
     onChangeTheme: PropTypes.func,
     locale: PropTypes.string,
     messages: PropTypes.object,
-    vm: PropTypes.object
+    vm: PropTypes.object,
+    intl: intlShape
 };
+const InjectedFontsPage = injectIntl(UnconnectedFontsPage);
 export const FontsPage = connect(
     state => ({
         theme: state.scratchGui.theme.theme,
@@ -615,4 +598,4 @@ export const FontsPage = connect(
         vm: state.scratchGui.vm
     }),
     themeDispatchToProps
-)(UnconnectedFontsPage);
+)(InjectedFontsPage);

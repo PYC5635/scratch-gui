@@ -30,6 +30,11 @@
     font-weight: bold;
     font-size: 0.875rem;
     cursor: pointer;
+    margin: 0.5rem;
+}
+
+.saveButton {
+    composes: reloadButton;
 }
 
 .header {

@@ -36,7 +36,6 @@ const manifest = {
   "tags": [
     "theme"
   ],
-  "enabledByDefault": false,
-  "incompatibleWith": ["cat-blocks-extended"]
+  "enabledByDefault": false
 };
 export default manifest;

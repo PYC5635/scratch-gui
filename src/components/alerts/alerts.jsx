@@ -9,8 +9,7 @@ import styles from './alerts.css';
 const AlertsComponent = ({
     alertsList,
     className,
-    onCloseAlert,
-    children
+    onCloseAlert
 }) => (
     <Box
         bounds="parent"
@@ -35,7 +34,6 @@ const AlertsComponent = ({
                     onCloseAlert={onCloseAlert}
                 />
             ))}
-            {children}
         </Box>
     </Box>
 );
@@ -43,8 +41,7 @@ const AlertsComponent = ({
 AlertsComponent.propTypes = {
     alertsList: PropTypes.arrayOf(PropTypes.object),
     className: PropTypes.string,
-    onCloseAlert: PropTypes.func,
-    children: PropTypes.node
+    onCloseAlert: PropTypes.func
 };
 
 export default AlertsComponent;

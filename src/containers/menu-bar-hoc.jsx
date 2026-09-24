@@ -4,7 +4,6 @@ import bindAll from 'lodash.bindall';
 import React from 'react';
 import SB3Downloader from './sb3-downloader.jsx';
 import {openSimpleDialog} from '../reducers/modals';
-import {setProjectUnchanged} from '../reducers/project-changed';
 import ToastNotification from '../components/toast-notification/toast-notification.jsx';
 
 const MenuBarHOC = function (WrappedComponent) {
@@ -29,8 +28,10 @@ const MenuBarHOC = function (WrappedComponent) {
             return (this.props.canSave && this.props.projectChanged);
         }
 
-        showToast (message, type = 'info') {
-            this.props.showToast(message, type);
+        // `position` lets a caller ask for the bottom-right corner (git failures
+        // do — see A3); everything else keeps the original top-right toast.
+        showToast (message, type = 'info', position = 'top-right') {
+            this.props.showToast(message, type, position);
         }
 
         render () {
@@ -59,6 +60,7 @@ const MenuBarHOC = function (WrappedComponent) {
                     <ToastNotification
                         message={this.props.toastMessage}
                         type={this.props.toastType}
+                        position={this.props.toastPosition}
                         visible={this.props.toastVisible}
                         onClose={this.props.hideToast}
                     />
@@ -76,7 +78,8 @@ const MenuBarHOC = function (WrappedComponent) {
         showToast: PropTypes.func.isRequired,
         toastVisible: PropTypes.bool,
         toastMessage: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
-        toastType: PropTypes.oneOf(['success', 'error', 'info', 'warning'])
+        toastType: PropTypes.oneOf(['success', 'error', 'info', 'warning']),
+        toastPosition: PropTypes.oneOf(['top-right', 'bottom-right'])
     };
     MenuBarContainer.defaultProps = {
         // default to using standard js confirm
@@ -86,19 +89,21 @@ const MenuBarHOC = function (WrappedComponent) {
         projectChanged: state.scratchGui.projectChanged,
         toastVisible: state.scratchGui.toast && state.scratchGui.toast.visible,
         toastMessage: state.scratchGui.toast && state.scratchGui.toast.message,
-        toastType: state.scratchGui.toast && state.scratchGui.toast.type
+        toastType: state.scratchGui.toast && state.scratchGui.toast.type,
+        toastPosition: state.scratchGui.toast && state.scratchGui.toast.position,
+        customShortcuts: state.scratchGui.shortcuts.customShortcuts
     });
     const mapDispatchToProps = dispatch => ({
         openSimpleDialog: config => dispatch(openSimpleDialog(config)),
-        showToast: (message, type) => dispatch({
+        showToast: (message, type, position) => dispatch({
             type: 'scratch-gui/SHOW_TOAST',
             message,
-            toastType: type
+            toastType: type,
+            position
         }),
         hideToast: () => dispatch({
             type: 'scratch-gui/HIDE_TOAST'
-        }),
-        onProjectUnchanged: () => dispatch(setProjectUnchanged())
+        })
     });
     // Allow incoming props to override redux-provided props. Used to mock in tests.
     const mergeProps = (stateProps, dispatchProps, ownProps) => Object.assign(

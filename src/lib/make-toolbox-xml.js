@@ -107,6 +107,42 @@ const motion = function (isInitialSetup, isStage, targetId, colors, vanilla) {
                 </shadow>
             </value>
         </block>
+        ${vanilla ? '' : `
+        <block type="motion_pointtowards_xy">
+            <value name="X">
+                <shadow id="pointx" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+            <value name="Y">
+                <shadow id="pointy" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+        </block>
+        <block type="motion_pointtowards_xyfrom">
+            <value name="X">
+                <shadow id="pointx" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+            <value name="Y">
+                <shadow id="pointy" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+            <value name="FROMX">
+                <shadow id="pointx" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+            <value name="FROMY">
+                <shadow id="pointy" type="math_number">
+                    <field name="NUM">0</field>
+                </shadow>
+            </value>
+        </block>
+        `}
         ${blockSeparator}
         <block type="motion_changexby">
             <value name="DX">
@@ -143,48 +179,7 @@ const motion = function (isInitialSetup, isStage, targetId, colors, vanilla) {
         ${blockSeparator}
         <block id="${targetId}_xposition" type="motion_xposition"/>
         <block id="${targetId}_yposition" type="motion_yposition"/>
-        <block id="${targetId}_direction" type="motion_direction"/>
-        ${blockSeparator}
-        ${vanilla ? '' : `
-        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
-        <block type="motion_pointtowards_xy" id="motion_pointtowards_xy">
-            <value name="X">
-                <shadow id="pointx" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-            <value name="Y">
-                <shadow id="pointy" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-        </block>
-        <block type="motion_pointtowards_xyfrom" id="motion_pointtowards_xyfrom">
-            <value name="X">
-                <shadow id="pointx" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-            <value name="Y">
-                <shadow id="pointy" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-            <value name="FROMX">
-                <shadow id="pointx" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-            <value name="FROMY">
-                <shadow id="pointy" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-        </block>
-        `}
-        `}
+        <block id="${targetId}_direction" type="motion_direction"/>`}
         ${categorySeparator}
     </category>
     `;
@@ -334,13 +329,7 @@ const looks = function (isInitialSetup, isStage, targetId, costumeName, backdrop
             <block id="${targetId}_costumenumbername" type="looks_costumenumbername"/>
             <block id="backdropnumbername" type="looks_backdropnumbername"/>
             <block id="${targetId}_size" type="looks_size"/>
-            ${vanilla ? '' : `
-            ${blockSeparator}
-            <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
-            <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
-            <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
-            <block id="${targetId}_costumes" type="looks_costumes"/>
-            `}
+            ${vanilla ? '' : `<block id="${targetId}_costumes" type="looks_costumes"/>`}
         `}
         ${categorySeparator}
     </category>
@@ -480,6 +469,29 @@ const control = function (isInitialSetup, isStage, targetId, colors, vanilla) {
                 </shadow>
             </value>
         </block>
+        ${vanilla ? '' : `
+        ${blockSeparator}
+        <block type="control_switch">
+            <value name="VALUE">
+            </value>
+        </block>
+        <block type="control_case">
+            <value name="VALUE">
+                <shadow type="text">
+                    <field name="TEXT"></field>
+                </shadow>
+            </value>
+        </block>
+        <block type="control_case_fallthrough">
+            <value name="VALUE">
+                <shadow type="text">
+                    <field name="TEXT"></field>
+                </shadow>
+            </value>
+        </block>
+        <block type="control_default"/>
+        <block type="control_break"/>
+        `}
         ${blockSeparator}
         <block type="control_stop"/>
         ${blockSeparator}
@@ -497,36 +509,6 @@ const control = function (isInitialSetup, isStage, targetId, colors, vanilla) {
                 </value>
             </block>
             <block type="control_delete_this_clone"/>
-        `}
-        ${vanilla ? '' : `
-        ${blockSeparator}
-        ${blockSeparator}
-        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
-        <block type="control_switch" id="control_switch">
-            <value name="VALUE">
-                <shadow type="text">
-                    <field name="TEXT"></field>
-                </shadow>
-            </value>
-        </block>
-        <block type="control_case" id="control_case">
-            <value name="VALUE">
-                <shadow type="text">
-                    <field name="TEXT"></field>
-                </shadow>
-            </value>
-        </block>
-        <block type="control_case_fallthrough" id="control_case_fallthrough">
-            <value name="VALUE">
-                <shadow type="text">
-                    <field name="TEXT"></field>
-                </shadow>
-            </value>
-        </block>
-        <block type="control_default" id="control_default"></block>
-        <block type="control_break" id="control_break"></block>
         `}
         ${categorySeparator}
     </category>
@@ -587,9 +569,15 @@ const sensing = function (isInitialSetup, isStage, targetId, colors, vanilla) {
         <block type="sensing_mousedown"/>
         <block type="sensing_mousex"/>
         <block type="sensing_mousey"/>
+        ${vanilla ? '' : `
+            <block type="sensing_stagewidth"/>
+            <block type="sensing_stageheight"/>
+        `}
         ${isStage ? '' : `
             ${blockSeparator}
-            '<block type="sensing_setdragmode" id="sensing_setdragmode"></block>'+
+            <block type="sensing_setdragmode">
+                <field name="DRAG_MODE">draggable</field>
+            </block>
             ${blockSeparator}
         `}
         ${blockSeparator}
@@ -615,9 +603,6 @@ const sensing = function (isInitialSetup, isStage, targetId, colors, vanilla) {
 };
 
 const operators = function (isInitialSetup, isStage, targetId, colors, vanilla) {
-    const apple = translate('OPERATORS_JOIN_APPLE', 'apple');
-    const banana = translate('OPERATORS_JOIN_BANANA', 'banana');
-    const letter = translate('OPERATORS_LETTEROF_APPLE', 'a');
     // Note: the category's secondaryColour matches up with the blocks' tertiary color, both used for border color.
     return `
     <category
@@ -673,6 +658,21 @@ const operators = function (isInitialSetup, isStage, targetId, colors, vanilla) 
                 </shadow>
             </value>
         </block>
+        ${vanilla ? '' : `
+        <block type="operator_min">
+            <value name="NUM1"><shadow type="math_number"><field name="NUM"/></shadow></value>
+            <value name="NUM2"><shadow type="math_number"><field name="NUM"/></shadow></value>
+        </block>
+        <block type="operator_max">
+            <value name="NUM1"><shadow type="math_number"><field name="NUM"/></shadow></value>
+            <value name="NUM2"><shadow type="math_number"><field name="NUM"/></shadow></value>
+        </block>
+        <block type="operator_clamp">
+            <value name="NUM"><shadow type="math_number"><field name="NUM">50</field></shadow></value>
+            <value name="MIN"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+            <value name="MAX"><shadow type="math_number"><field name="NUM">100</field></shadow></value>
+        </block>
+        `}
         ${blockSeparator}
         <block type="operator_random">
             <value name="FROM">
@@ -728,52 +728,6 @@ const operators = function (isInitialSetup, isStage, targetId, colors, vanilla) 
         <block type="operator_or"/>
         <block type="operator_not"/>
         ${blockSeparator}
-        ${isInitialSetup ? '' : `
-            <block type="operator_join">
-                <value name="STRING1">
-                    <shadow type="text">
-                        <field name="TEXT">${apple} </field>
-                    </shadow>
-                </value>
-                <value name="STRING2">
-                    <shadow type="text">
-                        <field name="TEXT">${banana}</field>
-                    </shadow>
-                </value>
-            </block>
-            <block type="operator_letter_of">
-                <value name="LETTER">
-                    <shadow type="math_whole_number">
-                        <field name="NUM">1</field>
-                    </shadow>
-                </value>
-                <value name="STRING">
-                    <shadow type="text">
-                        <field name="TEXT">${apple}</field>
-                    </shadow>
-                </value>
-            </block>
-            <block type="operator_length">
-                <value name="STRING">
-                    <shadow type="text">
-                        <field name="TEXT">${apple}</field>
-                    </shadow>
-                </value>
-            </block>
-            <block type="operator_contains" id="operator_contains">
-              <value name="STRING1">
-                <shadow type="text">
-                  <field name="TEXT">${apple}</field>
-                </shadow>
-              </value>
-              <value name="STRING2">
-                <shadow type="text">
-                  <field name="TEXT">${letter}</field>
-                </shadow>
-              </value>
-            </block>
-        `}
-        ${blockSeparator}
         <block type="operator_mod">
             <value name="NUM1">
                 <shadow type="math_number">
@@ -801,15 +755,146 @@ const operators = function (isInitialSetup, isStage, targetId, colors, vanilla) 
                 </shadow>
             </value>
         </block>
-        ${blockSeparator}
+        ${categorySeparator}
+        <block type="operator_pi"/>
+    </category>
+    `;
+};
+
+const strings = function (isInitialSetup, isStage, targetId, colors, vanilla) {
+    const apple = translate('OPERATORS_JOIN_APPLE', 'apple');
+    const banana = translate('OPERATORS_JOIN_BANANA', 'banana');
+    const letter = translate('OPERATORS_LETTEROF_APPLE', 'a');
+    const hello_world = translate('OPERATORS_REPLACE_HELLO_WORLD', 'Hello world!');
+    const world = translate('OPERATORS_REPLACE_WORLD', 'world');
+    const fellow_scratchers = translate('OPERATORS_REPLACE_FELLOW_SCRATCHERS', 'fellow Scratchers');
+       const text = (name, value) => `
+        <value name="${name}">
+            <shadow type="text"><field name="TEXT">${value}</field></shadow>
+        </value>`;
+    const number = (name, value) => `
+        <value name="${name}">
+            <shadow type="math_whole_number"><field name="NUM">${value}</field></shadow>
+        </value>`;
+    return `
+    <category
+        name="%{BKY_CATEGORY_STRINGS}"
+        id="mwStrings"
+        colour="${colors.primary}"
+        secondaryColour="${colors.tertiary}">
+        ${isInitialSetup ? '' : `
+        <block type="operator_join">
+            ${text('STRING1', `${apple} `)}
+            ${text('STRING2', banana)}
+        </block>
+        <block type="operator_letter_of">
+            ${number('LETTER', 1)}
+            ${text('STRING', apple)}
+        </block>
+        <block type="operator_length">${text('STRING', apple)}</block>
+        <block type="operator_contains" id="operator_contains">
+            ${text('STRING1', apple)}
+            ${text('STRING2', letter)}
+        </block>
         ${vanilla ? '' : `
-        <label text="${translate("UNSUPPORT_TW_1","下方积木不受 PineEditor 支持")}"></label>
-        <label text="${translate("UNSUPPORT_TW_2","且不推荐使用它们")}"></label>
-        <label text="${translate("UNSUPPORT_TW_3","仅出于兼容旧版项目而保留，请勿用于新项目")}"></label>
-        <block type="operator_pi" id="operator_pi"></block>
-        <block type="operator_newline" id="operator_newline"></block>
+        ${blockSeparator}
+        <block type="operator_letters_of">
+            ${number('LETTER1', 2)}
+            ${number('LETTER2', 4)}
+            ${text('STRING', hello_world)}
+        </block>
+        <block type="operator_index_of">
+            ${text('SUBSTRING', letter)}
+            ${text('STRING', apple)}
+        </block>
+        <block type="operator_replace">
+            ${text('SUBSTRING', world)}
+            ${text('STRING', hello_world)}
+            ${text('REPLACE', fellow_scratchers)}
+        </block>
+        <block type="operator_repeat">
+            ${text('STRING', `${apple} `)}
+            ${number('REPEAT', 3)}
+        </block>
+        <block type="operator_change_case">
+            ${text('STRING', 'apple')}
+            <field name="CASE">uppercase</field>
+        </block>
+        <block type="operator_trim">${text('STRING', `  ${apple}  `)}</block>
+        ${blockSeparator}
+        <block type="operator_newline"/>
+        `}
         `}
         ${categorySeparator}
+    </category>
+    `;
+};
+
+const assets = function (isInitialSetup, isStage, targetId, assetName, colors) {
+    const hello = translate('LOOKS_HELLO', 'Hello!');
+    const asset = function (name) {
+        return `
+        <value name="ASSET">
+            <shadow type="assets_menu">
+                <field name="ASSET">${name}</field>
+            </shadow>
+        </value>
+        `;
+    };
+    const text = function (name, value) {
+        return `
+        <value name="${name}">
+            <shadow type="text">
+                <field name="TEXT">${value}</field>
+            </shadow>
+        </value>
+        `;
+    };
+    const number = function (name, value) {
+        return `
+        <value name="${name}">
+            <shadow type="math_number">
+                <field name="NUM">${value}</field>
+            </shadow>
+        </value>
+        `;
+    };
+    const manageAssets = translate('ASSETS_MANAGE', 'Manage assets');
+    return `
+    <category
+        name="%{BKY_CATEGORY_ASSETS}"
+        id="assets"
+        colour="${colors.primary}"
+        secondaryColour="${colors.tertiary}">
+        ${isInitialSetup ? '' : `<button text="${manageAssets}" callbackKey="OPEN_ASSETS_MODAL"></button>`}
+        <block type="assets_load">
+            ${asset(assetName)}
+        </block>
+        <block type="assets_unload">
+            ${asset(assetName)}
+        </block>
+        <block type="assets_unloadall"/>
+        <block type="assets_check">
+            ${asset(assetName)}
+        </block>
+        <block type="assets_get">
+            ${asset(assetName)}
+        </block>
+        <block type="assets_byte">
+            ${number('INDEX', 1)}
+            ${asset(assetName)}
+        </block>
+        <block type="assets_set">
+            ${asset(assetName)}
+            ${text('VALUE', hello)}
+        </block>
+        <block type="assets_delete">
+            ${asset(assetName)}
+        </block>
+        <block type="assets_allnames"/>
+        <block type="assets_infolder">
+            ${text('FOLDER', '')}
+        </block>
     </category>
     `;
 };
@@ -831,7 +916,7 @@ const myBlocks = function (isInitialSetup, isStage, targetId, colors) {
     // Note: the category's secondaryColour matches up with the blocks' tertiary color, both used for border color.
     return `
     <category
-        name="函数"
+        name="%{BKY_CATEGORY_MYBLOCKS}"
         id="myBlocks"
         colour="${colors.primary}"
         secondaryColour="${colors.tertiary}"
@@ -843,7 +928,7 @@ const myBlocks = function (isInitialSetup, isStage, targetId, colors) {
 // eslint-disable-next-line max-len
 const extraTurboWarpBlocks = `
 <block type="argument_reporter_boolean"><field name="VALUE">is compiled?</field></block>
-<block type="argument_reporter_boolean"><field name="VALUE">is TurboWarp?</field></block>
+<block type="argument_reporter_boolean"><field name="VALUE">is Bilup?</field></block>
 `;
 /* eslint-enable no-unused-vars */
 
@@ -864,10 +949,11 @@ const xmlClose = '</xml>';
  * @param {?string} backdropName - The name of the default selected backdrop dropdown.
  * @param {?string} soundName -  The name of the default selected sound dropdown.
  * @param {?object} colors - The colors for the theme.
+ * @param {?string} assetName - The name of the default selected custom asset dropdown.
  * @returns {string} - a ScratchBlocks-style XML document for the contents of the toolbox.
  */
 const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categoriesXML = [],
-    costumeName = '', backdropName = '', soundName = '', colors = defaultBlockColors) {
+    costumeName = '', backdropName = '', soundName = '', colors = defaultBlockColors, assetName = '') {
     isStage = isInitialSetup || isStage;
     const vanilla = getVanillaPalette();
     const gap = [categorySeparator];
@@ -890,10 +976,14 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
     const looksXML = moveCategory('looks') ||
         looks(isInitialSetup, isStage, targetId, costumeName, backdropName, colors.looks, vanilla);
     const soundXML = moveCategory('sound') || sound(isInitialSetup, isStage, targetId, soundName, colors.sounds);
+    const assetsXML = moveCategory('assets') || assets(isInitialSetup, isStage, targetId, assetName, colors.assets);
     const eventsXML = moveCategory('event') || events(isInitialSetup, isStage, targetId, colors.event);
     const controlXML = moveCategory('control') || control(isInitialSetup, isStage, targetId, colors.control, vanilla);
     const sensingXML = moveCategory('sensing') || sensing(isInitialSetup, isStage, targetId, colors.sensing, vanilla);
-    const operatorsXML = moveCategory('operators') || operators(isInitialSetup, isStage, targetId, colors.operators, vanilla);
+    const operatorsXML = moveCategory('operators') ||
+        operators(isInitialSetup, isStage, targetId, colors.operators, vanilla);
+    const stringsXML = strings(isInitialSetup, isStage, targetId, colors.strings, vanilla);
+    const patchingXML = moveCategory('patching');
     const variablesXML = moveCategory('data') || variables(isInitialSetup, isStage, targetId, colors.data);
     const myBlocksXML = moveCategory('procedures') || myBlocks(isInitialSetup, isStage, targetId, colors.more);
 
@@ -909,15 +999,18 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
         motionXML, gap,
         looksXML, gap,
         soundXML, gap,
+        ...(vanilla ? [] : [assetsXML, gap]),
         eventsXML, gap,
         controlXML, gap,
         sensingXML, gap,
         operatorsXML, gap,
+        stringsXML, gap,
+        ...(patchingXML ? [patchingXML, gap] : []),
         variablesXML, gap,
         myBlocksXML
     ];
 
-    if (turbowarpXML) {
+    if (turbowarpXML && !vanilla) {
         everything.push(gap, turbowarpXML);
     }
 

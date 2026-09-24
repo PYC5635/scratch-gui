@@ -207,13 +207,23 @@ export default async function ({ addon, console, msg }) {
   };
 
   // Listen for workspace changes that might affect execution order
+  const onTargetsUpdate = clearCache;
+  const onProjectLoaded = () => {
+    clearCache();
+    setTimeout(updateAllGreenFlagBlocks, 100);
+  };
+
   if (vm && vm.runtime) {
-    vm.runtime.on('TARGETS_UPDATE', clearCache);
-    vm.runtime.on('PROJECT_LOADED', () => {
-      clearCache();
-      setTimeout(updateAllGreenFlagBlocks, 100);
-    });
+    vm.runtime.on('TARGETS_UPDATE', onTargetsUpdate);
+    vm.runtime.on('PROJECT_LOADED', onProjectLoaded);
   }
+
+  addon.self.addEventListener('disabled', () => {
+    if (vm && vm.runtime) {
+      vm.runtime.off('TARGETS_UPDATE', onTargetsUpdate);
+      vm.runtime.off('PROJECT_LOADED', onProjectLoaded);
+    }
+  });
 
   // Listen for target changes (switching sprites)
   if (vm && vm.setEditingTarget) {

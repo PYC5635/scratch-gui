@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import Box from '../box/box.jsx';
-import {FormattedMessage} from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 
 import styles from './crash-message.css';
 import reloadIcon from './reload.svg';
@@ -47,28 +47,28 @@ const CrashMessage = props => (
                     />
                 </p>
             )}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <button
+                className={styles.reloadButton}
+                onClick={props.onReload}
+            >
+                <FormattedMessage
+                    defaultMessage="Reload"
+                    description="Button to reload the page when page crashes"
+                    id="gui.crashMessage.reload"
+                />
+            </button>
+            {props.onSaveProject && (
                 <button
-                    className={styles.reloadButton}
-                    onClick={props.onReload}
+                    className={styles.saveButton}
+                    onClick={props.onSaveProject}
                 >
                     <FormattedMessage
-                        defaultMessage="重新载入"
-                        description="Button to reload the page when page crashes"
-                        id="gui.crashMessage.reload"
+                        defaultMessage="Save Project"
+                        description="Button to save project when page crashes"
+                        id="gui.crashMessage.saveProject"
                     />
                 </button>
-                <button
-                    className={styles.reloadButton}
-                    onClick={props.onViewRestorePoints}
-                >
-                    <FormattedMessage
-                        defaultMessage="查看还原点"
-                        description="Button to view restore points when page crashes"
-                        id="gui.crashMessage.viewRestorePoints"
-                    />
-                </button>
-            </div>
+            )}
         </Box>
     </div>
 );
@@ -76,8 +76,7 @@ const CrashMessage = props => (
 CrashMessage.propTypes = {
     eventId: PropTypes.string,
     errorMessage: PropTypes.string,
-    onReload: PropTypes.func.isRequired,
-    onViewRestorePoints: PropTypes.func
+    onReload: PropTypes.func.isRequired
 };
 
 export default CrashMessage;

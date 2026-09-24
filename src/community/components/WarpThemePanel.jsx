@@ -1,22 +1,20 @@
 /* eslint-disable react/jsx-no-bind, no-alert */
 import PropTypes from 'prop-types';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
 import {
-    ArrowLeft, BookmarkPlus, Check, Download, Edit3, FileJson, Flag, Heart, LogIn,
-    Palette, Search, Shield, Trash2, Upload, User, X
+    ArrowLeft, BookmarkPlus, Check, Download, Edit3, Flag, Heart, LogIn,
+    Palette, Search, Shield, Trash2, User, X
 } from 'lucide-react';
 import {useUser} from '../UserContext.jsx';
 import {
-    API, TOKEN_MANAGER, request, openSession, storeToken, gradientStyle, exportCurrentTheme
+    API, TOKEN_MANAGER, request, openSession, storeToken, gradientStyle
 } from '../../lib/warptheme.js';
 import {CustomTheme, customThemeManager} from '../../lib/themes/custom-themes.js';
 import styles from './WarpThemePanel.module.css';
 
 const TABS = [
-    {key: 'browse', label: 'Browse', icon: Search},
-    {key: 'mine', label: 'My themes', icon: User},
-    {key: 'upload', label: 'Upload', icon: Upload}
+    {key: 'browse', label: 'Browse', icon: Search}
 ];
 
 const ThemeCard = ({onOpen, theme}) => (
@@ -46,14 +44,13 @@ ThemeCard.propTypes = {
     theme: PropTypes.object.isRequired
 };
 
-const WarpThemePanel = ({theme, onThemeChange}) => {
+const WarpThemePanel = ({onThemeChange}) => {
     const intl = useIntl();
     const t = (id, defaultMessage, values) => intl.formatMessage({id, defaultMessage}, values);
     const {user, login} = useUser();
     const [account, setAccount] = useState(null);
     const [token, setToken] = useState(null);
     const [themes, setThemes] = useState([]);
-    const [myThemes, setMyThemes] = useState([]);
     const [reports, setReports] = useState([]);
     const [tab, setTab] = useState('browse');
     const [selected, setSelected] = useState(null);
@@ -65,14 +62,17 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
     const [permissionMissing, setPermissionMissing] = useState(false);
     const [sessionAttempt, setSessionAttempt] = useState(0);
     const [notice, setNotice] = useState('');
-    const [uploadName, setUploadName] = useState('');
-    const [uploadDescription, setUploadDescription] = useState('');
-    const [uploadFile, setUploadFile] = useState(null);
-    const [uploadSource, setUploadSource] = useState('current');
     const [editing, setEditing] = useState(null);
     const [reporting, setReporting] = useState(null);
     const [reportReason, setReportReason] = useState('');
     const [savedIds, setSavedIds] = useState(() => new Set());
+
+    // Tracks whether the panel is still mounted so async callbacks (network
+    // requests, modal close) do not call setState after unmount.
+    const mountedRef = useRef(true);
+    useEffect(() => () => {
+        mountedRef.current = false;
+    }, []);
 
     const username = user && user.username;
 
@@ -85,30 +85,12 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
 
     const loadThemes = useCallback(async sessionToken => {
         const data = await request('/themes', sessionToken);
-        setThemes(data.themes || []);
-    }, []);
-
-    const loadMyThemes = useCallback(async (sessionToken, userId) => {
-        if (!userId) {
-            setMyThemes([]);
-            return;
-        }
-        try {
-            const data = await request(
-                `/user/themes?username=${encodeURIComponent(userId)}&authType=rotur`,
-                sessionToken
-            );
-            setMyThemes(data.themes || []);
-        } catch (_) {
-            // A failed "my themes" lookup must not break the rest of the panel
-            // (browse/upload still work); the tab just stays empty.
-            setMyThemes([]);
-        }
+        if (mountedRef.current) setThemes(data.themes || []);
     }, []);
 
     const loadReports = useCallback(async sessionToken => {
         const data = await request('/admin/reports?status=open', sessionToken);
-        setReports(data.reports || []);
+        if (mountedRef.current) setReports(data.reports || []);
     }, []);
 
     useEffect(() => {
@@ -129,7 +111,6 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 setToken(session.token);
                 await Promise.all([
                     loadThemes(session.token),
-                    loadMyThemes(session.token, getUserId(session)),
                     session.isAdmin ? loadReports(session.token) : Promise.resolve()
                 ]);
             })
@@ -142,20 +123,18 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
         return () => {
             active = false;
         };
-    }, [getUserId, loadMyThemes, loadReports, loadThemes, username, sessionAttempt]);
+    }, [getUserId, loadReports, loadThemes, username, sessionAttempt]);
 
     const refresh = async () => {
         await Promise.all([
             loadThemes(token),
-            loadMyThemes(token, getUserId(account)),
             account && account.isAdmin ? loadReports(token) : Promise.resolve()
         ]);
     };
 
     const visibleThemes = useMemo(() => {
-        const source = tab === 'mine' ? myThemes : themes;
         const query = search.trim().toLowerCase();
-        return source
+        return themes
             .filter(item => platform === 'all' || item.platform === platform)
             .filter(item => !query || [item.name, item.description, item.authorUsername]
                 .some(value => String(value || '').toLowerCase()
@@ -165,7 +144,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 if (sort === 'name') return a.name.localeCompare(b.name);
                 return Number(b.createdAt || 0) - Number(a.createdAt || 0);
             });
-    }, [myThemes, platform, search, sort, tab, themes]);
+    }, [platform, search, sort, themes]);
 
     const run = async action => {
         setBusy(true);
@@ -173,30 +152,38 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
         try {
             await action();
         } catch (err) {
-            setError(err.message);
+            if (mountedRef.current) setError(err.message);
         } finally {
-            setBusy(false);
+            if (mountedRef.current) setBusy(false);
         }
     };
 
-    const currentExport = useMemo(() => exportCurrentTheme(theme), [theme]);
-
     const fetchSelectedExport = async () => {
+        // Use the raw /theme endpoint instead of /theme/export: the latter
+        // flattens the theme and drops gui/blocks, which CustomTheme.import()
+        // requires. /theme returns the stored record whose `.theme` field holds
+        // the original editor/CustomTheme export. cache: no-store avoids a stale
+        // 304 revalidation failing the request.
         const response = await fetch(
-            `${API}/theme/export?uuid=${encodeURIComponent(selected.uuid)}&platform=bilup`,
-            {headers: {Authorization: `Bearer ${token}`}}
+            `${API}/theme?uuid=${encodeURIComponent(selected.uuid)}`,
+            {headers: {Authorization: `Bearer ${token}`}, cache: 'no-store'}
         );
-        if (!response.ok) throw new Error('Failed to export this theme.');
-        return response.json();
+        if (!response.ok) throw new Error('Failed to load this theme.');
+        const payload = await response.json().catch(() => null);
+        if (!payload || typeof payload !== 'object') throw new Error('Invalid theme data format');
+        return (payload.theme && payload.theme.theme) || payload;
     };
 
     const applySelected = () => run(async () => {
         const data = await fetchSelectedExport();
-        if (!data || !data.themes || data.themes.length === 0) {
+        if (!data || typeof data !== 'object' || Array.isArray(data) ||
+            !data.name || !data.gui || !data.blocks) {
             throw new Error('Invalid theme data format');
         }
-        onThemeChange(CustomTheme.import(data.themes[0]));
-        setNotice(t('mw.community.biluptheme.applied', 'Applied "{name}".', {name: selected.name}));
+        onThemeChange(CustomTheme.import(data));
+        if (mountedRef.current) {
+            setNotice(t('mw.community.biluptheme.applied', 'Applied "{name}".', {name: data.name}));
+        }
     });
 
     const saveSelectedToLibrary = () => run(async () => {
@@ -207,57 +194,10 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             description: selected.description || '',
             author: selected.authorUsername || selected.author || 'BilupTheme'
         });
-        setSavedIds(prev => new Set(prev).add(selected.uuid));
-        setNotice(t('mw.community.biluptheme.addedToLibrary', '"{name}" added to your custom theme library.', {name: saved.name}));
-    });
-
-    const parseThemeFile = async file => {
-        if (!file) return;
-        try {
-            const parsed = JSON.parse(await file.text());
-            setUploadFile(parsed);
-            setError('');
-            const first = Array.isArray(parsed.themes) ? parsed.themes[0] : parsed;
-            if (first && first.name && !uploadName.trim()) {
-                setUploadName(String(first.name).slice(0, 100));
-            }
-            if (first && first.description && !uploadDescription.trim()) {
-                setUploadDescription(String(first.description).slice(0, 500));
-            }
-        } catch (_) {
-            setUploadFile(null);
-            setError(t('mw.community.biluptheme.invalidJson', 'That file is not valid theme JSON.'));
+        if (mountedRef.current) {
+            setSavedIds(prev => new Set(prev).add(selected.uuid));
+            setNotice(t('mw.community.biluptheme.addedToLibrary', '"{name}" added to your custom theme library.', {name: saved.name}));
         }
-    };
-
-    const uploadTheme = () => run(async () => {
-        if (uploadSource === 'file' && !uploadFile) {
-            throw new Error(t('mw.community.biluptheme.chooseFile', 'Choose a theme JSON file, or switch to your current theme.'));
-        }
-        const source = uploadSource === 'file' ? uploadFile : currentExport;
-        const sourceThemes = Array.isArray(source && source.themes) ? source.themes : [source];
-        const items = sourceThemes.map((item, index) => ({
-            name: (index === 0 && uploadName.trim()) || (item && item.name) ||
-                t('mw.community.biluptheme.themeN', 'Theme {n}', {n: index + 1}),
-            description: (index === 0 && uploadDescription.trim()) || (item && item.description) || '',
-            platform: (source && source.platform) || 'bilup',
-            // Upload each theme on its own: wrapping the whole file payload
-            // ({...source, themes: [item]}) duplicated every theme into each
-            // item, blowing past the 10KB per-theme limit for multi-theme files.
-            themeJson: item
-        }));
-        const result = await request('/theme', token, {method: 'POST', body: JSON.stringify({themes: items})});
-        if (result && result.errors && result.errors.length > 0) {
-            setNotice(t('mw.community.biluptheme.uploadPartial', 'Some themes could not be uploaded: {errors}', {
-                errors: String(result.errors.join('; '))
-            }));
-        }
-        setUploadFile(null);
-        setUploadName('');
-        setUploadDescription('');
-        setUploadSource('current');
-        setTab('mine');
-        await refresh();
     });
 
     const saveEdit = () => run(async () => {
@@ -265,8 +205,10 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             method: 'PUT',
             body: JSON.stringify({uuid: editing.uuid, name: editing.name, description: editing.description})
         });
-        setEditing(null);
-        setSelected(null);
+        if (mountedRef.current) {
+            setEditing(null);
+            setSelected(null);
+        }
         await refresh();
     });
 
@@ -274,7 +216,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
         if (!window.confirm(t('mw.community.biluptheme.deleteConfirm', 'Delete "{name}"? This cannot be undone.', {name: item.name}))) return;
         run(async () => {
             await request(`/theme?uuid=${encodeURIComponent(item.uuid)}`, token, {method: 'DELETE'});
-            setSelected(null);
+            if (mountedRef.current) setSelected(null);
             await refresh();
         });
     };
@@ -284,9 +226,11 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             method: 'POST',
             body: JSON.stringify({uuid: reporting.uuid, reason: reportReason})
         });
-        setReporting(null);
-        setReportReason('');
-        setNotice(t('mw.community.biluptheme.reportSent', 'Report sent. Thanks for helping keep BilupTheme safe.'));
+        if (mountedRef.current) {
+            setReporting(null);
+            setReportReason('');
+            setNotice(t('mw.community.biluptheme.reportSent', 'Report sent. Thanks for helping keep BilupTheme safe.'));
+        }
     });
 
     const resolveReport = (report, action) => run(async () => {
@@ -294,7 +238,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             method: 'POST',
             body: JSON.stringify({id: report.id, action})
         });
-        if (action === 'delete-theme') setSelected(null);
+        if (mountedRef.current && action === 'delete-theme') setSelected(null);
         await refresh();
     });
 
@@ -311,13 +255,13 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
             <div className={styles.gate}>
                 <User size={26} />
                 <h3>{t('mw.community.biluptheme.signInTitle', 'Sign in to BilupTheme')}</h3>
-                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your PineEditor Accounts account for uploads, reports, and ownership.')}</p>
+                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your Bilup Accounts account for uploads, reports, and ownership.')}</p>
                 <button
                     className={styles.primaryButton}
                     onClick={login}
                     type="button"
                 >
-                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with PineEditor Accounts')}
+                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with Bilup Accounts')}
                 </button>
             </div>
         );
@@ -329,7 +273,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 <Shield size={26} />
                 <h3>{t('mw.community.biluptheme.permissionTitle', 'BilupTheme needs one more permission')}</h3>
                 <p>
-                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in PineEditor Accounts Token Manager and enable')}
+                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in Bilup Accounts Token Manager and enable')}
                     {' '}<strong>validators:generate</strong>. {t('mw.community.biluptheme.permissionBody2', 'Then return here and retry.')}
                 </p>
                 <div className={styles.gateActions}>
@@ -509,7 +453,7 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
         </div>
     );
 
-    const browser = (tab === 'browse' || tab === 'mine') && !selected && (
+    const browser = tab === 'browse' && !selected && (
         <React.Fragment>
             <div className={styles.toolbar}>
                 <div className={styles.searchBox}>
@@ -536,15 +480,13 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                     onChange={e => setPlatform(e.target.value)}
                 >
                     <option value="all">{t('mw.community.biluptheme.allPlatforms', 'All platforms')}</option>
-                    <option value="bilup">PineEditor</option>
+                    <option value="bilup">Bilup</option>
                 </select>
             </div>
             {visibleThemes.length === 0 ? (
                 <div className={styles.empty}>
                     <Search size={24} />
-                    <p>{tab === 'mine' ?
-                        t('mw.community.biluptheme.uploadToStart', 'Upload your current theme to get started.') :
-                        t('mw.community.biluptheme.noThemes', 'No themes found.')}</p>
+                    <p>{t('mw.community.biluptheme.noThemes', 'No themes found.')}</p>
                 </div>
             ) : (
                 <div className={styles.grid}>
@@ -558,88 +500,6 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 </div>
             )}
         </React.Fragment>
-    );
-
-    const uploadPreviewSource = uploadSource === 'file' && uploadFile ?
-        (Array.isArray(uploadFile.themes) ? uploadFile.themes[0] : uploadFile) :
-        currentExport;
-
-    const uploadPage = tab === 'upload' && (
-        <form
-            className={styles.uploadForm}
-            onSubmit={event => {
-                event.preventDefault();
-                uploadTheme();
-            }}
-        >
-            <div className={styles.sourceRow}>
-                <button
-                    className={uploadSource === 'current' ? styles.sourceActive : styles.sourceCard}
-                    onClick={() => setUploadSource('current')}
-                    type="button"
-                >
-                    <Palette size={17} />
-                    <span>
-                        <strong>{t('mw.community.biluptheme.currentTheme', 'Current theme')}</strong>
-                        <em>{t('mw.community.biluptheme.currentThemeHint', 'Share what you have applied right now')}</em>
-                    </span>
-                </button>
-                <button
-                    className={uploadSource === 'file' ? styles.sourceActive : styles.sourceCard}
-                    onClick={() => setUploadSource('file')}
-                    type="button"
-                >
-                    <FileJson size={17} />
-                    <span>
-                        <strong>{t('mw.community.biluptheme.jsonFile', 'JSON file')}</strong>
-                        <em>{t('mw.community.biluptheme.jsonFileHint', 'Upload an exported theme file')}</em>
-                    </span>
-                </button>
-            </div>
-
-            <div
-                className={styles.uploadPreview}
-                style={gradientStyle(uploadPreviewSource)}
-            >
-                <strong>
-                    {uploadName.trim() || (uploadPreviewSource && uploadPreviewSource.name) || t('mw.community.biluptheme.untitledTheme', 'Untitled theme')}
-                </strong>
-            </div>
-
-            <label className={styles.field}>{t('mw.community.biluptheme.name', 'Name')}<input
-                maxLength="100"
-                placeholder={(currentExport && currentExport.name) || t('mw.community.biluptheme.themeName', 'Theme name')}
-                value={uploadName}
-                onChange={e => setUploadName(e.target.value)}
-            /></label>
-            <label className={styles.field}>{t('mw.community.biluptheme.description', 'Description')}<textarea
-                maxLength="500"
-                placeholder={t('mw.community.biluptheme.descriptionPlaceholder', 'What makes this theme special?')}
-                value={uploadDescription}
-                onChange={e => setUploadDescription(e.target.value)}
-            /></label>
-
-            {uploadSource === 'file' && (
-                <label className={styles.field}>{t('mw.community.biluptheme.themeJsonFile', 'Theme JSON file')}<input
-                    accept="application/json,.json"
-                    type="file"
-                    onChange={e => parseThemeFile(e.target.files[0])}
-                /></label>
-            )}
-
-            <div className={styles.formActions}>
-                <button
-                    className={styles.primaryButton}
-                    disabled={busy || (uploadSource === 'file' && !uploadFile)}
-                    type="submit"
-                >
-                    <Upload size={14} />
-                    {uploadSource === 'file' ?
-                        t('mw.community.biluptheme.uploadJson', 'Upload JSON') :
-                        t('mw.community.biluptheme.uploadCurrent', 'Upload current theme')}
-                </button>
-            </div>
-        </form>
     );
 
     const adminPage = tab === 'admin' && (
@@ -717,13 +577,12 @@ const WarpThemePanel = ({theme, onThemeChange}) => {
                 <div className={styles.notice}>{notice}</div>
             )}
 
-            {detail || browser || uploadPage || adminPage}
+            {detail || browser || adminPage}
         </div>
     );
 };
 
 WarpThemePanel.propTypes = {
-    theme: PropTypes.object,
     onThemeChange: PropTypes.func.isRequired
 };
 

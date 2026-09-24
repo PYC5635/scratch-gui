@@ -84,114 +84,43 @@ export default async function ({ addon, console }) {
     phantomHeader = null;
   };
 
-  // Menu bar hide/show functionality
-  let menuBarPhantom = null;
-  let menuBarMouseLeaveHandler = null;
-
-  const updateMenuBarVisibility = () => {
-    const isFullScreen = addon.tab.redux.state.scratchGui.mode.isFullScreen;
-    const menuBar = document.querySelector('[class*="menu-bar_menu-bar"]');
-    
-    if (!menuBar) {
-      // Menu bar not found, retry if in fullscreen
-      if (isFullScreen) {
-        setTimeout(updateMenuBarVisibility, 100);
-      }
-      return;
-    }
-    
-    if (isFullScreen) {
-      // Hide menu bar in fullscreen mode
-      menuBar.style.transform = "translateY(-101%)";
-      menuBar.style.transition = "transform 0.3s";
-      
-      // Create phantom header for menu bar if not exists
-      if (!menuBarPhantom) {
-        menuBarPhantom = document.createElement("div");
-        menuBarPhantom.classList.add("menu-bar-phantom-header");
-        menuBarPhantom.style.cssText = "position:fixed;top:0;left:0;right:0;height:8px;z-index:5000;";
-        
-        // Show menu bar on hover
-        menuBarPhantom.addEventListener("mouseenter", () => {
-          if (addon.tab.redux.state.scratchGui.mode.isFullScreen) {
-            menuBar.style.transform = "translateY(0%)";
-          }
-        });
-        
-        document.body.appendChild(menuBarPhantom);
-      }
-      
-      // Add mouseleave handler to menu bar
-      if (!menuBarMouseLeaveHandler) {
-        menuBarMouseLeaveHandler = () => {
-          if (addon.tab.redux.state.scratchGui.mode.isFullScreen) {
-            menuBar.style.transform = "translateY(-101%)";
-          }
-        };
-        menuBar.addEventListener("mouseleave", menuBarMouseLeaveHandler);
-      }
-    } else {
-      // Show menu bar when not in fullscreen
-      menuBar.style.transform = "translateY(0%)";
-      
-      // Remove phantom header
-      if (menuBarPhantom) {
-        menuBarPhantom.remove();
-        menuBarPhantom = null;
-      }
-    }
-  };
-
   async function updatePhantomHeader() {
-    // Update menu bar visibility first
-    updateMenuBarVisibility();
-    
     if (
       !addon.self.disabled &&
-      addon.tab.redux.state.scratchGui.mode.isFullScreen
+      addon.tab.redux.state.scratchGui.mode.isFullScreen &&
+      addon.settings.get("toolbar") === "hover"
     ) {
       hoverCanvas = hoverCanvas || await addon.tab.waitForElement('[class*="stage_full-screen"] canvas');
       hoverHeader = hoverHeader || await addon.tab.waitForElement('[class^="stage-header_stage-header-wrapper"]');
 
-      // Always show toolbar in fullscreen mode
-      if (hoverHeader) {
-        hoverHeader.style.transform = "translateY(0%)";
-        hoverHeader.style.opacity = "1";
-        hoverHeader.style.visibility = "visible";
-        hoverHeader.style.display = "block";
-      }
+      // Create phantom header exactly once.
+      if (!hoverHeader.parentElement.classList.contains("phantom-header")) {
+        phantomHeader = hoverHeader.parentElement.appendChild(document.createElement("div"));
+        phantomHeader.classList.add("phantom-header");
 
-      // Only create phantom header for hover mode
-      if (addon.settings.get("toolbar") === "hover") {
-        // Create phantom header exactly once.
-        if (!hoverHeader.parentElement.classList.contains("phantom-header")) {
-          phantomHeader = hoverHeader.parentElement.appendChild(document.createElement("div"));
-          phantomHeader.classList.add("phantom-header");
+        // Make the header a child of the phantom, so that mouseleave will trigger when the
+        // mouse leaves the header OR the phantom header.
+        phantomHeader.appendChild(hoverHeader);
 
-          // Make the header a child of the phantom, so that mouseleave will trigger when the
-          // mouse leaves the header OR the phantom header.
-          phantomHeader.appendChild(hoverHeader);
+        phantomHeader.addEventListener("mouseenter", () => {
+          if (addon.settings.get("toolbar") === "hover" && addon.tab.redux.state.scratchGui.mode.isFullScreen && !addon.self.disabled) {
+            hoverHeader.classList.add("stage-header-hover");
+          }
+        });
+        phantomHeader.addEventListener("mouseleave", () => {
+          hoverHeader.classList.remove("stage-header-hover");
+        });
 
-          phantomHeader.addEventListener("mouseenter", () => {
-            if (addon.settings.get("toolbar") === "hover" && addon.tab.redux.state.scratchGui.mode.isFullScreen && !addon.self.disabled) {
-              hoverHeader.classList.add("stage-header-hover");
+        // Pass click events on the phantom header onto the project player, essentially making it click-through
+        ["mousedown", "mousemove", "mouseup", "touchstart", "touchmove", "touchend", "wheel"].forEach((eventName) => {
+          phantomHeader.addEventListener(eventName, (e) => {
+            if (e.target.classList.contains("phantom-header")) {
+              hoverCanvas.dispatchEvent(new e.constructor(e.type, e));
             }
           });
-          phantomHeader.addEventListener("mouseleave", () => {
-            hoverHeader.classList.remove("stage-header-hover");
-          });
-
-          // Pass click events on the phantom header onto the project player, essentially making it click-through
-          ["mousedown", "mousemove", "mouseup", "touchstart", "touchmove", "touchend", "wheel"].forEach((eventName) => {
-            phantomHeader.addEventListener(eventName, (e) => {
-              if (e.target.classList.contains("phantom-header")) {
-                hoverCanvas.dispatchEvent(new e.constructor(e.type, e));
-              }
-            });
-          });
-        } else {
-          phantomHeader = hoverHeader.parentElement;
-        }
+        });
+      } else {
+        phantomHeader = hoverHeader.parentElement;
       }
 
       // Listen for when the mouse moves above the page (helps to show header when not in browser full screen mode)
@@ -218,8 +147,6 @@ export default async function ({ addon, console }) {
     } else {
       detachHoverListeners();
       await removePhantomHeader();
-      // Update menu bar visibility when exiting fullscreen
-      updateMenuBarVisibility();
     }
   }
 
@@ -306,7 +233,7 @@ export default async function ({ addon, console }) {
     updatePhantomHeader();
   });
   addon.self.addEventListener("reenabled", () => {
-    if (resizeObserver) resizeObserver.observe(stage);
+    if (resizeObserver && stage) resizeObserver.observe(stage);
     updateBrowserFullscreen();
     updatePhantomHeader();
   });

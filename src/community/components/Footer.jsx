@@ -13,13 +13,12 @@ const Footer = () => (
                 <img
                     className={styles.logo}
                     src={logo}
-                    alt=""
+                    alt="Bilup"
                 />
                 <div>
-                    <span className={styles.wordmark}>PineEditor</span>
                     <p className={styles.tagline}>
                         <FormattedMessage
-                            defaultMessage="Build, share, and remix projects together."
+                            defaultMessage="Elevate your creation."
                             description="Footer tagline"
                             id="mw.community.footer.tagline"
                         />
@@ -109,7 +108,7 @@ const Footer = () => (
                         href="https://accounts.bilup.org"
                         target="_blank"
                         rel="noreferrer"
-                    >PineEditor Accounts</a>
+                    >Bilup Accounts</a>
                     <Link to="/credits">
                         <FormattedMessage
                             defaultMessage="Credits"
@@ -122,7 +121,7 @@ const Footer = () => (
         </div>
         <div className={styles.legal}>
             <FormattedMessage
-                defaultMessage="PineEditor is a mod of TurboWarp and Scratch. Not affiliated with Scratch or the Scratch Foundation."
+                defaultMessage="Bilup is a mod of TurboWarp and Scratch. Not affiliated with Scratch or the Scratch Foundation."
                 description="Footer legal text"
                 id="mw.community.footer.legal"
             />

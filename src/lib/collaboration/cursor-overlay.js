@@ -1,10 +1,12 @@
 import cursorIcon from '../assets/icon--cursor.svg';
+import {parseKeyCombo} from '../shortcuts/registry.js';
 
 /**
  * DOM overlay showing remote cursors, name labels and chat bubbles above
- * the Blockly workspace, plus local capture: mouse movement, "/" to open
- * the cursor chat input, and viewport-change re-projection. Rendering is
- * ported from the old cursor-sync.js; state lives on this instance.
+ * the Blockly workspace, plus local capture: mouse movement, the custom
+ * collaboration-chat shortcut to open the cursor chat input, and
+ * viewport-change re-projection. Rendering is ported from the old
+ * cursor-sync.js; state lives on this instance.
  */
 class CursorOverlay {
     /**
@@ -12,11 +14,17 @@ class CursorOverlay {
      * @param {VirtualMachine} options.vm The VM (for the editing target).
      * @param {PresenceChannel} options.presence Presence send/receive.
      * @param {Function} options.getUsername (userId) => display name.
+     * @param {Function} [options.getAvatarUrl] (userId) => avatar URL or null.
+     * @param {Function} [options.getCustomShortcuts] () => customShortcuts map.
+     *   Read on every keydown so shortcut edits apply without re-attaching.
      */
-    constructor ({vm, presence, getUsername}) {
+    constructor ({vm, presence, getUsername, getAvatarUrl, getCustomShortcuts, getTranslations}) {
         this.vm = vm;
         this.presence = presence;
         this.getUsername = getUsername;
+        this.getAvatarUrl = getAvatarUrl || (() => null);
+        this.getCustomShortcuts = getCustomShortcuts || (() => ({}));
+        this.getTranslations = getTranslations || (() => ({}));
 
         this.workspace = null;
         this.layer = null;
@@ -118,7 +126,8 @@ class CursorOverlay {
         const chatInput = document.createElement('input');
         chatInput.type = 'text';
         chatInput.className = 'collaboration-chat-input';
-        chatInput.placeholder = 'Say something... (max 500 chars)';
+        chatInput.placeholder = this.getTranslations().chatPlaceholder ||
+            'Say something... (max 500 chars)';
         chatInput.maxLength = 500;
         chatInput.style.position = 'absolute';
         chatInput.style.display = 'none';
@@ -198,7 +207,7 @@ class CursorOverlay {
             this.presence.sendCursorLeave();
         });
         this._listen(window, 'keydown', e => {
-            if (e.key !== '/' || this.isChatting) return;
+            if (this.isChatting || !this._isChatShortcut(e)) return;
             const active = document.activeElement;
             const activeTag = active ? active.tagName : '';
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || (active && active.isContentEditable)) {
@@ -214,6 +223,22 @@ class CursorOverlay {
                 this.chatInput.focus();
             }
         });
+    }
+
+    /**
+     * Match a keydown event against the user's configured collaboration-chat
+     * shortcut (customShortcuts.collaborationChat, default '/').
+     * @param {KeyboardEvent} e Keydown event.
+     * @returns {boolean} Whether this key opens the chat input.
+     */
+    _isChatShortcut (e) {
+        const shortcuts = this.getCustomShortcuts();
+        const combo = (shortcuts && shortcuts.collaborationChat) || '/';
+        const parsed = parseKeyCombo(combo);
+        if (e.ctrlKey !== parsed.ctrl) return false;
+        if (e.altKey !== parsed.alt) return false;
+        if (e.shiftKey !== parsed.shift) return false;
+        return Boolean(e.key) && e.key.toLowerCase() === parsed.key.toLowerCase();
     }
 
     _bindViewportSync () {
@@ -267,14 +292,30 @@ class CursorOverlay {
         label.style.position = 'absolute';
         label.style.top = '26px';
         label.style.left = '0';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '4px';
         label.style.padding = '3px 7px';
         label.style.background = 'var(--looks-secondary)';
-        label.style.color = 'var(--ui-white, white)';
+        label.style.color = 'var(--accent-foreground, white)';
         label.style.fontSize = '11px';
         label.style.fontWeight = '600';
         label.style.borderRadius = '4px';
         label.style.whiteSpace = 'nowrap';
         label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+        const labelAvatar = document.createElement('img');
+        labelAvatar.className = 'collaboration-cursor-avatar';
+        labelAvatar.style.width = '14px';
+        labelAvatar.style.height = '14px';
+        labelAvatar.style.borderRadius = '50%';
+        labelAvatar.style.objectFit = 'cover';
+        labelAvatar.style.display = 'none';
+        labelAvatar.draggable = false;
+        label.appendChild(labelAvatar);
+
+        const labelName = document.createElement('span');
+        label.appendChild(labelName);
         el.appendChild(label);
 
         const chat = document.createElement('div');
@@ -300,7 +341,7 @@ class CursorOverlay {
         el.appendChild(chat);
 
         this.layer.appendChild(el);
-        cursor = {el, label, chat};
+        cursor = {el, label, labelAvatar, labelName, chat};
         this.remoteCursors.set(userId, cursor);
         return cursor;
     }
@@ -335,7 +376,16 @@ class CursorOverlay {
             targetName: payload.targetName || null
         };
         this.remotePositions.set(userId, position);
-        cursor.label.textContent = this.getUsername(userId) || '';
+        cursor.labelName.textContent = this.getUsername(userId) || '';
+        const avatarUrl = this.getAvatarUrl(userId);
+        if (avatarUrl) {
+            if (cursor.labelAvatar.getAttribute('src') !== avatarUrl) {
+                cursor.labelAvatar.src = avatarUrl;
+            }
+            cursor.labelAvatar.style.display = 'block';
+        } else {
+            cursor.labelAvatar.style.display = 'none';
+        }
         this._project(cursor, position);
     }
 

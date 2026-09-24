@@ -1,7 +1,5 @@
-import WindowManager from '../../window-system/window-manager.js';
-
 /**
- * IndexedDB by AI （嘿嘿）
+ * IndexedDB by AI (嘿嘿)
  */
 class BackgroundDB {
     constructor(dbName = 'sa-background', version = 2) {
@@ -451,6 +449,10 @@ async function getActiveWorkspaceWallpaper() {
 }
 
 
+import WindowManager from '../../window-system/window-manager.js';
+
+let bgWindow = null;
+
 export default async function ({ addon, msg }) {
     let bgButton;
 
@@ -458,11 +460,9 @@ export default async function ({ addon, msg }) {
     bgDB = new BackgroundDB();
     await bgDB.open();
 
-    // 加载保存的背景（延迟执行以确保工作区元素已加载）
-    setTimeout(async () => {
-        await refreshWorkSpaceBackground();
-        await initializeWallpaperRotation();
-    }, 3000);
+    // 加载保存的背景
+    await refreshWorkSpaceBackground();
+    await initializeWallpaperRotation();
 
     /**  
     * 监听工作区，防止blocks重绘时把我刚刚放进去的img干丢了
@@ -471,7 +471,7 @@ export default async function ({ addon, msg }) {
         try {
             const observer = new MutationObserver(async () => {
                 if (isRefreshingBG) return;
-                const workspace = document.querySelector('.blocks') || document.querySelector('[class*=gui_blocks-wrapper]');
+                const workspace = document.querySelector('[class*=gui_blocks-wrapper]');
                 const bg = document.querySelector('.sa-background-image');
                 if (workspace && !bg) {
                     await refreshWorkSpaceBackground();
@@ -508,7 +508,7 @@ export default async function ({ addon, msg }) {
                 textContent: msg('background'),
             });
             bgButton.addEventListener('click', () => {
-                showBgModal(addon, msg)
+                showBgWindow(addon, msg)
             });
         }
 
@@ -516,26 +516,50 @@ export default async function ({ addon, msg }) {
     }
 }
 
-function showBgModal(addon, msg) {
-    const bgWindow = WindowManager.createWindow({
-        id: 'background-settings',
+function showBgWindow(addon, msg) {
+    // 如果窗口已存在，显示它
+    if (bgWindow && bgWindow.isVisible) {
+        bgWindow.show().bringToFront();
+        return;
+    }
+
+    // 计算初始位置(考虑新的窗口尺寸)
+    const initialX = Math.max(24, Math.min(window.innerWidth - 656, 50)); // 632 + 24 padding
+    const initialY = Math.max(24, Math.min(window.innerHeight - 556, 50)); // 532 + 24 padding
+
+    // 创建窗口
+    bgWindow = WindowManager.createWindow({
+        id: 'background',
         title: msg('background-title'),
-        width: 900,
-        height: 500,
-        minWidth: 600,
-        minHeight: 400,
-        className: 'sa-background-popup',
+        width: 832, 
+        height: 632, 
+        minWidth: 832, 
+        minHeight: 632, 
+        maxWidth: Math.min(window.innerWidth * 0.9, 1032), 
+        maxHeight: Math.min(window.innerHeight * 0.9, 832), 
+        className: 'sa-background-window',
+        x: initialX,
+        y: initialY,
         onClose: () => {
+            bgWindow = null;
         }
     });
 
+    // 创建内容容器
     const content = document.createElement('div');
-    content.className = 'sa-background-content';
+    content.className = 'sa-background-content-wrapper';
+    // 添加内边距避免内容紧贴窗口边缘
+    content.style.padding = '16px';
+    content.style.boxSizing = 'border-box';
 
-    bgWindow.setContent(content);
-    bgWindow.show();
-
+    // 添加内容(等待异步操作完成)
     addContext(content, msg).then(() => {
+        // 设置窗口内容
+        bgWindow.setContent(content);
+        
+        // 显示窗口并置于前端
+        bgWindow.show().bringToFront();
+        
         addModalBackground();
     });
 }
@@ -1215,13 +1239,10 @@ async function addContext(modal, msg) {
     modalDiv.appendChild(modalPreview.wrapper);
     modalDiv.appendChild(modalForm);
 
-    const content = document.createElement('div');
-    content.className = 'sa-background-content-wrapper';
-    content.appendChild(workspaceDiv);
-    content.appendChild(rotationDiv);
-    content.appendChild(modalDiv);
-
-    modal.appendChild(content);
+    // 直接将内容添加到传入的容器中
+    modal.appendChild(workspaceDiv);
+    modal.appendChild(rotationDiv);
+    modal.appendChild(modalDiv);
 
     await refreshWallpaperList();
     await refreshPreviews();
@@ -1245,26 +1266,28 @@ async function addModalBackground() {
     try {
         const config = await getModalBackgroundConfig();
         
-        // 查找模态窗口内容
-        const modalContents = Array.from(document.querySelectorAll('[class*="modal_content"]'));
-        // 查找自由窗口内容
-        const addonWindows = Array.from(document.querySelectorAll('.addon-window'));
+        // 获取旧的 modal 窗口内容
+        const modalContents = Array.from(document.querySelectorAll('[class*=\"modal_content\"], .modal-window-content, .windowed-modal-content'));
         
-        // 如果没有任何窗口，则返回
-        if (!modalContents.length && !addonWindows.length) return;
+        // 获取 WindowManager 创建的窗口内容
+        const addonWindowContents = Array.from(document.querySelectorAll('.addon-window .addon-window-content'));
+        
+        // 合并所有目标元素
+        const allContents = [...modalContents, ...addonWindowContents];
+        
+        if (!allContents.length) return;
 
-        // 处理模态窗口
-        const modalBackgrounds = Array.from(new Set(modalContents.map((content) => {
+        const modalBackgrounds = Array.from(new Set(allContents.map((content) => {
+            // 优先查找全屏 shell
             const fullscreenShell = content.closest('.sa-modal-shell-fullscreen');
-            return fullscreenShell || content;
+            if (fullscreenShell) return fullscreenShell;
+            
+            // 对于 WindowManager 窗口，使用窗口本身作为背景目标
+            const addonWindow = content.closest('.addon-window');
+            if (addonWindow) return addonWindow;
+            
+            return content;
         })));
-        
-        // 收集所有需要应用背景的窗口（模态窗口 + 自由窗口）
-        const allBackgroundTargets = [
-            ...modalBackgrounds,
-            ...addonWindows
-        ];
-        
         const resetModalBackground = (target) => {
             if (!target) return;
             target.classList.remove('sa-modal-background-enabled');
@@ -1275,12 +1298,28 @@ async function addModalBackground() {
             target.style.removeProperty('--sa-modal-bg-blur');
             target.style.removeProperty('--sa-modal-bg-opacity');
             target.style.removeProperty('--sa-modal-bg-modalsize');
+            
+            // 移除 WindowManager 窗口中创建的背景元素
+            const bgElement = target.querySelector('.sa-modal-bg-element');
+            if (bgElement) {
+                bgElement.remove();
+            }
+            
+            // 对于 WindowManager 窗口的内容区域，恢复默认样式
+            if (target.classList.contains('addon-window-content')) {
+                target.style.backgroundImage = '';
+                target.style.backgroundSize = '';
+                target.style.backgroundPosition = '';
+                target.style.backgroundRepeat = '';
+                target.style.filter = '';
+                target.style.opacity = '';
+            }
         };
         document.querySelectorAll('[class*="library_library-scroll-grid"]').forEach(ele => ele.style.background = 'transparent')
 
         if (!config) {
             document.documentElement.style.setProperty('--enable-modal-background', 'var(--ui-modal-background)')
-            allBackgroundTargets.forEach(resetModalBackground);
+            modalBackgrounds.forEach(resetModalBackground);
             return;
         }
         document.documentElement.style.setProperty('--enable-modal-background', 'transparent');
@@ -1312,17 +1351,64 @@ async function addModalBackground() {
         }
         const backgroundPosition = getModalBackgroundPosition(config.alignX, config.alignY, config.offsetX, config.offsetY);
 
-        allBackgroundTargets.forEach((bg) => {
+        modalBackgrounds.forEach((bg) => {
             resetModalBackground(bg);
 
-            bg.classList.add('sa-modal-background-enabled');
-            bg.classList.toggle('sa-modal-background-fullscreen', Boolean(bg.closest('.sa-modal-shell-fullscreen')));
-            bg.style.setProperty('--sa-modal-bg-image', `url("${config.link}")`);
-            bg.style.setProperty('--sa-modal-bg-size', backgroundSize);
-            bg.style.setProperty('--sa-modal-bg-position', backgroundPosition);
-            bg.style.setProperty('--sa-modal-bg-blur', `${config.blur}px`);
-            bg.style.setProperty('--sa-modal-bg-opacity', `${config.opacity}`);
-            bg.style.setProperty('--sa-modal-bg-modalsize', `${modalSizeFactor}`);
+            // 对于 WindowManager 窗口，找到内容区域来应用背景
+            let targetElement = bg;
+            if (bg.classList.contains('addon-window')) {
+                const contentArea = bg.querySelector('.addon-window-content');
+                if (contentArea) {
+                    targetElement = contentArea;
+                }
+            }
+
+            targetElement.classList.add('sa-modal-background-enabled');
+            targetElement.classList.toggle('sa-modal-background-fullscreen', Boolean(bg.closest('.sa-modal-shell-fullscreen')));
+            targetElement.style.setProperty('--sa-modal-bg-image', `url("${config.link}")`);
+            targetElement.style.setProperty('--sa-modal-bg-size', backgroundSize);
+            targetElement.style.setProperty('--sa-modal-bg-position', backgroundPosition);
+            targetElement.style.setProperty('--sa-modal-bg-blur', `${config.blur}px`);
+            targetElement.style.setProperty('--sa-modal-bg-opacity', `${config.opacity}`);
+            targetElement.style.setProperty('--sa-modal-bg-modalsize', `${modalSizeFactor}`);
+            
+            // 对于 WindowManager 窗口，创建背景元素
+            if (bg.classList.contains('addon-window')) {
+                // 先移除之前创建的背景元素
+                const existingBg = targetElement.querySelector('.sa-modal-bg-element');
+                if (existingBg) {
+                    existingBg.remove();
+                }
+                
+                // 创建背景元素
+                const bgElement = document.createElement('div');
+                bgElement.className = 'sa-modal-bg-element';
+                bgElement.style.cssText = `
+                    position: absolute;
+                    inset: 0;
+                    z-index: 0;
+                    background-image: url("${config.link}");
+                    background-size: ${backgroundSize};
+                    background-position: ${backgroundPosition};
+                    background-repeat: no-repeat;
+                    filter: blur(${config.blur}px);
+                    opacity: ${config.opacity};
+                    pointer-events: none;
+                `;
+                
+                // 设置内容区域为相对定位
+                targetElement.style.position = 'relative';
+                
+                // 将背景元素插入到内容区域的最前面
+                targetElement.insertBefore(bgElement, targetElement.firstChild);
+                
+                // 确保内容区域内的子元素有更高的 z-index
+                Array.from(targetElement.children).forEach(child => {
+                    if (child !== bgElement && child.style.zIndex === '') {
+                        child.style.zIndex = '1';
+                    }
+                });
+            }
         });
 
     } catch (e) {
@@ -1335,7 +1421,7 @@ async function resizeWorkspaceBackground() {
         const mode = await getSetting('WorkSpaceBGLayout') || 'stretch';
         const offsetX = await getSetting('WorkSpaceBGOffsetX') || 0;
         const offsetY = await getSetting('WorkSpaceBGOffsetY') || 0;
-        const workspace = document.querySelector('.blocks') || document.querySelector('[class*=gui_blocks-wrapper]');
+        const workspace = document.querySelector('[class*=gui_blocks-wrapper]');
         const bgImage = document.querySelector('.sa-background-image');
         if (bgImage && workspace) {
             applyBackgroundLayout({
@@ -1370,9 +1456,9 @@ async function refreshWorkSpaceBackground() {
         );
         clearWallpaperTransitionTimeout();
         const wallpaper = await getActiveWorkspaceWallpaper();
-        const existingWrappers = Array.from(document.querySelectorAll('.sa-background-wrapper'));
-        const existingBg = existingWrappers[0] || null;
-        existingWrappers.slice(1).forEach((wrapper) => wrapper.remove());
+        const existingBackgrounds = Array.from(document.querySelectorAll('.sa-background-image'));
+        const existingBg = existingBackgrounds[0] || null;
+        existingBackgrounds.slice(1).forEach((backgroundImage) => backgroundImage.remove());
 
         if (!wallpaper || !wallpaper.link) {
             if (existingBg) {
@@ -1390,29 +1476,16 @@ async function refreshWorkSpaceBackground() {
             return;
         }
 
-        const workspace = document.querySelector("[class*='blocks-wrapper_']") || document.querySelector('.blocks');
+        const workspace = document.querySelector('[class*=gui_blocks-wrapper]');
         if (!workspace) {
             isRefreshingBG = false;
             return;
         }
 
-        const blocksArea = document.querySelector("[class*='blocks_blocks_']");
-        const blocksSvg = document.querySelector('svg.blocklySvg');
-        
-        if (blocksArea) {
-            blocksArea.style.backgroundColor = 'transparent';
-            blocksArea.style.backgroundImage = 'none';
-        }
-        
-        if (blocksSvg) {
-            blocksSvg.style.setProperty('background-color', 'transparent', 'important');
-        }
-
-        const existingImg = existingBg ? existingBg.querySelector('.sa-background-image') : null;
-        if (existingImg && existingImg.dataset.wallpaperId === wallpaper.id) {
-            existingImg.src = wallpaper.link;
-            existingImg.style.filter = `blur(${await getSetting('WorkSpaceBGBlur') || 0}px)`;
-            existingImg.style.opacity = `${await getSetting('WorkSpaceBGOpacity') || 0.5}`;
+        if (existingBg && existingBg.dataset.wallpaperId === wallpaper.id) {
+            existingBg.src = wallpaper.link;
+            existingBg.style.filter = `blur(${await getSetting('WorkSpaceBGBlur') || 0}px)`;
+            existingBg.style.opacity = `${await getSetting('WorkSpaceBGOpacity') || 0.5}`;
             await resizeWorkspaceBackground();
             isRefreshingBG = false;
             return;
@@ -1440,49 +1513,23 @@ async function refreshWorkSpaceBackground() {
 
 async function createNewBackground(wallpaper, workspace, animationDuration) {
     clearWallpaperTransitionTimeout();
-    workspace.querySelectorAll('.sa-background-wrapper').forEach((wrapper) => wrapper.remove());
-    
-    const blocksArea = document.querySelector("[class*='blocks_blocks_']");
-    
-    // Create a wrapper div for the background
-    const bgWrapper = document.createElement('div');
-    bgWrapper.className = 'sa-background-wrapper';
-    bgWrapper.style.position = 'absolute';
-    bgWrapper.style.top = '0';
-    bgWrapper.style.left = '0';
-    bgWrapper.style.width = '100%';
-    bgWrapper.style.height = '100%';
-    bgWrapper.style.zIndex = '0';
-    bgWrapper.style.overflow = 'hidden';
-    
+    workspace.querySelectorAll('.sa-background-image').forEach((backgroundImage) => backgroundImage.remove());
     const background = document.createElement('img');
     background.className = 'sa-background-image';
     background.dataset.wallpaperId = wallpaper.id || '';
     background.src = wallpaper.link;
     background.style.filter = `blur(${await getSetting('WorkSpaceBGBlur') || 0}px)`;
-    background.style.opacity = `${await getSetting('WorkSpaceBGOpacity') || 0.5}`;
+    background.style.clipPath = 'inset(0)';
+    background.style.opacity = '0'; // Start invisible
     background.style.position = 'absolute';
-    background.style.top = '0';
-    background.style.left = '0';
-    background.style.width = '100%';
-    background.style.height = '100%';
-    background.style.objectFit = 'cover';
     background.draggable = false;
-    
-    bgWrapper.appendChild(background);
-    
-    // Insert the background wrapper before the blocks area
-    if (blocksArea && blocksArea.parentNode) {
-        blocksArea.parentNode.insertBefore(bgWrapper, blocksArea);
-    } else {
-        workspace.prepend(bgWrapper);
-    }
-    
-    // Ensure blocks area has higher z-index
-    if (blocksArea) {
-        blocksArea.style.position = 'relative';
-        blocksArea.style.zIndex = '1';
-    }
-    
+    background.style.transition = `opacity ${animationDuration}ms ease-in`; // Add transition for fade in
+
+    workspace.prepend(background);
     await resizeWorkspaceBackground();
+
+    // Trigger fade in
+    requestAnimationFrame(async () => {
+        background.style.opacity = `${await getSetting('WorkSpaceBGOpacity') || 0.5}`;
+    });
 }

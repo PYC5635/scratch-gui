@@ -3,13 +3,66 @@
 /* This is for overriding some styles that don't really "belong" to any existing stylesheets */
 /* Try to use this sparingly, otherwise this will become unmaintainable again... */
 
-/* Remove text shadow from modal titles to avoid double shadow */
-.header-item-title {
-    text-shadow: none !important;
-}
-
 :root {
     color-scheme: var(--color-scheme);
+
+    /* Default GUI color variables (light theme) — ensures the page is never unstyled */
+    --color-scheme: light;
+    --ui-primary: hsla(215, 100%, 95%, 1);
+    --ui-secondary: hsla(215, 75%, 95%, 1);
+    --ui-tertiary: hsla(215, 50%, 90%, 1);
+    --ui-modal-overlay: rgba(0, 0, 0, 0.3);
+    --ui-modal-background: hsla(0, 100%, 100%, 1);
+    --ui-modal-foreground: hsla(225, 15%, 40%, 1);
+    --ui-modal-header-background: hsla(215, 100%, 65%, 1);
+    --ui-modal-header-foreground: hsla(0, 100%, 100%, 1);
+    --ui-white: hsla(0, 100%, 100%, 1);
+    --ui-white-dim: hsla(0, 100%, 100%, 0.75);
+    --ui-white-transparent: hsla(0, 100%, 100%, 0.25);
+    --ui-transparent: hsla(0, 100%, 100%, 0);
+    --ui-black-transparent: hsla(0, 0%, 0%, 0.15);
+    --text-primary: hsla(225, 15%, 40%, 1);
+    --text-primary-transparent: hsla(225, 15%, 40%, 0.75);
+    --motion-primary: hsla(215, 100%, 65%, 1);
+    --motion-tertiary: hsla(215, 60%, 50%, 1);
+    --looks-secondary: hsla(215, 100%, 65%, 1);
+    --looks-tertiary: hsla(215, 60%, 50%, 1);
+    --looks-transparent: hsla(215, 100%, 65%, 0.35);
+    --looks-light-transparent: hsla(215, 100%, 65%, 0.15);
+    --looks-secondary-dark: hsla(215, 60%, 40%, 1);
+    --red-primary: hsla(20, 100%, 55%, 1);
+    --red-tertiary: hsla(20, 100%, 45%, 1);
+    --sound-primary: hsla(300, 53%, 60%, 1);
+    --sound-tertiary: hsla(300, 48%, 50%, 1);
+    --control-primary: hsla(38, 100%, 55%, 1);
+    --data-primary: hsla(30, 100%, 55%, 1);
+    --pen-primary: hsla(163, 85%, 40%, 1);
+    --pen-transparent: hsla(163, 85%, 40%, 0.25);
+    --pen-tertiary: hsla(163, 86%, 30%, 1);
+    --error-primary: hsla(30, 100%, 55%, 1);
+    --error-light: hsla(30, 100%, 70%, 1);
+    --error-transparent: hsla(30, 100%, 55%, 0.25);
+    --extensions-primary: hsla(163, 85%, 40%, 1);
+    --extensions-tertiary: hsla(163, 85%, 30%, 1);
+    --extensions-transparent: hsla(163, 85%, 40%, 0.35);
+    --extensions-light: hsla(163, 57%, 85%, 1);
+    --drop-highlight: hsla(215, 100%, 77%, 1);
+    --menu-bar-background: hsla(215, 100%, 65%, 1);
+    --menu-bar-background-image: none;
+    --menu-bar-foreground: #ffffff;
+    --assets-background: #ffffff;
+    --input-background: #ffffff;
+    --popover-background: #ffffff;
+    --shadow: hsla(0, 0%, 0%, 0.15);
+    --badge-background: #dbebff;
+    --badge-border: #b9d6ff;
+    --fullscreen-background: #ffffff;
+    --fullscreen-accent: #e8edf1;
+    --page-background: #ffffff;
+    --page-foreground: #000000;
+    --link-color: hsla(215, 100%, 65%, 1);
+    --project-title-inactive: hsla(0, 100%, 100%, 0.25);
+    --project-title-hover: #ffffff7f;
 }
 
 /* popover is used by gui and paint */
@@ -50,94 +103,6 @@
     --editorTheme3-flyout-text: inherit;
     --editorTheme3-scrollbar: #c1c1c1;
     --editorTheme3-grid-color: #dedede;
-}
-
-:global(svg.blocklySvg) {
-    background-color: var(--editorTheme3-workspace-background) !important;
-}
-
-/* Ensure block text is always gray */
-:global(.blocklyDraggable > .blocklyText),
-:global(.blocklyBasicField_label),
-:global(.blocklyFieldLabel),
-:global(.blocklyFieldDropdown),
-:global(.blocklyFieldVariable),
-:global(.blocklyFieldColour),
-:global(.blocklyFieldCheckbox),
-:global(.blocklyFieldAngle),
-:global(.blocklyFieldDate) {
-    fill: var(--editorTheme3-blockText, #FFFFFF) !important;
-    color: var(--editorTheme3-blockText, #FFFFFF) !important;
-}
-
-/* Ensure input field text is always gray */
-:global(.blocklyFieldInput),
-:global(.blocklyFieldNumber),
-:global(.blocklyFieldInput input),
-:global(.blocklyFieldNumber input),
-:global(.blocklyText.blocklyFieldInput),
-:global(.blocklyText.blocklyFieldNumber),
-:global(.blocklyInput .blocklyText),
-:global(.blocklyNumberInput .blocklyText),
-:global(.blocklyFieldInput .blocklyText),
-:global(.blocklyFieldNumber .blocklyText),
-:global(.blocklyInputText),
-:global(.blocklyInputText .blocklyText),
-:global(.blocklyBasicField .blocklyText),
-:global(svg .blocklyFieldInput .blocklyText),
-:global(svg .blocklyFieldNumber .blocklyText),
-:global(.blocklyFieldInput text),
-:global(.blocklyFieldInput tspan),
-:global(.blocklyFieldNumber text),
-:global(.blocklyFieldNumber tspan) {
-    fill: var(--editorTheme3-inputColor-text, #575E75) !important;
-    color: var(--editorTheme3-inputColor-text, #575E75) !important;
-    text-fill: var(--editorTheme3-inputColor-text, #575E75) !important;
-    -webkit-text-fill-color: var(--editorTheme3-inputColor-text, #575E75) !important;
-    font-weight: normal !important;
-}
-
-/* Ensure input field backgrounds are white */
-:global(.blocklyFieldInput),
-:global(.blocklyFieldNumber),
-:global(.blocklyInput),
-:global(.blocklyNumberInput) {
-    fill: #FFFFFF !important;
-    background-color: #FFFFFF !important;
-    border-color: #CCCCCC !important;
-}
-
-:global(svg.blocklyToolbox) {
-    background-color: var(--editorTheme3-toolbox-background) !important;
-}
-
-:global(svg.blocklyToolbox > path.blocklyToolboxBackground) {
-    fill: var(--editorTheme3-toolbox-background) !important;
-}
-
-:global(.blocklyTreeLabel) {
-    fill: var(--editorTheme3-toolbox-text) !important;
-}
-
-:global(svg.blocklyFlyout) {
-    background-color: var(--editorTheme3-flyout-background) !important;
-}
-
-:global(svg.blocklyFlyout > rect.blocklyFlyoutBackground) {
-    fill: var(--editorTheme3-flyout-background) !important;
-}
-
-:global(.blocklyFlyoutLabelText) {
-    fill: var(--editorTheme3-flyout-text) !important;
-}
-
-:global(.blocklyScrollbarBackground),
-:global(.blocklyScrollbarThumb) {
-    fill: var(--editorTheme3-scrollbar) !important;
-}
-
-:global(.blocklyScrollbarBackground) {
-    stroke: var(--editorTheme3-scrollbar) !important;
 }
 
 /* Disable window animations */

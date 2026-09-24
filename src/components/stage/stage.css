@@ -4,31 +4,26 @@
 @import "../../css/z-index.css";
 
 .stage {
-    /*
-        Fixes a few extra pixels of margin/padding, that adds on to the bottom
-        of the element, which messes up the chrome padding consistency
-    */
     display: block;
 
     border-radius: $space;
     border: $stage-standard-border-width solid $ui-black-transparent;
     overflow: hidden;
 
-    /* @todo: This is for overriding the value being set somewhere. Where is it being set? */
     background-color: transparent;
 
-    /* Allow custom touch handling to prevent scrolling on Edge */
     touch-action: none;
 
-    /* Make sure border is not included in size calculation */
     box-sizing: content-box !important;
 
-    /* enforce overflow + reset position of absolutely-positioned children */
     position: relative;
 
-    /* reset dark styles inherited from dark mode */
     color-scheme: light;
     color: $text-primary-default;
+
+    /* Width and height are driven by the drag resizer and the stage-size
+       selector; CSS transitions on them add a 0.3 s lag that makes the
+       drag feel sluggish. */
 }
 
 .stage.full-screen {
@@ -63,7 +58,6 @@ stage doesn't "spill" out from under its rounded corners. instead, shift these o
     top: $stage-standard-border-width;
     left: $stage-standard-border-width;
 
-    /* the overlay itself should not capture pointer events; only its child elements can do that */
     pointer-events: none;
 }
 

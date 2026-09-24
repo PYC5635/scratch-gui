@@ -1,15 +1,33 @@
 import JSZip from '@turbowarp/jszip';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {clearContentCache} from './cached-fetch.js';
 import {isGalleryExtensionUrl} from '../trusted-extension.js';
 
 const API_BASE = 'https://api.bilup.org/api';
+
+const DEFAULT_FETCH_TIMEOUT = 30000; // 30 seconds
+
+/**
+ * Wraps fetch() with an AbortController timeout so a hanging request
+ * never blocks the UI indefinitely.
+ * @param {string|Request} url
+ * @param {object} [options]
+ * @param {number} [options.timeout] Timeout in ms (default 30 000).
+ * @returns {Promise<Response>}
+ */
+const fetchWithTimeout = (url, {timeout = DEFAULT_FETCH_TIMEOUT, ...options} = {}) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    return fetch(url, {...options, signal: controller.signal})
+        .finally(() => clearTimeout(timer));
+};
 
 const SESSION_KEY = 'mw:mistwarp-session';
 const ROTUR_TOKEN_KEY = 'mw:rotur-token';
 
 const loadRoturToken = () => {
     try {
-        return localStorage.getItem(ROTUR_TOKEN_KEY) || null;
+        return getStorageItem(ROTUR_TOKEN_KEY) || null;
     } catch (e) {
         return null;
     }
@@ -19,7 +37,7 @@ let exchangeInFlight = null;
 
 const loadSession = () => {
     try {
-        return localStorage.getItem(SESSION_KEY) || null;
+        return getStorageItem(SESSION_KEY) || null;
     } catch (e) {
         return null;
     }
@@ -91,19 +109,19 @@ const parseResponse = async response => {
 };
 
 const exchangeValidator = async (roturToken, appKey = 'bilup') => {
-    const validatorResponse = await fetch(
+    const validatorResponse = await fetchWithTimeout(
         `https://api.accounts.bilup.org/generate_validator?key=${encodeURIComponent(appKey)}&auth=${encodeURIComponent(roturToken)}`
     );
     const validatorData = await validatorResponse.json().catch(() => ({}));
     const validator = validatorData.validator;
     if (!validator) {
-        const error = new Error(validatorData.error || 'Could not validate PineEditor Accounts login');
+        const error = new Error(validatorData.error || 'Could not validate Bilup Accounts login');
         if (validatorData.error || validatorResponse.status === 403) {
             error.code = 'VALIDATOR_GENERATION_FAILED';
         }
         throw error;
     }
-    const authResponse = await fetch(
+    const authResponse = await fetchWithTimeout(
         `${API_BASE}/auth?v=${encodeURIComponent(validator)}`,
         {method: 'POST'}
     );
@@ -162,7 +180,7 @@ const request = async (path, {method = 'GET', body, headers = {}, raw = false, c
             finalHeaders['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
         }
-        return fetch(`${API_BASE}${path}`, options);
+        return fetchWithTimeout(`${API_BASE}${path}`, options);
     };
     let response = await doFetch();
     if (
@@ -271,7 +289,7 @@ const collectExtensionSources = async sb3Blob => {
     const urls = getCustomExtensionUrls(JSON.parse(await projectFile.async('text')));
     const sources = {};
     await Promise.all(urls.map(async url => {
-        const response = await fetch(url, {credentials: 'omit'});
+        const response = await fetchWithTimeout(url, {credentials: 'omit'});
         if (!response.ok) throw new Error(`Could not read custom extension source (${response.status}): ${url}`);
         sources[url] = await response.text();
     }));

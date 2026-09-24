@@ -2,7 +2,39 @@ import LazyScratchBlocks from '../tw-lazy-scratch-blocks';
 import AddonHooks from '../../addons/hooks';
 
 import WindowManager from '../../addons/window-system/window-manager';
-import * as BrowserGit from '../git/browser-git';
+
+// browser-git pulls in isomorphic-git, lightning-fs and jszip (several hundred
+// KB after gzip). Extensions almost never use Scratch.gui.git, so expose a lazy
+// proxy that loads the real module on first access instead of at startup.
+const createBrowserGitAccessor = () => {
+    if (typeof Proxy === 'undefined') {
+        // Very old browsers: keep a stub so Scratch.gui.git exists.
+        return {};
+    }
+    let browserGitPromise;
+    const getBrowserGit = () => {
+        if (!browserGitPromise) {
+            browserGitPromise = import('../git/browser-git');
+        }
+        return browserGitPromise;
+    };
+    const cache = {};
+    return new Proxy(cache, {
+        get: (target, prop) => {
+            if (prop in target) {
+                return target[prop];
+            }
+            // Function exports resolve to promises of their return values;
+            // non-function exports (constants) resolve to their value.
+            target[prop] = (...args) => getBrowserGit().then(module => {
+                const value = module[prop];
+                return typeof value === 'function' ? value(...args) : value;
+            });
+            return target[prop];
+        },
+        has: () => true
+    });
+};
 
 /**
  * Implements Scratch.gui API for unsandboxed extensions.
@@ -42,8 +74,8 @@ const implementGuiAPI = Scratch => {
         // Expose the window manager on the VM for addons/integration.
         wm: WindowManager,
 
-        // Expose MistWarp's browser git integration on the VM.
-        git: BrowserGit
+        // Expose Bilup's browser git integration on the VM.
+        git: createBrowserGitAccessor()
     };
 };
 

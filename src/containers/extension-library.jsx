@@ -1,7 +1,6 @@
 import bindAll from 'lodash.bindall';
-import classNames from 'classnames';
 import PropTypes from 'prop-types';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import VM from 'scratch-vm';
 import { defineMessages, injectIntl, intlShape } from 'react-intl';
 import log from '../lib/utils/log';
@@ -11,39 +10,13 @@ import extensionLibraryContent, {
     galleryLoading,
     galleryMore
 } from '../lib/libraries/extensions/index.jsx';
+import {loadCustomGallery} from '../lib/custom-gallery-parser';
 import extensionTags from '../lib/libraries/tw-extension-tags';
-import twExtensionTranslations from '../lib/libraries/extensions/tw-extension-translations';
 import {getVanillaPalette} from '../lib/mw-vanilla-palette';
-import {manuallyTrustExtension} from './tw-security-manager.jsx';
+import {manuallyTrustExtension, markExtensionAsCustom} from './tw-security-manager.jsx';
 
 import LibraryComponent from '../components/tw-extension-library/extension-library.jsx';
 import extensionIcon from '../components/action-menu/icon--sprite.svg';
-
-// 分类状态小圆点颜色：加载中=黄、官方源成功=绿、第三方源成功=蓝、都失败=红
-const TAG_STATUS_COLORS = {
-    online: '#4CAF50',
-    local: '#2196F3',
-    loading: '#FFC107',
-    error: '#F44336'
-};
-
-// 左侧分类侧边栏的小圆点（绿/黄/红表示分类加载状态）
-const SidebarStatusDot = ({color, isLoading, className}) => (
-    <span
-        className={classNames(className, {'sidebar-loading-dot': isLoading})}
-        style={{
-            display: 'inline-block',
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            marginRight: '0.5rem',
-            flexShrink: 0,
-            background: color,
-            // 柔光环：与外圈颜色一致的半透明描边
-            boxShadow: `0 0 0 2px ${color}40`
-        }}
-    />
-);
 
 const messages = defineMessages({
     extensionTitle: {
@@ -68,28 +41,13 @@ const toLibraryItem = extension => {
     return extension;
 };
 
-const translateGalleryItem = (extension, locale) => {
-    const localTranslations = twExtensionTranslations[extension.extensionId] || {};
-    return {
-        ...extension,
-        name: extension.nameTranslations?.[locale] || localTranslations.nameTranslations?.[locale] || extension.name,
-        description: extension.descriptionTranslations?.[locale] || localTranslations.descriptionTranslations?.[locale] || extension.description
-    };
-};
-
-const translateStaticItem = (item, locale) => {
-    if (typeof item !== 'object' || item === null) return item;
-    if (!item.nameTranslations && !item.descriptionTranslations) return item;
-
-    return {
-        ...item,
-        name: item.nameTranslations?.[locale] || item.name,
-        description: item.descriptionTranslations?.[locale] || item.description
-    };
-};
+const translateGalleryItem = (extension, locale) => ({
+    ...extension,
+    name: extension.nameTranslations[locale] || extension.name,
+    description: extension.descriptionTranslations[locale] || extension.description
+});
 
 let cachedGallery = null;
-let cachedLoadStatus = null;
 let cachedSourceStatuses = {};
 let cachedCustomSources = []; // [{id, name, url}]
 let galleryUpdateListeners = [];
@@ -105,6 +63,8 @@ const addGalleryUpdateListener = listener => {
     };
 };
 
+// 广播快照给所有已挂载的扩展库弹窗；每次生成新引用，
+// 确保 PureComponent 的浅比较能识别到变化并重新渲染
 const notifyListeners = () => {
     const snapshot = {
         gallery: cachedGallery ? [...cachedGallery] : cachedGallery,
@@ -119,8 +79,11 @@ const updateGallery = newGallery => {
     notifyListeners();
 };
 
+// 安全地解析相对/绝对 URL，解析失败时原样返回
 const safeResolveURL = (value, base) => {
-    if (!value) return null;
+    if (!value) {
+        return null;
+    }
     try {
         return new URL(value, base).href;
     } catch (error) {
@@ -128,6 +91,9 @@ const safeResolveURL = (value, base) => {
     }
 };
 
+// 把自定义库返回的元数据规范化为扩展库内部格式
+// 兼容 {extensions: [...]} 与数组两种形态；图标/JS/文档相对路径按库 URL 解析
+// 字段缺失时做降级，保证扩展一定能被 isExtension 保留并正常展示
 const normalizeCustomExtension = (extension, source, index) => {
     const baseURL = new URL(source.url);
     const js = extension.extensionURL || extension.extensionUrl || extension.js || extension.url;
@@ -151,16 +117,27 @@ const normalizeCustomExtension = (extension, source, index) => {
     };
 };
 
+// 独立加载一个自定义扩展库：解析元数据 → 合并进 gallery → 更新状态灯。
+// 不依赖整体 fetchLibrary 重拉，因此不受内置源网络时序影响，能立即显示扩展。
 const fetchCustomSource = async id => {
     const source = cachedCustomSources.find(cs => cs.id === id);
-    if (!source) return;
+    if (!source) {
+        return;
+    }
     try {
-        const res = await fetch(source.url);
-        if (!res.ok) throw new Error(`HTTP status ${res.status}`);
-        const data = await res.json();
-        const rawExtensions = Array.isArray(data) ? data : (data.extensions || []);
+        const rawExtensions = await loadCustomGallery(source.url);
         const extensions = rawExtensions.map((extension, index) =>
             normalizeCustomExtension(extension, source, index));
+        // 该库开启"非沙盒运行"时，手动信任其扩展 URL，使其绕过沙盒
+        // （官方域名扩展无论是否开启都会自动非沙盒，由 isTrustedExtensionUrl 处理）
+        if (source.unsandboxed) {
+            extensions.forEach(extension => {
+                if (extension.extensionURL) {
+                    manuallyTrustExtension(extension.extensionURL);
+                }
+            });
+        }
+        // 先移除该源旧扩展，再加入新扩展，避免重复
         cachedGallery = [...(cachedGallery || []).filter(item => item.source !== id), ...extensions];
         cachedSourceStatuses[id] = 'loaded';
     } catch (error) {
@@ -170,13 +147,22 @@ const fetchCustomSource = async id => {
     notifyListeners();
 };
 
+// 注册一个自定义扩展库；相同 URL 复用已有 id，避免重复添加
+// 1) 立即广播快照（新引用），侧边栏标签马上出现（黄灯 loading）
+// 2) 独立加载该库，完成后广播（绿灯 + 扩展卡片 / 红灯 + 失败提示）
 const addCustomSource = source => {
     const existing = cachedCustomSources.find(cs => cs.url === source.url);
     const id = existing ? existing.id : `custom_${++customSourceCounter}`;
     if (existing) {
         existing.name = source.name;
+        existing.unsandboxed = source.unsandboxed === true;
     } else {
-        cachedCustomSources.push({id, name: source.name, url: source.url});
+        cachedCustomSources.push({
+            id,
+            name: source.name,
+            url: source.url,
+            unsandboxed: source.unsandboxed === true
+        });
     }
     cachedSourceStatuses[id] = 'loading';
     notifyListeners();
@@ -184,9 +170,13 @@ const addCustomSource = source => {
     return id;
 };
 
+// 删除一个自定义扩展库：移除注册、清掉状态与对应扩展，
+// 立即广播（标签消失），再重拉一次所有源收尾
 const removeCustomSource = id => {
     const index = cachedCustomSources.findIndex(cs => cs.id === id);
-    if (index === -1) return;
+    if (index === -1) {
+        return;
+    }
     cachedCustomSources.splice(index, 1);
     delete cachedSourceStatuses[id];
     if (cachedGallery) {
@@ -196,640 +186,271 @@ const removeCustomSource = id => {
     fetchLibrary().catch(error => log.error(error));
 };
 
-// 存储各扩展库的刷新函数，供 tag-button 调用
-const retryFetchers = {};
-
-const fetchWithTimeout = (url, timeoutMs) => {
+/**
+ * Fetch with timeout to prevent hanging requests from blocking all extension sources
+ */
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 10000) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(timer);
+    }
 };
 
-const fetchLibrary = async () => {
-    const emptyBanner = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAACXBIWXMAAAsTAAALEwEAmpwYAAADGWlDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjaY2BgnuDo4uTKJMDAUFBUUuQe5BgZERmlwH6egY2BmYGBgYGBITG5uMAxIMCHgYGBIS8/L5UBA3y7xsDIwMDAcFnX0cXJlYE0wJpcUFTCwMBwgIGBwSgltTiZgYHhCwMDQ3p5SUEJAwNjDAMDg0hSdkEJAwNjAQMDg0h2SJAzAwNjCwMDE09JakUJAwMDg3N+QWVRZnpGiYKhpaWlgmNKflKqQnBlcUlqbrGCZ15yflFBflFiSWoKAwMD1A4GBgYGXpf8EgX3xMw8BUNTVQYqg4jIKAX08EGIIUByaVEZhMXIwMDAIMCgxeDHUMmwiuEBozRjFOM8xqdMhkwNTJeYNZgbme+y2LDMY2VmzWa9yubEtoldhX0mhwBHJycrZzMXM1cbNzf3RB4pnqW8xryH+IL5nvFXCwgJrBZ0E3wk1CisKHxYJF2UV3SrWJw4p/hWiRRJYcmjUhXSutJPZObIhsoJyp2V71HwUeRVvKA0RTlKRUnltepWtUZ1Pw1Zjbea+7QmaqfqWOsK6b7SO6I/36DGMMrI0ljS+LfJPdPDZivM+y0qLBOtfKwtbFRtRexY7L7aP3e47XjB6ZjzXpetruvdVrov9VjkudBrgfdCn8W+y/xW+a8P2Bq4N+hY8PmQW6HPwr5EMEUKRilFG8e4xUbF5cW3JMxO3Jx0Nvl5KlOaXLpNRlRmVdas7D059/KY8tULfAqLi2YXHy55WyZR7lJRWDmv6mz131q9uvj6SQ3HGn83G7Skt85ru94h2Ond1d59uJehz76/bsK+if8nO05pnXpiOu+M4JmzZj2aozW3ZN6+BVwLwxYtXvxxqcOyCcsfrjRe1br65lrddU3rb2402NSx+cFWq21Tt3/Y6btr1R6Oven7jh9QP9h56PURv6Obj4ufqD355LT3mS3nZM+3X/h0Ke7yqasW15bdEL3ZeuvrnfS7N+/7PDjwyPTx6qeKz2a+EHzZ9Zr5Td3bn+9LP3z6VPD53de8b+9+5P/88Lv4z7d/Vf//AwAqvx2K829RWwAAACBjSFJNAAB6JQAAgIMAAPn/AACA6QAAdTAAAOpgAAA6mAAAF2+SX8VGAAAAEUlEQVR42mL4zwAAAAD//wMAAgEBAJlUum0AAAAASUVORK5CYII=";
-    const allExtensions = [];
-    const sourceStatuses = {};
+// 拉取并解析某个源的元数据：HTTP 非 200、网络错误或超时都会抛错，
+// 由 fetchAndAdd 统一进入"云端失败 → 本地缓存回退"流程。
+const fetchMetadataJSON = async url => {
+    const res = await fetchWithTimeout(url, {}, 10000);
+    if (!res.ok) {
+        throw new Error(`HTTP status ${res.status}`);
+    }
+    return res.json();
+};
 
-    const report = () => {
-        const customExtensions = (cachedGallery || [])
-            .filter(item => item.source && item.source.indexOf('custom_') === 0);
-        cachedGallery = [...allExtensions, ...customExtensions];
-        cachedSourceStatuses = { ...cachedSourceStatuses, ...sourceStatuses };
-        notifyListeners();
-    };
+const isDesktop = () => (
+    typeof window !== 'undefined' &&
+    typeof window.EditorPreload !== 'undefined'
+);
 
-    const fetchAndAdd = async (sourceName, fetchFn) => {
-        sourceStatuses[sourceName] = 'loading';
-        report();
-        try {
-            const extensions = await fetchFn();
-            allExtensions.push(...extensions);
-            sourceStatuses[sourceName] = 'loaded';
-        } catch (error) {
-            console.warn(`Failed to load ${sourceName} extensions:`, error);
-            sourceStatuses[sourceName] = 'error';
-        }
-        report();
-    };
+// 每个网络源最后一次成功拉取得到的原始元数据，持久化到 localStorage，
+// 作为本地缓存：云端失败时兜底展示，离线时也能看到上次的扩展列表。
+// 桌面端还会优先尝试打包进应用的本地协议缓存（dist-* 里的元数据）。
+const GALLERY_CACHE_PREFIX = 'tw:extension-gallery-cache:';
 
-    const fetchWithTimeout = (url, timeoutMs) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
-    };
+const readCachedMetadata = sourceName => {
+    try {
+        const raw = localStorage.getItem(`${GALLERY_CACHE_PREFIX}${sourceName}`);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        return null;
+    }
+};
 
-    // fetchWithFallback: 依次尝试官方源和备用源，失败返回 []
-    const fetchWithFallback = async (tag, officialUrl, localUrl, transformFn) => {
-        try {
-            const officialRes = await fetchWithTimeout(officialUrl, 5000);
-            if (officialRes.ok) {
-                const data = await officialRes.json();
-                return transformFn(data);
-            }
-            console.warn(`${tag} extensions: HTTP status ${officialRes.status}, trying fallback...`);
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(`${tag} extensions: official source timed out (5s), trying fallback...`);
-            } else {
-                console.warn(`Failed to load ${tag} extensions from official:`, error);
-            }
-        }
-        try {
-            const localRes = await fetchWithTimeout(localUrl, 15000);
-            if (localRes.ok) {
-                const data = await localRes.json();
-                return transformFn(data);
-            }
-            console.warn(`${tag} extensions: HTTP status ${localRes.status} from fallback`);
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(`${tag} extensions: fallback source timed out (15s)`);
-            } else {
-                console.warn(`Failed to load ${tag} extensions from fallback:`, error);
-            }
-        }
-        return [];
-    };
+const writeCachedMetadata = (sourceName, data) => {
+    try {
+        localStorage.setItem(`${GALLERY_CACHE_PREFIX}${sourceName}`, JSON.stringify(data));
+    } catch (error) {
+        // localStorage 不可用（隐私模式 / 配额已满）时静默忽略
+    }
+};
 
-    // 为 bilup 扩展补充中文翻译（名称/描述），按 extensionId 匹配
-    const bilupZhTranslations = {
-        bilupAccounts: {
-            name: 'PineEditor 账户',
-            description: '登录 PineEditor 并访问你的账户信息、权限与社交功能。'
-        },
-        bilupEconomy: {
-            name: 'PineEditor 经济',
-            description: '管理积分、货币与交易等经济相关功能。'
-        },
-        bilupKeys: {
-            name: 'PineEditor 密钥',
-            description: '创建和管理 API 密钥，用于安全地访问服务。'
-        },
-        bilupStatus: {
-            name: 'PineEditor 状态',
-            description: '获取在线状态、活动与用户状态信息。'
-        },
-        bilupSocial: {
-            name: 'PineEditor 社交',
-            description: '发送消息、关注用户并参与社区互动。'
-        },
-        bilupShop: {
-            name: 'PineEditor 商店',
-            description: '浏览商品、下单并管理你的订单。'
-        },
-        bilupGroups: {
-            name: 'PineEditor 群组',
-            description: '创建和管理群组，与成员协作。'
-        },
-        bilupFiles: {
-            name: 'PineEditor 文件',
-            description: '上传、下载并管理你的文件资源。'
-        }
-    };
+const emptyBanner = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAACXBIWXMAAAsTAAALEwEAmpwYAAADGWlDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjaY2BgnuDo4uTKJMDAUFBUUuQe5BgZERmlwH6egY2BmYGBgYGBITG5uMAxIMCHgYGBIS8/L5UBA3y7xsDIwMDAcFnX0cXJlYE0wJpcUFTCwMBwgIGBwSgltTiZgYHhCwMDQ3p5SUEJAwNjDAMDg0hSdkEJAwNjAQMDg0h2SJAzAwNjCwMDE09JakUJAwMDg3N+QWVRZnpGiYKhpaWlgmNKflKqQnBlcUlqbrGCZ15yflFBflFiSWoKAwMD1A4GBgYGXpf8EgX3xMw8BUNTVQYqg4jIKAX08EGIIUByaVEZhMXIwMDAIMCgxeDHUMmwiuEBozRjFOM8xqdMhkwNTJeYNZgbme+y2LDMY2VmzWa9yubEtoldhX0mhwBHJycrZzMXM1cbNzf3RB4pnqW8xryH+IL5nvFXCwgJrBZ0E3wk1CisKHxYJF2UV3SrWJw4p/hWiRRJYcmjUhXSutJPZObIhsoJyp2V71HwUeRVvKA0RTlKRUnltepWtUZ1Pw1Zjbea+7QmaqfqWOsK6b7SO6I/36DGMMrI0ljS+LfJPdPDZivM+y0qLBOtfKwtbFRtRexY7L7aP3e47XjB6ZjzXpetruvdVrov9VjkudBrgfdCn8W+y/xW+a8P2Bq4N+hY8PmQW6HPwr5EMEUKRilFG8e4xUbF5cW3JMxO3Jx0Nvl5KlOaXLpNRlRmVdas7D059/KY8tULfAqLi2YXHy55WyZR7lJRWDmv6mz131q9uvj6SQ3HGn83G7Skt85ru94h2Ond1d59uJehz76/bsK+if8nO05pnXpiOu+M4JmzZj2aozW3ZN6+BVwLwxYtXvxxqcOyCcsfrjRe1br65lrddU3rb2402NSx+cFWq21Tt3/Y6btr1R6Oven7jh9QP9h56PURv6Obj4ufqD355LT3mS3nZM+3X/h0Ke7yqasW15bdEL3ZeuvrnfS7N+/7PDjwyPTx6qeKz2a+EHzZ9Zr5Td3bn+9LP3z6VPD53de8b+9+5P/88Lv4z7d/Vf//AwAqvx2K829RWwAAACBjSFJNAAB6JQAAgIMAAPn/AACA6QAAdTAAAOpgAAA6mAAAF2+SX8VGAAAAEUlEQVR42mL4zwAAAAD//wMAAgEBAJlUum0AAAAASUVORK5CYII=";
 
-    // 并行加载所有扩展源，每个源加载完成后立即更新
-    await Promise.all([
-        fetchAndAdd('tw', async () => {
-            try {
-                const twRes = await fetch('https://extensions.turbowarp.org/generated-metadata/extensions-v0.json');
-                if (!twRes.ok) {
-                    console.warn(`TurboWarp extensions: HTTP status ${twRes.status}`);
-                    return [];
-                }
-                const twData = await twRes.json();
-                return twData.extensions.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.id,
-                    extensionURL: `https://extensions.turbowarp.org/${extension.slug}.js`,
-                    iconURL: `https://extensions.turbowarp.org/${extension.image || 'images/unknown.svg'}`,
-                    tags: ['tw'],
-                    credits: [
-                        ...(extension.by || []),
-                        ...(extension.original || [])
-                    ].map(credit => {
-                        if (credit.link) {
-                            return (
-                                <a
-                                    href={credit.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    key={credit.name}
-                                >
-                                    {credit.name}
-                                </a>
-                            );
-                        }
-                        return credit.name;
-                    }),
-                    docsURI: extension.docs ? `https://extensions.turbowarp.org/${extension.slug}` : null,
-                    samples: extension.samples ? extension.samples.map(sample => ({
-                        href: `${process.env.ROOT}editor?project_url=https://extensions.turbowarp.org/samples/${encodeURIComponent(sample)}.sb3`,
-                        text: sample
-                    })) : null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                }));
-            } catch (error) {
-                console.warn('Failed to load TurboWarp extensions:', error);
-                return [];
-            }
-        }),
-        fetchAndAdd('mistium', async () => {
-            try {
-                const mistiumRes = await fetch('https://rw-extensions.pages.dev/mistium/extensions-index.json');
-                if (!mistiumRes.ok) {
-                    console.warn(`Mistium extensions: HTTP status ${mistiumRes.status}`);
-                    return [];
-                }
-                const mistiumData = await mistiumRes.json();
-                return mistiumData.extensions
-                    .map(extension => ({
-                        name: extension.name,
-                        nameTranslations: extension.nameTranslations || {},
-                        description: extension.description,
-                        descriptionTranslations: extension.descriptionTranslations || {},
-                        extensionId: extension.extensionId,
-                        extensionURL: extension.extensionURL,
-                        iconURL: extension.iconURL || emptyBanner,
-                        tags: ['mistium'],
-                        credits: (extension.credits || []).map(credit => typeof credit === 'object' && credit.name ? credit.name : credit),
-                        docsURI: null,
-                        samples: null,
-                        incompatibleWithScratch: true,
-                        featured: extension.featured
-                    }));
-            } catch (error) {
-                console.warn('Failed to load Mistium extensions:', error);
-                return [];
-            }
-        }),
-        fetchAndAdd('penguinmod', async () => {
-            try {
-                const penguinmodRes = await fetch('https://rw-extensions.pages.dev/penguinmod/extensions-index.json');
-                if (!penguinmodRes.ok) {
-                    console.warn(`PenguinMod extensions: HTTP status ${penguinmodRes.status}`);
-                    const fallbackRes = await fetch('https://raw.githubusercontent.com/remixwarp/extensions/main/penguinmod/extensions-index.json');
-                    if (!fallbackRes.ok) {
-                        console.warn(`PenguinMod extensions: fallback also failed, HTTP ${fallbackRes.status}`);
-                        return [];
-                    }
-                    const fallbackData = await fallbackRes.json();
-                    const rawExts = fallbackData.extensions || fallbackData;
-                    if (!Array.isArray(rawExts) || rawExts.length === 0) {
-                        console.warn('PenguinMod extensions: empty or invalid fallback data');
-                        return [];
-                    }
-                    return rawExts.map(extension => ({
-                        name: extension.name,
-                        nameTranslations: extension.nameTranslations || {},
-                        description: extension.description,
-                        descriptionTranslations: extension.descriptionTranslations || {},
-                        extensionId: extension.extensionId,
-                        extensionURL: extension.onlineURL || extension.extensionURL,
-                        iconURL: extension.iconURL,
-                        tags: ['penguinmod'],
-                        credits: Array.isArray(extension.credits)
-                            ? extension.credits.map(c => (typeof c === 'string' ? c : c.name))
-                            : [],
-                        docsURI: null,
-                        samples: null,
-                        incompatibleWithScratch: true,
-                        featured: true
-                    }));
-                }
-                const penguinmodData = await penguinmodRes.json();
-                const rawExts = penguinmodData.extensions || penguinmodData;
-                if (!Array.isArray(rawExts) || rawExts.length === 0) {
-                    console.warn('PenguinMod extensions: empty or invalid data from primary source');
-                    return [];
-                }
-                return rawExts.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.extensionId,
-                    extensionURL: extension.onlineURL || extension.extensionURL,
-                    iconURL: extension.iconURL,
-                    tags: ['penguinmod'],
-                    credits: Array.isArray(extension.credits)
-                        ? extension.credits.map(c => (typeof c === 'string' ? c : c.name))
-                        : [],
-                    docsURI: null,
-                    samples: null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                }));
-            } catch (error) {
-                console.warn('Failed to load PenguinMod extensions:', error);
-                return [];
-            }
-        }),
-        fetchAndAdd('remixwarp', async () => {
-            try {
-                const remixwarpRes = await fetch('https://rw-extensions.pages.dev/remixwarp/extensions-index.json');
-                if (!remixwarpRes.ok) {
-                    console.warn(`PineEditor extensions: HTTP status ${remixwarpRes.status}`);
-                    return [];
-                }
-                const remixwarpData = await remixwarpRes.json();
-                return remixwarpData.extensions.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.extensionId,
-                    extensionURL: extension.extensionURL,
-                    iconURL: extension.iconURL,
-                    tags: extension.tags || ['remixwarp'],
-                    credits: (extension.credits || []).map(credit => {
-                        if (typeof credit === 'object' && credit.name) {
-                            const link = credit.link || credit.url;
-                            if (link) {
-                                return (
-                                    <a
-                                        href={link}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        key={credit.name}
-                                    >
-                                        {credit.name}
-                                    </a>
-                                );
-                            }
-                            return credit.name;
-                        }
-                        return credit;
-                    }),
-                    docsURI: extension.docsURI || null,
-                    samples: extension.samples ? extension.samples.map(sample => ({
-                        href: `https://remixwarp.pages.dev/editor.html?project_url=${sample.href.startsWith('http') ? sample.href : 'https://remixwarp.pages.dev' + sample.href}`,
-                        text: sample.text
-                    })) : null,
-                    incompatibleWithScratch: extension.incompatibleWithScratch || true,
-                    featured: extension.featured || true
-                }));
-            } catch (error) {
-                console.warn('Failed to load PineEditor extensions:', error);
-                return [];
-            }
-        }),
-        fetchAndAdd('ae', async () => {
-            return await fetchWithFallback(
-                'ae',
-                'https://editors.astras.top/extensions/generated-metadata/extensions-v0.json',
-                'https://rw-extensions.pages.dev/astraeditor/extensions-index.json',
-                data => data.extensions.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.id,
-                    extensionURL: `https://editors.astras.top/extensions/${extension.slug}.js`,
-                    iconURL: `https://editors.astras.top/extensions/${extension.image || 'images/unknown.svg'}`,
-                    tags: ['ae'],
-                    credits: [
-                        ...(extension.by || []),
-                        ...(extension.original || [])
-                    ].map(credit => {
-                        if (credit.link) {
-                            return (
-                                <a
-                                    href={credit.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    key={credit.name}
-                                >
-                                    {credit.name}
-                                </a>
-                            );
-                        }
-                        return credit.name;
-                    }),
-                    docsURI: extension.docs ? `https://editors.astras.top/extensions/${extension.slug}` : null,
-                    samples: extension.samples ? extension.samples.map(sample => ({
-                        href: `${process.env.ROOT}editor?project_url=https://editors.astras.top/extensions/samples/${encodeURIComponent(sample)}.sb3`,
-                        text: sample
-                    })) : null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                }))
-            );
-        }),
-        fetchAndAdd('02engine', async () => {
-            return await fetchWithFallback(
-                '02engine',
-                'https://rw-extensions.pages.dev/02engine/02engine-extensions/extensions.json',
-                'https://raw.githubusercontent.com/DDguan2010/extensions/main/generated-metadata/extensions-v0.json',
-                data => data.extensions.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.id,
-                    extensionURL: `https://rw-extensions.pages.dev/02engine/02engine-extensions/extension/${extension.slug}.js`,
-                    iconURL: extension.image
-                        ? `https://rw-extensions.pages.dev/02engine/02engine-extensions/image/${encodeURIComponent(extension.image)}`
-                        : `https://raw.githubusercontent.com/DDguan2010/extensions/main/${extension.image || ''}`,
-                    tags: ['02engine'],
-                    credits: (extension.by || []).map(credit => {
-                        if (credit.link) {
-                            return (
-                                <a
-                                    href={credit.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    key={credit.name}
-                                >
-                                    {credit.name}
-                                </a>
-                            );
-                        }
-                        return credit.name;
-                    }),
-                    docsURI: extension.docs
-                        ? `https://rw-extensions.pages.dev/02engine/02engine-extensions/doc/${encodeURIComponent(extension.slug)}/index.html`
-                        : null,
-                    samples: extension.samples ? extension.samples.map(sample => {
-                        const sampleUrl = `https://rw-extensions.pages.dev/02engine/02engine-extensions/samples/${encodeURIComponent(sample)}.sb3`;
-                        return {
-                            href: `${process.env.ROOT}editor?project_url=${sampleUrl}`,
-                            text: sample
-                        };
-                    }) : null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                }))
-            );
-        }),
-        fetchAndAdd('ow', async () => {
-            return await fetchWithFallback(
-                'ow',
-                'https://openwarp-extensions.pages.dev/generated-metadata/extensions-v0.json',
-                'https://rw-extensions.pages.dev/yesshape/extensions-index.json',
-                data => data.extensions.map(extension => ({
-                    name: extension.name,
-                    nameTranslations: extension.nameTranslations || {},
-                    description: extension.description,
-                    descriptionTranslations: extension.descriptionTranslations || {},
-                    extensionId: extension.id,
-                    extensionURL: `https://openwarp-extensions.pages.dev/${extension.slug}.js`,
-                    iconURL: `https://openwarp-extensions.pages.dev/${extension.image || 'images/unknown.svg'}`,
-                    tags: ['ow'],
-                    credits: [
-                        ...(extension.by || []),
-                        ...(extension.original || [])
-                    ].map(credit => {
-                        if (credit.link) {
-                            return (
-                                <a
-                                    href={credit.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    key={credit.name}
-                                >
-                                    {credit.name}
-                                </a>
-                            );
-                        }
-                        return credit.name;
-                    }),
-                    docsURI: extension.docs ? `https://openwarp-extensions.pages.dev/${extension.slug}` : null,
-                    samples: extension.samples ? extension.samples.map(sample => ({
-                        href: `${process.env.ROOT}editor?project_url=https://openwarp-extensions.pages.dev/samples/${encodeURIComponent(sample)}.sb3`,
-                        text: sample
-                    })) : null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                }))
-            );
-        }),
-        fetchAndAdd('bilup', async () => {
-            return await fetchWithFallback(
-                'bilup',
-                'https://extensions.bilup.org/generated-metadata/extensions-v0.json',
-                'https://rw-extensions.pages.dev/bilup/extensions-index.json',
-                data => data.extensions.map(extension => {
-                    const zh = bilupZhTranslations[extension.id];
-                    const nameTranslations = { ...(extension.nameTranslations || {}) };
-                    const descriptionTranslations = { ...(extension.descriptionTranslations || {}) };
-                    if (zh) {
-                        nameTranslations['zh-cn'] = zh.name;
-                        descriptionTranslations['zh-cn'] = zh.description;
-                    }
-                    return {
-                        name: extension.name,
-                        nameTranslations,
-                        description: extension.description,
-                        descriptionTranslations,
-                        extensionId: extension.id,
-                        extensionURL: `https://extensions.bilup.org/${extension.slug}.js`,
-                        iconURL: `https://extensions.bilup.org/${extension.image || 'images/unknown.svg'}`,
-                        tags: ['bilup'],
-                        credits: [
-                            ...(extension.by || []),
-                            ...(extension.original || [])
-                        ].map(credit => {
-                            if (credit.link) {
-                                return (
-                                    <a
-                                        href={credit.link}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        key={credit.name}
-                                    >
-                                        {credit.name}
-                                    </a>
-                                );
-                            }
-                            return credit.name;
-                        }),
-                        docsURI: extension.docs ? `https://extensions.bilup.org/${extension.slug}` : null,
-                        samples: extension.samples ? extension.samples.map(sample => ({
-                            href: `${process.env.ROOT}editor?project_url=https://extensions.bilup.org/samples/${encodeURIComponent(sample)}.sb3`,
-                            text: sample
-                        })) : null,
-                        incompatibleWithScratch: true,
-                        featured: true
-                    };
-                })
-            );
-        }),
-        fetchAndAdd('cy-scr-ext-hub', async () => {
-            return await fetchWithFallback(
-                'cy-scr-ext-hub',
-                'https://raw.githubusercontent.com/cy-studio-001/CYScrExtHub/main/extensions.json',
-                'https://rw-extensions.pages.dev/cy-scr-ext-hub/extensions-index.json',
-                data => {
-                    const extensions = (data.extensions || data);
-                    const isGitHubRaw = extensions.length > 0 && ('is_cyso' in extensions[0] || 'download_url' in extensions[0]);
-                    if (isGitHubRaw) {
-                        return extensions
-                            .filter(ext => !ext.is_cyso)
-                            .map(ext => ({
-                                name: ext.name,
-                                description: ext.description,
-                                extensionId: 'cyse_' + ext.id,
-                                extensionURL: ext.download_url,
-                                iconURL: ext.cover_url || emptyBanner,
-                                tags: ['cy-scr-ext-hub'],
-                                credits: ext.author_name ? [ext.author_name] : [],
-                                incompatibleWithScratch: true,
-                                featured: true
-                            }));
-                    }
-                    return extensions.map(ext => ({
-                        name: ext.name,
-                        description: ext.description,
-                        extensionId: ext.extensionId || ext.id,
-                        extensionURL: ext.extensionURL,
-                        iconURL: ext.iconURL || emptyBanner,
-                        tags: ['cy-scr-ext-hub'],
-                        credits: (ext.credits || []).map(credit => {
-                            if (typeof credit === 'object' && credit.name) {
-                                const link = credit.link || credit.url;
-                                if (link) {
-                                    return React.createElement('a', { href: link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
-                                }
-                                return credit.name;
-                            }
-                            return credit;
-                        }),
-                        incompatibleWithScratch: true,
-                        featured: true
-                    }));
-                }
-            );
-        })
-    ]);
-
-    cachedLoadStatus = { ...sourceStatuses };
-
-    // 注册各扩展库的刷新函数（适配新模式）
-    retryFetchers['bilup'] = async () => {
-        const result = await fetchWithFallback(
-            'bilup',
-            'https://extensions.bilup.org/generated-metadata/extensions-v0.json',
-            'https://rw-extensions.pages.dev/bilup/extensions-index.json',
-            data => data.extensions.map(extension => {
-                const zh = bilupZhTranslations[extension.id];
-                const nameTranslations = { ...(extension.nameTranslations || {}) };
-                const descriptionTranslations = { ...(extension.descriptionTranslations || {}) };
-                if (zh) {
-                    nameTranslations['zh-cn'] = zh.name;
-                    descriptionTranslations['zh-cn'] = zh.description;
-                }
-                return {
-                    name: extension.name,
-                    nameTranslations,
-                    description: extension.description,
-                    descriptionTranslations,
-                    extensionId: extension.id,
-                    extensionURL: `https://extensions.bilup.org/${extension.slug}.js`,
-                    iconURL: `https://extensions.bilup.org/${extension.image || 'images/unknown.svg'}`,
-                    tags: ['bilup'],
-                    credits: [
-                        ...(extension.by || []),
-                        ...(extension.original || [])
-                    ].map(credit => {
-                        if (credit.link) {
-                            return React.createElement('a', { href: credit.link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
-                        }
-                        return credit.name;
-                    }),
-                    docsURI: extension.docs ? `https://extensions.bilup.org/${extension.slug}` : null,
-                    samples: extension.samples ? extension.samples.map(sample => ({
-                        href: `${process.env.ROOT}editor?project_url=https://extensions.bilup.org/samples/${encodeURIComponent(sample)}.sb3`,
-                        text: sample
-                    })) : null,
-                    incompatibleWithScratch: true,
-                    featured: true
-                };
-            })
-        );
-        if (cachedGallery) {
-            cachedGallery = dedupeFetchedExtensions([
-                ...cachedGallery.filter(e => !(e.tags || []).includes('bilup')),
-                ...result
-            ]);
-        }
-        cachedSourceStatuses = { ...cachedSourceStatuses, bilup: 'loaded' };
-        notifyListeners();
-        return cachedSourceStatuses;
-    };
-
-    retryFetchers['ow'] = async () => {
-        const result = await fetchWithFallback(
-            'ow',
-            'https://openwarp-extensions.pages.dev/generated-metadata/extensions-v0.json',
-            'https://rw-extensions.pages.dev/yesshape/extensions-index.json',
-            data => data.extensions.map(extension => ({
+// 各网络源的加载配置：cloudURL 是云端元数据地址；
+// localURL 是桌面端打包的本地协议地址（协议层云端优先、失败自动回退
+// 本地缓存，见 desktop 仓库的 protocols.js），仅桌面端存在，供云端
+// 失败时兜底使用。
+//
+// 对于在中国大陆无法直接访问的源（如 turbowarp.org），可配置 fallbackURL
+// 和 fallbackBase 作为镜像代理。当 cloudURL 请求失败时，自动尝试
+// fallbackURL 获取元数据，并使用 fallbackBase 构造扩展 JS/图标/文档 URL。
+const SOURCES = [
+    {
+        name: 'tw',
+        cloudURL: 'https://extensions.turbowarp.org/generated-metadata/extensions-v0.json',
+        localURL: 'tw-extensions://./generated-metadata/extensions-v0.json',
+        // 主站不可用时的镜像代理地址（需自行部署反向代理）：
+        // 代理服务器需将 /turbowarp/ 路径反向代理到 extensions.turbowarp.org
+        // 例如：https://extensions.bilup.org/turbowarp/generated-metadata/extensions-v0.json
+        // 应返回与 cloudURL 相同的 JSON 内容
+        fallbackURL: '',
+        fallbackBase: '',
+        map: (data, useProxy = false) => {
+            const base = useProxy ? 'https://extensions.bilup.org/turbowarp' : 'https://extensions.turbowarp.org';
+            return data.extensions.map(extension => ({
                 name: extension.name,
                 nameTranslations: extension.nameTranslations || {},
                 description: extension.description,
                 descriptionTranslations: extension.descriptionTranslations || {},
                 extensionId: extension.id,
-                extensionURL: `https://openwarp-extensions.pages.dev/${extension.slug}.js`,
-                iconURL: `https://openwarp-extensions.pages.dev/${extension.image || 'images/unknown.svg'}`,
-                tags: ['ow'],
+                extensionURL: `${base}/${extension.slug}.js`,
+                iconURL: `${base}/${extension.image || 'images/unknown.svg'}`,
+                source: 'tw',
+                tags: ['tw'],
                 credits: [
                     ...(extension.by || []),
                     ...(extension.original || [])
                 ].map(credit => {
                     if (credit.link) {
-                        return React.createElement('a', { href: credit.link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
+                        return (
+                            <a
+                                href={credit.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                key={credit.name}
+                            >
+                                {credit.name}
+                            </a>
+                        );
                     }
                     return credit.name;
                 }),
-                docsURI: extension.docs ? `https://openwarp-extensions.pages.dev/${extension.slug}` : null,
+                docsURI: extension.docs ? `${base}/${extension.slug}` : null,
                 samples: extension.samples ? extension.samples.map(sample => ({
-                    href: `${process.env.ROOT}editor?project_url=https://openwarp-extensions.pages.dev/samples/${encodeURIComponent(sample)}.sb3`,
+                    href: `${process.env.ROOT}editor?project_url=${base}/samples/${encodeURIComponent(sample)}.sb3`,
+                    text: sample
+                })) : null,
+                incompatibleWithScratch: true,
+                featured: true
+            }));
+        }
+    },
+    {
+        name: 'mistium',
+        cloudURL: 'https://extensions.mistium.com/generated-metadata/extensions-v0.json',
+        localURL: 'mw-extensions://./generated-metadata/extensions-v0.json',
+        map: data => data.extensions
+            .filter(ext => ext.featured)
+            .map(extension => ({
+                name: extension.name,
+                nameTranslations: extension.nameTranslations || {},
+                description: extension.description,
+                descriptionTranslations: extension.descriptionTranslations || {},
+                extensionId: extension.id,
+                extensionURL: `https://extensions.mistium.com/featured/${extension.name}.js`,
+                iconURL: extension.image ? `https://extensions.mistium.com/${extension.image}` : emptyBanner,
+                source: 'mistium',
+                tags: ['mistium'],
+                credits: [
+                    ...(extension.by || []),
+                    ...(extension.original || [])
+                ].map(credit => {
+                    if (credit.link) {
+                        return (
+                            <a
+                                href={credit.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                key={credit.name}
+                            >
+                                {credit.name}
+                            </a>
+                        );
+                    }
+                    return credit.name;
+                }),
+                docsURI: null,
+                samples: extension.samples ? extension.samples.map(sample => ({
+                    href: `${process.env.ROOT}editor?project_url=https://extensions-mistium.pages.dev/samples/${encodeURIComponent(sample)}.sb3`,
                     text: sample
                 })) : null,
                 incompatibleWithScratch: true,
                 featured: true
             }))
-        );
-        if (cachedGallery) {
-            cachedGallery = dedupeFetchedExtensions([
-                ...cachedGallery.filter(e => !(e.tags || []).includes('ow')),
-                ...result
-            ]);
-        }
-        cachedSourceStatuses = { ...cachedSourceStatuses, ow: 'loaded' };
-        notifyListeners();
-        return cachedSourceStatuses;
-    };
+    },
+    {
+        name: 'sharkpool',
+        cloudURL: 'https://sharkpools-extensions.vercel.app/Gallery%20Files/Extension-Keys.json',
+        localURL: 'sp-extensions://./Gallery%20Files/Extension-Keys.json',
+        map: data => {
+            const rawExtensions = data.extensions;
+            let normalizedExtensions = [];
 
-    retryFetchers['ae'] = async () => {
-        const result = await fetchWithFallback(
-            'ae',
-            'https://editors.astras.top/extensions/generated-metadata/extensions-v0.json',
-            'https://rw-extensions.pages.dev/astraeditor/extensions-index.json',
-            data => data.extensions.map(extension => ({
+            if (Array.isArray(rawExtensions)) {
+                normalizedExtensions = rawExtensions;
+            } else if (rawExtensions && typeof rawExtensions === 'object') {
+                normalizedExtensions = Object.entries(rawExtensions).map(
+                    ([key, value]) => ({
+                        id: value.id ?? key,
+                        name: value.name ?? key,
+                        ...value
+                    })
+                );
+            } else {
+                console.warn('[SharkPools] Invalid extensions format:', rawExtensions);
+                return [];
+            }
+
+            console.log('[SharkPools] Normalized extensions:', normalizedExtensions);
+
+            return normalizedExtensions
+                .filter(ext => !ext.isDeprecated)
+                .map(extension => ({
+                    name: extension.name,
+                    nameTranslations: extension.nameTranslations || {},
+                    description: extension.description || extension.desc,
+                    descriptionTranslations: extension.descriptionTranslations || {},
+                    extensionId: extension.id,
+                    extensionURL: `https://sharkpools-extensions.vercel.app/extension-code/${extension.url}`,
+                    iconURL: extension.banner ? `https://sharkpools-extensions.vercel.app/extension-thumbs/${extension.banner}` : emptyBanner,
+                    source: 'sharkpool',
+                    tags: ['sharkpool'],
+                    credits: [
+                        ...(extension.by || []),
+                        ...(extension.original || (extension.creator ? [{ name: extension.creator }] : []))
+                    ].map(credit => {
+                        if (credit.link) {
+                            return (
+                                <a
+                                    href={credit.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    key={credit.name}
+                                >
+                                    {credit.name}
+                                </a>
+                            );
+                        }
+                        return credit.name;
+                    }),
+                    docsURI: null,
+                    samples: null,
+                    incompatibleWithScratch: true,
+                    featured: true
+                }));
+        }
+    },
+    {
+        name: 'bilup',
+        cloudURL: 'https://extensions.bilup.org/generated-metadata/extensions-v0.json',
+        localURL: 'bl-extensions://./generated-metadata/extensions-v0.json',
+        map: data => data.extensions.map(extension => ({
+            name: extension.name,
+            nameTranslations: extension.nameTranslations || {},
+            description: extension.description,
+            descriptionTranslations: extension.descriptionTranslations || {},
+            extensionId: extension.id,
+            extensionURL: `https://extensions.bilup.org/${extension.slug}.js`,
+            iconURL: `https://extensions.bilup.org/${extension.image || 'images/unknown.svg'}`,
+            source: 'bilup',
+            tags: ['bilup'],
+            credits: [
+                ...(extension.by || []),
+                ...(extension.original || [])
+            ].map(credit => {
+                if (credit.link) {
+                    return (
+                        <a
+                            href={credit.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            key={credit.name}
+                        >
+                            {credit.name}
+                        </a>
+                    );
+                }
+                return credit.name;
+            }),
+            docsURI: extension.docs ? `https://extensions.bilup.org/${extension.slug}` : null,
+            samples: extension.samples ? extension.samples.map(sample => ({
+                href: `${process.env.ROOT}editor?project_url=https://extensions.bilup.org/samples/${encodeURIComponent(sample)}.sb3`,
+                text: sample
+            })) : null,
+            incompatibleWithScratch: true,
+            featured: true
+        }))
+    },
+    {
+        name: 'ae',
+        cloudURL: 'https://editors.astras.top/extensions/generated-metadata/extensions-v0.json',
+        localURL: 'ae-extensions://./generated-metadata/extensions-v0.json',
+        map: data => data.extensions
+            .filter(extension => extension.id !== 'shangcloud')
+            .map(extension => ({
                 name: extension.name,
                 nameTranslations: extension.nameTranslations || {},
                 description: extension.description,
@@ -837,180 +458,128 @@ const fetchLibrary = async () => {
                 extensionId: extension.id,
                 extensionURL: `https://editors.astras.top/extensions/${extension.slug}.js`,
                 iconURL: `https://editors.astras.top/extensions/${extension.image || 'images/unknown.svg'}`,
+                source: 'ae',
                 tags: ['ae'],
                 credits: [
                     ...(extension.by || []),
                     ...(extension.original || [])
                 ].map(credit => {
                     if (credit.link) {
-                        return React.createElement('a', { href: credit.link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
+                        return (
+                            <a
+                                href={credit.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                key={credit.name}
+                            >
+                                {credit.name}
+                            </a>
+                        );
                     }
                     return credit.name;
                 }),
                 docsURI: extension.docs ? `https://editors.astras.top/extensions/${extension.slug}` : null,
                 samples: extension.samples ? extension.samples.map(sample => ({
-                    href: `${process.env.ROOT}editor?project_url=https://editors.astras.top/extensions/samples/${encodeURIComponent(sample)}.sb3`,
+                    href: `${process.env.ROOT}editor?project_url=https://editors.astras.top/extensions/s/${encodeURIComponent(sample)}.sb3`,
                     text: sample
                 })) : null,
                 incompatibleWithScratch: true,
                 featured: true
             }))
-        );
-        if (cachedGallery) {
-            cachedGallery = dedupeFetchedExtensions([
-                ...cachedGallery.filter(e => !(e.tags || []).includes('ae')),
-                ...result
-            ]);
-        }
-        cachedSourceStatuses = { ...cachedSourceStatuses, ae: 'loaded' };
+    }
+];
+
+const fetchLibrary = async () => {
+    const allExtensions = [];
+    const sourceStatuses = {};
+
+    const report = () => {
+        // 只管理网络源；自定义库由 fetchCustomSource 独立加载，
+        // 这里保留已加载的自定义扩展，避免整体重拉覆盖/清空它们
+        const customExtensions = (cachedGallery || [])
+            .filter(item => item.source && item.source.indexOf('custom_') === 0);
+        cachedGallery = [...allExtensions, ...customExtensions];
+        cachedSourceStatuses = {...cachedSourceStatuses, ...sourceStatuses};
         notifyListeners();
-        return cachedSourceStatuses;
     };
 
-    retryFetchers['02engine'] = async () => {
-        const result = await fetchWithFallback(
-            '02engine',
-            'https://raw.githubusercontent.com/DDguan2010/extensions/main/generated-metadata/extensions-v0.json',
-            'https://rw-extensions.pages.dev/02engine/02engine-extensions/extensions.json',
-            data => data.extensions.map(extension => ({
-                name: extension.name,
-                nameTranslations: extension.nameTranslations || {},
-                description: extension.description,
-                descriptionTranslations: extension.descriptionTranslations || {},
-                extensionId: extension.id,
-                extensionURL: `https://raw.githubusercontent.com/DDguan2010/extensions/main/${extension.slug}.js`,
-                iconURL: extension.image
-                    ? `https://raw.githubusercontent.com/DDguan2010/extensions/main/${extension.image}`
-                    : `https://rw-extensions.pages.dev/02engine/02engine-extensions/image/${encodeURIComponent(extension.image || '')}`,
-                tags: ['02engine'],
-                credits: (extension.by || []).map(credit => {
-                    if (credit.link) {
-                        return React.createElement('a', { href: credit.link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
-                    }
-                    return credit.name;
-                }),
-                docsURI: extension.docs
-                    ? `https://raw.githubusercontent.com/DDguan2010/extensions/main/doc/${encodeURIComponent(extension.slug)}/index.html`
-                    : null,
-                samples: extension.samples ? extension.samples.map(sample => {
-                    const sampleUrl = `https://rw-extensions.pages.dev/02engine/02engine-extensions/samples/${encodeURIComponent(sample)}.sb3`;
-                    return {
-                        href: `${process.env.ROOT}editor?project_url=${sampleUrl}`,
-                        text: sample
-                    };
-                }) : null,
-                incompatibleWithScratch: true,
-                featured: true
-            }))
-        );
-        if (cachedGallery) {
-            cachedGallery = dedupeFetchedExtensions([
-                ...cachedGallery.filter(e => !(e.tags || []).includes('02engine')),
-                ...result
-            ]);
-        }
-        cachedSourceStatuses = { ...cachedSourceStatuses, '02engine': 'loaded' };
-        notifyListeners();
-        return cachedSourceStatuses;
-    };
-
-    retryFetchers['cy-scr-ext-hub'] = async () => {
-        const result = await fetchWithFallback(
-            'cy-scr-ext-hub',
-            'https://raw.githubusercontent.com/cy-studio-001/CYScrExtHub/main/extensions.json',
-            'https://rw-extensions.pages.dev/cy-scr-ext-hub/extensions-index.json',
-            data => {
-                const extensions = (data.extensions || data);
-                const isGitHubRaw = extensions.length > 0 && ('is_cyso' in extensions[0] || 'download_url' in extensions[0]);
-                if (isGitHubRaw) {
-                    return extensions
-                        .filter(ext => !ext.is_cyso)
-                        .map(ext => ({
-                            name: ext.name,
-                            description: ext.description,
-                            extensionId: 'cyse_' + ext.id,
-                            extensionURL: ext.download_url,
-                            iconURL: ext.cover_url || emptyBanner,
-                            tags: ['cy-scr-ext-hub'],
-                            credits: ext.author_name ? [ext.author_name] : [],
-                            incompatibleWithScratch: true,
-                            featured: true
-                        }));
+    const loadLocalFallback = async source => {
+        // 当源配置了 fallbackURL 时，即使从本地缓存加载也使用代理基 URL，
+        // 因为云端 URL 不可用的原因（如网络封锁）可能仍然存在
+        const useProxy = !!source.fallbackURL;
+        if (isDesktop() && source.localURL) {
+            try {
+                const data = await fetchMetadataJSON(source.localURL);
+                const extensions = source.map(data, useProxy);
+                if (extensions.length) {
+                    writeCachedMetadata(source.name, data);
+                    return extensions;
                 }
-                return extensions.map(ext => ({
-                    name: ext.name,
-                    description: ext.description,
-                    extensionId: ext.extensionId || ext.id,
-                    extensionURL: ext.extensionURL,
-                    iconURL: ext.iconURL || emptyBanner,
-                    tags: ['cy-scr-ext-hub'],
-                    credits: (ext.credits || []).map(credit => {
-                        if (typeof credit === 'object' && credit.name) {
-                            const link = credit.link || credit.url;
-                            if (link) {
-                                return React.createElement('a', { href: link, target: '_blank', rel: 'noreferrer', key: credit.name }, credit.name);
-                            }
-                            return credit.name;
-                        }
-                        return credit;
-                    }),
-                    incompatibleWithScratch: true,
-                    featured: true
-                }));
+            } catch (error) {
+                console.warn(`Failed to load ${source.name} from local cache:`, error);
             }
-        );
-        if (cachedGallery) {
-            cachedGallery = dedupeFetchedExtensions([
-                ...cachedGallery.filter(e => !(e.tags || []).includes('cy-scr-ext-hub')),
-                ...result
-            ]);
         }
-        cachedSourceStatuses = { ...cachedSourceStatuses, 'cy-scr-ext-hub': 'loaded' };
-        notifyListeners();
-        return cachedSourceStatuses;
+        const cachedData = readCachedMetadata(source.name);
+        if (cachedData) {
+            try {
+                const extensions = source.map(cachedData, useProxy);
+                if (extensions.length) {
+                    return extensions;
+                }
+            } catch (error) {
+                console.warn(`Failed to parse cached ${source.name} metadata:`, error);
+            }
+        }
+        return null;
     };
+
+    const fetchAndAdd = async source => {
+        sourceStatuses[source.name] = 'loading';
+        report();
+        let fetchSuccess = false;
+        try {
+            const data = await fetchMetadataJSON(source.cloudURL);
+            const extensions = source.map(data);
+            writeCachedMetadata(source.name, data);
+            allExtensions.push(...extensions);
+            sourceStatuses[source.name] = 'loaded';
+            fetchSuccess = true;
+        } catch (error) {
+            console.warn(`Failed to load ${source.name} extensions from primary URL:`, error);
+            // 尝试镜像代理回退 URL（如 turbowarp.org 在中国大陆不可用时）
+            if (source.fallbackURL) {
+                try {
+                    const data = await fetchMetadataJSON(source.fallbackURL);
+                    const extensions = source.map(data, true);
+                    writeCachedMetadata(source.name, data);
+                    allExtensions.push(...extensions);
+                    sourceStatuses[source.name] = 'loaded';
+                    fetchSuccess = true;
+                } catch (fallbackError) {
+                    console.warn(`Failed to load ${source.name} extensions from fallback URL:`, fallbackError);
+                }
+            }
+        }
+        if (!fetchSuccess) {
+            // 云端加载失败 → 回退本地缓存：
+            // 1) 桌面端先走本地协议（应用打包了各扩展库的元数据，协议层
+            //    云端优先、失败自动读本地缓存，见 desktop 的 protocols.js）
+            // 2) 其次是上次成功拉取留下的 localStorage 缓存
+            const fallback = await loadLocalFallback(source);
+            if (fallback && fallback.length) {
+                allExtensions.push(...fallback);
+                sourceStatuses[source.name] = 'loaded';
+            } else {
+                sourceStatuses[source.name] = 'error';
+            }
+        }
+        report();
+    };
+
+    // 并行加载所有扩展源，但每个源加载完成后立即更新
+    await Promise.all(SOURCES.map(fetchAndAdd));
 
     return allExtensions;
-};
-
-const mergeExtensionTags = (existingTags, newTags) => Array.from(
-    new Set([
-        ...(existingTags || []).map(tag => String(tag).toLowerCase()),
-        ...(newTags || []).map(tag => String(tag).toLowerCase())
-    ])
-);
-
-const dedupeFetchedExtensions = extensions => {
-    const seen = new Map();
-    for (const extension of extensions) {
-        const extensionId = extension.extensionId || extension.id;
-        if (!extensionId) {
-            continue;
-        }
-
-        if (!seen.has(extensionId)) {
-            seen.set(extensionId, {
-                ...extension,
-                extensionId,
-                tags: mergeExtensionTags(extension.tags, extension.tags)
-            });
-        } else {
-            const previous = seen.get(extensionId);
-            seen.set(extensionId, {
-                ...previous,
-                ...extension,
-                extensionId,
-                tags: mergeExtensionTags(previous.tags, extension.tags)
-            });
-        }
-    }
-    return Array.from(seen.values());
-};
-
-export {
-    addCustomSource,
-    removeCustomSource,
-    updateGallery
 };
 
 class ExtensionLibrary extends React.PureComponent {
@@ -1028,7 +597,7 @@ class ExtensionLibrary extends React.PureComponent {
             customSources: cachedCustomSources
         };
     }
-
+    
     componentDidMount() {
         // 接收模块级快照广播：添加自定义库 / fetchLibrary 进度都会触发
         this.unsubscribeGalleryUpdate = addGalleryUpdateListener(payload => {
@@ -1038,15 +607,19 @@ class ExtensionLibrary extends React.PureComponent {
                 customSources: payload.customSources
             });
         });
-
-        // 加载/卸载扩展时同步刷新"已加载"对勾
+        
+        // Keep the "loaded" indicator in sync while this modal is open:
+        // loading or removing an extension changes isExtensionLoaded() results,
+        // so re-render whenever the VM emits a relevant event. This component is
+        // a PureComponent, so a no-op setState would be skipped by its shallow
+        // shouldComponentUpdate; forceUpdate bypasses that check.
         this.handleExtensionChange = () => this.forceUpdate();
         const vm = this.props.vm;
         if (vm && typeof vm.on === 'function') {
             vm.on('EXTENSION_ADDED', this.handleExtensionChange);
             vm.on('EXTENSION_REMOVED', this.handleExtensionChange);
         }
-
+        
         // 首次打开时拉取网络源；已注册的自定义库独立加载（互不阻塞）
         if (!this.state.gallery) {
             const timeout = setTimeout(() => {
@@ -1072,7 +645,7 @@ class ExtensionLibrary extends React.PureComponent {
             });
         }
     }
-
+    
     componentWillUnmount() {
         if (this.unsubscribeGalleryUpdate) {
             this.unsubscribeGalleryUpdate();
@@ -1083,7 +656,6 @@ class ExtensionLibrary extends React.PureComponent {
             vm.off('EXTENSION_REMOVED', this.handleExtensionChange);
         }
     }
-
     getSourceStatus(tag) {
         // 内置本地数据始终可用（桌面端本地加载成功 → 蓝色）
         if (tag === 'scratch' || tag === 'rotur') {
@@ -1132,10 +704,16 @@ class ExtensionLibrary extends React.PureComponent {
 
         const url = item.extensionURL ? item.extensionURL : extensionId;
         if (!item.disabled) {
-            // 自定义拓展库开启"非沙盒运行"时，加载扩展前确保其 URL 被信任
+            // 自定义拓展库开启"非沙盒运行"时，加载扩展前确保其 URL 被信任；
+            // 项目重载会清空信任集合，这里按库设置重新信任
             const customSource = cachedCustomSources.find(cs => cs.id === item.source);
-            if (customSource && customSource.unsandboxed && url) {
-                manuallyTrustExtension(url);
+            if (customSource && url) {
+                // Mark extension from custom library as custom so the security manager
+                // will always show a sandbox permission modal.
+                markExtensionAsCustom(url);
+                if (customSource.unsandboxed) {
+                    manuallyTrustExtension(url);
+                }
             }
             if (this.props.vm.extensionManager.isExtensionLoaded(extensionId)) {
                 if (typeof this.props.onCategorySelected === 'function') {
@@ -1144,6 +722,7 @@ class ExtensionLibrary extends React.PureComponent {
             } else {
                 this.props.vm.extensionManager.loadExtensionURL(url)
                     .then(() => {
+                        // 实时刷新"已加载"对钩
                         this.forceUpdate();
                         if (typeof this.props.onCategorySelected === 'function') {
                             this.props.onCategorySelected(extensionId);
@@ -1158,12 +737,10 @@ class ExtensionLibrary extends React.PureComponent {
             }
         }
     }
-
-    render() {
+    render () {
         const vanilla = getVanillaPalette();
         let library = null;
         if (vanilla || this.state.gallery || this.state.galleryError || this.state.galleryTimedOut) {
-            const locale = this.props.intl.locale;
             library = extensionLibraryContent
                 .filter(extension => !vanilla || (extension.tags.includes('scratch') && !extension.extensionURL))
                 .map(toLibraryItem);
@@ -1171,6 +748,7 @@ class ExtensionLibrary extends React.PureComponent {
                 library.push('---');
                 if (this.state.gallery) {
                     library.push(toLibraryItem(galleryMore));
+                    const locale = this.props.intl.locale;
                     library.push(
                         ...this.state.gallery
                             .filter(i => i.extensionId !== 'faceSensing')
@@ -1203,7 +781,10 @@ class ExtensionLibrary extends React.PureComponent {
             ['scratch', 'Scratch'],
             ['tw', 'TurboWarp'],
             ['mistium', 'Mistium'],
-            ['rotur', 'PineEditor Accounts'],
+            ['rotur', 'Bilup Accounts'],
+            ['sharkpool', 'SharkPool'],
+            ['ae', 'AstraEditor'],
+            ['bilup', 'Bilup'],
             ...this.state.customSources.map(source => [source.id, source.name])
         ];
         // 可删除（自定义）的标签 id 集合，用于侧边栏渲染删除按钮
@@ -1243,3 +824,9 @@ ExtensionLibrary.propTypes = {
 };
 
 export default injectIntl(ExtensionLibrary);
+
+export {
+    addCustomSource,
+    removeCustomSource,
+    updateGallery
+};

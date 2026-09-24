@@ -6,17 +6,11 @@
 }
 
 [class*="stage-header_stage-header-wrapper-overlay"] {
-  top: 0px !important;
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  transform: translateY(0%) !important;
-  z-index: 1000 !important;
+  top: var(--sa-menu-bar-height, 0px) !important;
 }
 
 [class*="stage-wrapper_full-screen"] {
-  top: 44px !important;
-  position: fixed !important;
+  top: calc(var(--sa-menu-bar-height, 0px) + 44px) !important;
 }
 
 [class*="stage-wrapper_full-screen"] [class*="stage-wrapper_stage-canvas-wrapper"],
@@ -36,32 +30,4 @@
 
 [class*="stage-wrapper_full-screen"] [class*="stage_question-wrapper"] {
   width: auto !important;
-}
-
-/* Ensure green flag, pause, stop buttons are visible */
-[class*="stage_green-flag-overlay-wrapper"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Fix exit fullscreen button visibility */
-[class*="stage-header_stage-menu-wrapper"] [class*="stage-header_stage-button"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Ensure toolbar menu is visible */
-[class*="stage-header_stage-menu-wrapper"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Ensure controls are visible */
-[class*="controls_controls-container"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
 }

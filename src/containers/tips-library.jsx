@@ -48,7 +48,7 @@ class TipsLibrary extends React.PureComponent {
         */
         if (item.requiredProjectId && (item.requiredProjectId !== this.props.projectId)) {
             const urlParams = `/projects/${item.requiredProjectId}/editor?tutorial=${item.urlId}`;
-            return window.open(`https://remixwarp.pages.dev${urlParams}`, '_blank');
+            return window.open(window.location.origin + urlParams, '_blank');
         }
 
         this.props.onActivateDeck(item.id);

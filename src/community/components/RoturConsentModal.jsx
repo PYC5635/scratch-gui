@@ -33,6 +33,7 @@ const RoturConsentModal = ({type, data, onAllow, onDeny, onShareThis, onShareAll
         `mw.roturCategory.${categoryOf(scope)}`,
         defaultCategoryLabel(scope)
     );
+    const payment = type === 'confirm' && data.confirmation && data.confirmation.type === 'payment';
     if (type === 'share') {
         return (
             <Modal
@@ -51,7 +52,7 @@ const RoturConsentModal = ({type, data, onAllow, onDeny, onShareThis, onShareAll
                 }
             >
                 <p className={styles.lead}>
-                    {t('mw.roturConsent.shareBody', '"{name}" wants to show it on your PineEditor Accounts profile', {
+                    {t('mw.roturConsent.shareBody', '"{name}" wants to show it on your Bilup Accounts profile', {
                         name: data.name || t('mw.roturConsent.thisProject', 'This project')
                     })}
                     {data.username ? ` (@${data.username}).` : t('mw.roturConsent.period', '.')}
@@ -64,8 +65,10 @@ const RoturConsentModal = ({type, data, onAllow, onDeny, onShareThis, onShareAll
         <Modal
             icon={ShieldCheck}
             title={type === 'confirm' ?
-                t('mw.roturConsent.confirmTitle', 'Confirm PineEditor Accounts action') :
-                t('mw.roturConsent.connectTitle', 'Connect to PineEditor Accounts')}
+                (payment ?
+                    t('mw.roturConsent.paymentTitle', 'Confirm payment') :
+                    t('mw.roturConsent.confirmTitle', 'Confirm Bilup Accounts action')) :
+                t('mw.roturConsent.connectTitle', 'Connect to Bilup Accounts')}
             onDismiss={onDeny}
             actions={
                 <React.Fragment>
@@ -79,23 +82,35 @@ const RoturConsentModal = ({type, data, onAllow, onDeny, onShareThis, onShareAll
                         onClick={onAllow}
                     >
                         {type === 'confirm' ?
-                            t('mw.roturConsent.allow', 'Allow') :
+                            (payment ?
+                                t('mw.roturConsent.allowPayment', 'Allow payment') :
+                                t('mw.roturConsent.allow', 'Allow')) :
                             t('mw.roturConsent.connect', 'Connect')}
                     </Button>
                 </React.Fragment>
             }
         >
             {type === 'confirm' ? (
-                <p className={styles.lead}>
-                    {t('mw.roturConsent.confirmBody', 'This project wants to ')}
-                    <b>{data.label}</b>
-                    {data.username ? ` as @${data.username}.` : t('mw.roturConsent.period', '.')}
-                    {' '}{t('mw.roturConsent.confirmTrust', 'Only allow it if you trust this project.')}
-                </p>
+                payment ? (
+                    <p className={styles.lead}>
+                        {t('mw.roturConsent.paymentBody', 'Allow payment of {amount} credits to ', {
+                            amount: data.confirmation.amount
+                        })}
+                        <b>{`@${data.confirmation.recipient}`}</b>
+                        {'?'}
+                    </p>
+                ) : (
+                    <p className={styles.lead}>
+                        {t('mw.roturConsent.confirmBody', 'This project wants to ')}
+                        <b>{data.label}</b>
+                        {data.username ? ` as @${data.username}.` : t('mw.roturConsent.period', '.')}
+                        {' '}{t('mw.roturConsent.confirmTrust', 'Only allow it if you trust this project.')}
+                    </p>
+                )
             ) : (
                 <React.Fragment>
                     <p className={styles.lead}>
-                        {t('mw.roturConsent.connectBody', '"{name}" wants to use your PineEditor Accounts account', {
+                        {t('mw.roturConsent.connectBody', '"{name}" wants to use your Bilup Accounts account', {
                             name: data.name || t('mw.roturConsent.thisProject', 'This project')
                         })}
                         {data.username ? ` (@${data.username})` : ''}
@@ -115,7 +130,7 @@ const RoturConsentModal = ({type, data, onAllow, onDeny, onShareThis, onShareAll
                         </div>
                     ))}
                     {(data.scopes || []).length === 0 ? (
-                        <p className={styles.lead}>{t('mw.roturConsent.noScopes', 'This only reads your public PineEditor Accounts info.')}</p>
+                        <p className={styles.lead}>{t('mw.roturConsent.noScopes', 'This only reads your public Bilup Accounts info.')}</p>
                     ) : null}
                 </React.Fragment>
             )}

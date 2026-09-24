@@ -4,6 +4,7 @@
  */
 
 import queryString from 'query-string';
+import {getItem as getStorageItem} from './safe-storage.js';
 
 // tw: read language from localStorage
 export const LANGUAGE_KEY = 'tw:language';
@@ -17,7 +18,7 @@ export const LANGUAGE_KEY = 'tw:language';
 const detectLocale = supportedLocales => {
     // tw: read language from localStorage
     try {
-        const storedLanguage = localStorage.getItem(LANGUAGE_KEY);
+        const storedLanguage = getStorageItem(LANGUAGE_KEY);
         if (storedLanguage && supportedLocales.includes(storedLanguage)) {
             return storedLanguage;
         }

@@ -17,83 +17,98 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import { connect } from 'react-redux';
-import { compose } from 'redux';
-import { FormattedMessage, defineMessages, injectIntl, intlShape } from 'react-intl';
-import { getIsLoading } from '../reducers/project-state.js';
+import {connect} from 'react-redux';
+import {compose} from 'redux';
+import {FormattedMessage, defineMessages, injectIntl, intlShape} from 'react-intl';
+import {getIsLoading} from '../reducers/project-state.js';
 // import DOMElementRenderer from '../containers/dom-element-renderer.jsx';
 import AppStateHOC from '../lib/components/app-state-hoc.jsx';
 import ErrorBoundaryHOC from '../lib/components/error-boundary-hoc.jsx';
+import LocalizationHOC from '../lib/components/localization-hoc.jsx';
 import TWProjectMetaFetcherHOC from '../lib/components/tw-project-meta-fetcher-hoc.jsx';
 import TWStateManagerHOC from '../lib/components/tw-state-manager-hoc.jsx';
 import SBFileUploaderHOC from '../lib/components/sb-file-uploader-hoc.jsx';
 import TWPackagerIntegrationHOC from '../lib/components/tw-packager-integration-hoc.jsx';
 import SettingsStore from '../addons/settings-store-singleton';
+import CustomPlugins from '../addons/custom-plugins';
 import '../lib/api/fix-history.js';
 import GUI from './render-gui.jsx';
 import MenuBar from '../components/menu-bar/menu-bar.jsx';
-import SecurityBanner from '../components/tw-security-banner/security-banner.jsx';
 import ProjectInput from '../components/tw-project-input/project-input.jsx';
 import FeaturedProjects from '../components/tw-featured-projects/featured-projects.jsx';
 import Description from '../components/tw-description/description.jsx';
 import BrowserModal from '../components/browser-modal/browser-modal.jsx';
 import CloudVariableBadge from '../containers/tw-cloud-variable-badge.jsx';
-import { isBrowserSupported } from '../lib/utils/tw-environment-support-prober';
+import {isBrowserSupported} from '../lib/utils/tw-environment-support-prober';
 import AddonChannels from '../addons/channels';
-import { loadServiceWorker } from './load-service-worker';
+import {loadServiceWorker} from './load-service-worker';
 import runAddons from '../addons/entry';
-import { APP_NAME, FEEDBACK_URL, GITHUB_URL } from '../lib/constants/brand.js';
-import { AESettings } from '../lib/settings.js';
-import {
-    STAGE_DISPLAY_SCALE_METADATA,
-    STAGE_DISPLAY_SIZES
-} from '../lib/constants/layout-constants.js';
+import {APP_NAME, FEEDBACK_URL, GITHUB_URL} from '../lib/constants/brand.js';
+
+import windowManager from '../addons/window-system/window-manager';
 
 import styles from './interface.css';
 
 // Import window manager dynamically
-let WindowManager = null;
 let settingsWindow = null;
 
-const loadWindowManager = async () => {
-    if (!WindowManager) {
-        try {
-            const module = await import('../addons/window-system/window-manager.js');
-            WindowManager = module.default;
-        } catch (e) {
-            console.warn('Window manager not available, falling back to new window:', e);
-            return null;
-        }
-    }
-    return WindowManager;
+// Build the addons settings URL, forwarding the current editor locale so the
+// addons page (a separate same-origin app) renders in the same language.
+const buildAddonsUrl = addonId => {
+    const path = process.env.ROUTING_STYLE === 'wildcard' ? 'addons' : 'addons.html';
+    let locale = 'en';
+    try {
+        locale = document.documentElement.lang || 'en';
+    } catch (e) { /* ignore */ }
+    const query = `?locale=${encodeURIComponent(locale)}`;
+    const hash = typeof addonId === 'string' ? `#${addonId}` : '';
+    return `${process.env.ROOT}${path}${query}${hash}`;
 };
 
-const createSettingsContent = (addonId) => {
+const syncCssVarsToIframe = (iframe, vars) => {
+    const doc = iframe.contentDocument;
+    const root = doc.documentElement;
+
+    for (const [key, value] of Object.entries(vars)) {
+        root.style.setProperty(key, value);
+    }
+};
+
+const createSettingsContent = addonId => {
     const container = settingsWindow.getContentElement();
     container.style.padding = '0';
     container.style.overflow = 'hidden';
 
-    // Create iframe to load the settings page
     const iframe = document.createElement('iframe');
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.style.borderRadius = '0 0 8px 8px'; // Match window border radius
+    iframe.style.borderRadius = '0 0 8px 8px';
 
-    // Construct the settings URL
-    const path = process.env.ROUTING_STYLE === 'wildcard' ? 'addons' : 'addons.html';
-    const url = `${process.env.ROOT}${path}${typeof addonId === 'string' ? `#${addonId}` : ''}`;
+    const url = buildAddonsUrl(addonId);
 
     iframe.src = url;
+
+    iframe.addEventListener('load', () => {
+        const computedStyle = getComputedStyle(document.documentElement);
+
+        syncCssVarsToIframe(iframe, {
+            '--motion-primary-transparent': computedStyle.getPropertyValue('--motion-primary-transparent'),
+            '--looks-secondary': computedStyle.getPropertyValue('--looks-secondary'),
+            '--looks-transparent': computedStyle.getPropertyValue('--looks-transparent'),
+            '--looks-secondary-dark': computedStyle.getPropertyValue('--looks-secondary-dark')
+        });
+    });
+
     container.appendChild(iframe);
 };
 
-const navigateToAddon = (addonId) => {
+const navigateToAddon = addonId => {
     if (settingsWindow) {
         const iframe = settingsWindow.getContentElement().querySelector('iframe');
         if (iframe) {
             try {
-                const newUrl = iframe.src.split('#')[0] + '#' + addonId;
+                const newUrl = `${iframe.src.split('#')[0]}#${addonId}`;
                 iframe.src = newUrl;
             } catch (e) {
                 console.warn('Could not navigate to addon:', e);
@@ -102,9 +117,47 @@ const navigateToAddon = (addonId) => {
     }
 };
 
+// Make the function available globally for addon integration
+if (typeof window !== 'undefined') {
+    window.handleClickAddonSettings = addonId => {
+        if (!windowManager) {
+            // Fall back to original behavior if window manager isn't available
+            const url = buildAddonsUrl(addonId);
+            window.open(url);
+            return;
+        }
+        
+        // If window already exists, focus it and navigate to addon if specified
+        if (settingsWindow && settingsWindow.isVisible) {
+            settingsWindow.bringToFront();
+            if (typeof addonId === 'string') {
+                navigateToAddon(addonId);
+            }
+            return;
+        }
+        
+        // Create new settings window
+        settingsWindow = windowManager.createWindow({
+            title: 'Addons',
+            width: 900,
+            height: 700,
+            minWidth: 600,
+            minHeight: 400,
+            x: Math.max(50, (window.innerWidth - 900) / 2),
+            y: Math.max(50, (window.innerHeight - 700) / 2),
+            onClose: () => {
+                settingsWindow = null;
+            }
+        });
+        
+        createSettingsContent(addonId);
+        settingsWindow.show();
+    };
+}
+
 const messages = defineMessages({
     defaultTitle: {
-        defaultMessage: 'Refactoring freedom',
+        defaultMessage: 'Run Scratch projects faster',
         description: 'Title of homepage',
         id: 'tw.guiDefaultTitle'
     }
@@ -122,7 +175,9 @@ if (AddonChannels.reloadChannel) {
 }
 
 if (AddonChannels.changeChannel) {
-    AddonChannels.changeChannel.addEventListener('message', e => {
+    AddonChannels.changeChannel.addEventListener('message', async e => {
+        // 设置页可能新增/删除了自定义插件，先同步登记处再应用设置
+        await CustomPlugins.refreshFromDB();
         SettingsStore.setStoreWithVersionCheck(e.data);
     });
 }
@@ -166,7 +221,7 @@ const Footer = () => (
 
             <div className={styles.footerColumns}>
                 <div className={styles.footerSection}>
-                    <a href="credits.html">
+                    <a href="/credits">
                         <FormattedMessage
                             defaultMessage="Credits"
                             description="Credits link in footer"
@@ -180,30 +235,27 @@ const Footer = () => (
                             id="tw.footer.donate"
                         />
                     </a>
-                    <a href="rw.html">
-                        {'开发群聊天记录'}
-                    </a>
                 </div>
                 <div className={styles.footerSection}>
-                    <a href="https://packager.02engine.org/">
+                    <a href="https://packager.bilup.org/">
                         {/* Do not translate */}
-                        {'02Engine Packager'}
+                        {'Bilup Packager'}
                     </a>
-                    <a href="https://rw-do-cs.pages.dev/embedding">
+                    <a href="https://docs.bilup.org/advanced/embedding">
                         <FormattedMessage
                             defaultMessage="Embedding"
                             description="Link in footer to embedding documentation for embedding link"
                             id="tw.footer.embed"
                         />
                     </a>
-                    <a href="https://rw-do-cs.pages.dev/url-parameters">
+                    <a href="https://docs.bilup.org/advanced/url-parameters">
                         <FormattedMessage
                             defaultMessage="URL Parameters"
                             description="Link in footer to URL parameters documentation"
                             id="tw.footer.parameters"
                         />
                     </a>
-                    <a href="https://rw-do-cs.pages.dev">
+                    <a href="https://docs.bilup.org">
                         <FormattedMessage
                             defaultMessage="Documentation"
                             description="Link in footer to additional documentation"
@@ -233,6 +285,13 @@ const Footer = () => (
                             id="tw.privacy"
                         />
                     </a>
+                    <a href="about.html">
+                        <FormattedMessage
+                            defaultMessage="About"
+                            description="Link to about page"
+                            id="tw.about"
+                        />
+                    </a>
                 </div>
             </div>
         </div>
@@ -240,22 +299,32 @@ const Footer = () => (
 );
 
 class Interface extends React.Component {
-    constructor(props) {
+    constructor (props) {
         super(props);
         this.handleUpdateProjectTitle = this.handleUpdateProjectTitle.bind(this);
-        this.handleClickAddonSettings = this.handleClickAddonSettings.bind(this);
     }
-    async handleClickAddonSettings(addonId) {
-        const { intl } = this.props;
-        const windowManager = await loadWindowManager();
+    componentDidUpdate (prevProps) {
+        if (prevProps.isLoading && !this.props.isLoading) {
+            loadServiceWorker();
+        }
+    }
+    handleUpdateProjectTitle (title, isDefault) {
+        if (isDefault || !title) {
+            document.title = `${APP_NAME} - ${this.props.intl.formatMessage(messages.defaultTitle)}`;
+        } else {
+            document.title = `${title} - ${APP_NAME}`;
+        }
+    }
 
+    handleClickAddonSettings = addonId => {
         if (!windowManager) {
-            const path = process.env.ROUTING_STYLE === 'wildcard' ? 'addons' : 'addons.html';
-            const url = `${process.env.ROOT}${path}${typeof addonId === 'string' ? `#${addonId}` : ''}`;
+            // Fall back to original behavior if window manager isn't available
+            const url = buildAddonsUrl(addonId);
             window.open(url);
             return;
         }
-
+        
+        // If window already exists, focus it and navigate to addon if specified
         if (settingsWindow && settingsWindow.isVisible) {
             settingsWindow.bringToFront();
             if (typeof addonId === 'string') {
@@ -263,12 +332,13 @@ class Interface extends React.Component {
             }
             return;
         }
-
+        
+        // Create new settings window
         settingsWindow = windowManager.createWindow({
-            title: intl.formatMessage({
-                defaultMessage: 'Addon Settings',
-                description: 'Title of the addon settings window',
-                id: 'tw.addonSettings.title'
+            title: this.props.intl.formatMessage({
+                defaultMessage: 'Addons',
+                description: 'Title of the addons window',
+                id: 'tw.addons.title'
             }),
             width: 900,
             height: 700,
@@ -280,42 +350,11 @@ class Interface extends React.Component {
                 settingsWindow = null;
             }
         });
-
+        
         createSettingsContent(addonId);
         settingsWindow.show();
     }
-    componentDidMount() {
-        window.handleClickAddonSettings = this.handleClickAddonSettings;
-
-        const settings = new AESettings();
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        if (urlParams.has('mobile')) {
-            settings.set('EnableMobileLayout', true);
-        }
-        
-        if (urlParams.has('touch')) {
-            settings.set('EnableMobileTouchDrag', true);
-        }
-        
-        if (urlParams.has('mobile-full')) {
-            settings.set('EnableMobileLayout', true);
-            settings.set('EnableMobileTouchDrag', true);
-        }
-    }
-    componentDidUpdate(prevProps) {
-        if (prevProps.isLoading && !this.props.isLoading) {
-            loadServiceWorker();
-        }
-    }
-    handleUpdateProjectTitle(title, isDefault) {
-        if (isDefault || !title) {
-            document.title = `${APP_NAME} - ${this.props.intl.formatMessage(messages.defaultTitle)}`;
-        } else {
-            document.title = `${title} - ${APP_NAME}`;
-        }
-    }
-    render() {
+    render () {
         const {
             /* eslint-disable no-unused-vars */
             intl,
@@ -331,12 +370,6 @@ class Interface extends React.Component {
         } = this.props;
         const isHomepage = isPlayerOnly && !isFullScreen;
         const isEditor = !isPlayerOnly;
-        // The player renders the "full" stage at 85% scale. Keep the
-        // surrounding information column at that rendered width so it
-        // remains aligned with the stage instead of appearing offset.
-        const playerStageWidth = Math.round(
-            props.customStageSize.width * STAGE_DISPLAY_SCALE_METADATA[STAGE_DISPLAY_SIZES.full].scale
-        ) + 2;
         return (
             <div
                 className={classNames(styles.container, {
@@ -345,7 +378,6 @@ class Interface extends React.Component {
                 })}
                 dir={isRtl ? 'rtl' : 'ltr'}
             >
-                <SecurityBanner />
                 {isHomepage ? (
                     <div className={styles.menu}>
                         <WrappedMenuBar
@@ -361,7 +393,7 @@ class Interface extends React.Component {
                     className={styles.center}
                     style={isPlayerOnly ? ({
                         // + 2 accounts for 1px border on each side of the stage
-                        width: `${playerStageWidth}px`
+                        width: `${Math.max(480, props.customStageSize.width) + 2}px`
                     }) : null}
                 >
                     <GUI
@@ -383,50 +415,50 @@ class Interface extends React.Component {
                                 // eslint-disable-next-line max-len
                                 description.instructions === 'unshared' || description.credits === 'unshared'
                             ) && (
-                                    <div className={classNames(styles.infobox, styles.unsharedUpdate)}>
-                                        <p>
-                                            <FormattedMessage
-                                                defaultMessage="Unshared projects are no longer visible."
-                                                description="Appears on unshared projects"
-                                                id="tw.unshared2.1"
-                                            />
-                                        </p>
-                                        <p>
-                                            <FormattedMessage
-                                                defaultMessage="For more information, visit: {link}"
-                                                description="Appears on unshared projects"
-                                                id="tw.unshared.2"
-                                                values={{
-                                                    link: (
-                                                        <a
-                                                            href="https://rw-do-cs.pages.dev/unshared-projects"
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                        >
-                                                            {'https://rw-do-cs.pages.dev/unshared-projects'}
-                                                        </a>
-                                                    )
-                                                }}
-                                            />
-                                        </p>
-                                        <p>
-                                            <FormattedMessage
-                                                // eslint-disable-next-line max-len
-                                                defaultMessage="If the project was shared recently, this message may appear incorrectly for a few minutes."
-                                                description="Appears on unshared projects"
-                                                id="tw.unshared.cache"
-                                            />
-                                        </p>
-                                        <p>
-                                            <FormattedMessage
-                                                // eslint-disable-next-line max-len
-                                                defaultMessage="If this project is actually shared, please report a bug."
-                                                description="Appears on unshared projects"
-                                                id="tw.unshared.bug"
-                                            />
-                                        </p>
-                                    </div>
-                                )}
+                                <div className={classNames(styles.infobox, styles.unsharedUpdate)}>
+                                    <p>
+                                        <FormattedMessage
+                                            defaultMessage="Unshared projects are no longer visible."
+                                            description="Appears on unshared projects"
+                                            id="tw.unshared2.1"
+                                        />
+                                    </p>
+                                    <p>
+                                        <FormattedMessage
+                                            defaultMessage="For more information, visit: {link}"
+                                            description="Appears on unshared projects"
+                                            id="tw.unshared.2"
+                                            values={{
+                                                link: (
+                                                    <a
+                                                        href="https://docs.bilup.org/advanced/unshared-projects"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        {'https://docs.bilup.org/advanced/unshared-projects'}
+                                                    </a>
+                                                )
+                                            }}
+                                        />
+                                    </p>
+                                    <p>
+                                        <FormattedMessage
+                                            // eslint-disable-next-line max-len
+                                            defaultMessage="If the project was shared recently, this message may appear incorrectly for a few minutes."
+                                            description="Appears on unshared projects"
+                                            id="tw.unshared.cache"
+                                        />
+                                    </p>
+                                    <p>
+                                        <FormattedMessage
+                                            // eslint-disable-next-line max-len
+                                            defaultMessage="If this project is actually shared, please report a bug."
+                                            description="Appears on unshared projects"
+                                            id="tw.unshared.bug"
+                                        />
+                                    </p>
+                                </div>
+                            )}
                             {hasCloudVariables && projectId !== '0' && (
                                 <div className={styles.section}>
                                     <CloudVariableBadge />
@@ -501,6 +533,7 @@ const ConnectedInterface = injectIntl(connect(
 
 const WrappedInterface = compose(
     AppStateHOC,
+    LocalizationHOC,
     ErrorBoundaryHOC('TW Interface'),
     TWProjectMetaFetcherHOC,
     TWStateManagerHOC,

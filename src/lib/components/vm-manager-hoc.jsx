@@ -6,9 +6,6 @@ import {connect} from 'react-redux';
 import VM from 'scratch-vm';
 import AudioEngine from 'scratch-audio';
 
-import * as BrowserGit from '../git/browser-git';
-import JSZip from 'jszip';
-
 import {setProjectUnchanged} from '../../reducers/project-changed';
 import {
     LoadingStates,
@@ -39,12 +36,14 @@ const vmManagerHOC = function (WrappedComponent) {
             bindAll(this, [
                 'loadProject'
             ]);
+            this._loadTimeout = null;
+            this._drawTimeout = null;
+            this._loadingPromise = null;
         }
         componentDidMount () {
             if (!this.props.vm.initialized) {
                 window.vm = this.props.vm;
 
-                this.installGitProjectFileHooks();
                 try {
                     this.audioEngine = new AudioEngine();
                     this.props.vm.attachAudioEngine(this.audioEngine);
@@ -74,99 +73,105 @@ const vmManagerHOC = function (WrappedComponent) {
             }
         }
 
-        installGitProjectFileHooks () {
-            const vm = this.props.vm;
-            if (vm._mwGit_hooksInstalled) return;
-            vm._mwGit_hooksInstalled = true;
-
-            const originalSaveProjectZip = vm._saveProjectZip;
-            vm._saveProjectZip = (options = {}) => {
-                const zip = originalSaveProjectZip.call(vm, options);
-                zip.file('git.json', JSON.stringify(BrowserGit.exportRepoToGitJsonStringSync()));
-                return zip;
-            };
-
-            const originalLoadProject = vm.loadProject;
-            vm.loadProject = async (data, opts = {}) => {
-                // 先执行项目加载（最优先级），git.json 提取放到后面空闲时处理
-                // 避免两个 JSZip.loadAsync 并行竞争 CPU/内存，大项目显著提升加载速度
-                const result = await originalLoadProject.call(vm, data);
-
-                // 调用方显式跳过 git 导入时直接返回
-                if (opts && opts.skipGitImport) {
-                    return result;
-                }
-
-                // 在浏览器空闲时异步提取和导入 git.json，不阻塞项目加载完成信号
-                const scheduleIdle = typeof requestIdleCallback !== 'undefined'
-                    ? requestIdleCallback
-                    : cb => setTimeout(cb, 0);
-
-                scheduleIdle(async () => {
-                    try {
-                        let buffer = null;
-                        if (data instanceof ArrayBuffer) {
-                            buffer = data;
-                        } else if (ArrayBuffer.isView(data)) {
-                            buffer = data.buffer.slice(
-                                data.byteOffset,
-                                data.byteOffset + data.byteLength
-                            );
-                        } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
-                            buffer = await data.arrayBuffer();
-                        }
-
-                        if (buffer) {
-                            const zip = await JSZip.loadAsync(buffer);
-                            const file = zip.file('git.json');
-                            if (file) {
-                                const gitJson = await file.async('string');
-                                if (gitJson) {
-                                    await BrowserGit.importRepoFromGitJsonString(gitJson);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                }, {timeout: 5000});
-
-                return result;
-            };
+        componentWillUnmount () {
+            // Cancel pending post-load callbacks so nothing dispatches or
+            // touches the renderer after the GUI has been torn down.
+            if (this._loadTimeout) {
+                clearTimeout(this._loadTimeout);
+                this._loadTimeout = null;
+            }
+            if (this._drawTimeout) {
+                clearTimeout(this._drawTimeout);
+                this._drawTimeout = null;
+            }
+            // Mark any in-flight load as cancelled so its .then() callbacks
+            // do not dispatch to an unmounted component.
+            this._loadingPromise = null;
         }
 
         loadProject () {
-            // tw: stop when loading new project
-            this.props.vm.quit();
-            return this.props.vm.loadProject(this.props.projectData)
-                .then(() => {
-                    // 立即发送加载完成信号（不包 setTimeout），尽快把 UI 从 Loading 切换到显示
-                    this.props.onLoadedProject(this.props.loadingState, this.props.canSave);
+            // Guard against concurrent loads: if a previous load is still in
+            // flight, quit the VM first (which cancels its work) and then let
+            // the new load proceed. The old promise is discarded so its
+            // callbacks won't fire on a stale VM state.
+            if (this._loadingPromise) {
+                if (process.env.DEBUG) {
+                    console.warn('[VM Manager] New project load requested while previous load is still in progress; cancelling previous load');
+                }
+                this.props.vm.quit();
+            }
 
-                    // 合并异步回调：原来有 2 个独立的 setTimeout(0)，
-                    // 每个都会单独推迟到下一次事件循环，累计延迟用户可感知的
-                    // 加载时间。统一用一个 microtask + 一个可选 requestAnimationFrame
-                    Promise.resolve().then(() => {
-                        this.props.onSetProjectUnchanged();
-                        // If the vm is not running, call draw on the renderer manually
-                        // This draws the state of the loaded project with no blocks running
-                        // which closely matches the 2.0 behavior, except for monitors–
-                        // 2.0 runs monitors and shows updates (e.g. timer monitor)
-                        // before the VM starts running other hat blocks.
-                        if (!this.props.isStarted && this.props.vm.renderer) {
-                            // 皮肤加载通常为异步，但 requestAnimationFrame 比 setTimeout
-                            // 更精准地在下一次重绘前执行，避免额外的帧等待
-                            if (typeof requestAnimationFrame !== 'undefined') {
-                                requestAnimationFrame(() => this.props.vm.renderer.draw());
-                            } else {
-                                this.props.vm.renderer.draw();
-                            }
+            // tw: stop when loading new project
+            if (process.env.DEBUG) {
+                // eslint-disable-next-line no-console
+                console.log('[VM Manager] Quitting VM before loading project');
+                // eslint-disable-next-line no-console
+                console.log('[VM Manager] Loading project data, size:',
+                    this.props.projectData instanceof ArrayBuffer ? this.props.projectData.byteLength : 'unknown');
+            }
+            this.props.vm.quit();
+            const promise = this.props.vm.loadProject(this.props.projectData)
+                .then(() => {
+                    // If a newer load has started (or the component unmounted),
+                    // discard this result — the VM is already in a different state.
+                    if (this._loadingPromise !== promise) {
+                        if (process.env.DEBUG) {
+                            console.warn('[VM Manager] Discarding stale project load result');
                         }
+                        return;
+                    }
+                    if (process.env.DEBUG) {
+                        // eslint-disable-next-line no-console
+                        console.log('[VM Manager] Project loaded successfully');
+                    }
+                    this.props.onLoadedProject(this.props.loadingState, this.props.canSave);
+                    // tw: eagerly compile all scripts to avoid runtime compilation latency
+                    // This is safe to do after the project is parsed and targets are created.
+                    try {
+                        this.props.vm.runtime.precompile();
+                    } catch (e) {
+                        // Precompilation is best-effort; individual compile errors are handled by the compiler
+                        if (process.env.DEBUG) {
+                            console.warn('[VM Manager] Precompilation encountered errors:', e);
+                        }
+                    }
+                    // Wrap in a setTimeout because skin loading in
+                    // the renderer can be async.
+                    this._loadTimeout = setTimeout(() => {
+                        if (this._loadingPromise !== promise) return;
+                        if (process.env.DEBUG) {
+                            // eslint-disable-next-line no-console
+                            console.log('[VM Manager] Setting project as unchanged');
+                        }
+                        this.props.onSetProjectUnchanged();
+                        this._loadTimeout = null;
                     });
+
+                    // If the vm is not running, call draw on the renderer manually
+                    // This draws the state of the loaded project with no blocks running
+                    // which closely matches the 2.0 behavior, except for monitors–
+                    // 2.0 runs monitors and shows updates (e.g. timer monitor)
+                    // before the VM starts running other hat blocks.
+                    if (!this.props.isStarted) {
+                        // Wrap in a setTimeout because skin loading in
+                        // the renderer can be async.
+                        this._drawTimeout = setTimeout(() => {
+                            if (this._loadingPromise !== promise) return;
+                            this.props.vm.renderer.draw();
+                            this._drawTimeout = null;
+                        });
+                    }
+                    this._loadingPromise = null;
                 })
                 .catch(e => {
+                    if (this._loadingPromise !== promise) return;
+                    // eslint-disable-next-line no-console
+                    console.error('[VM Manager] Project loading failed:', e);
                     this.props.onError(e);
+                    this._loadingPromise = null;
                 });
+            this._loadingPromise = promise;
+            return promise;
         }
         render () {
             const {
@@ -211,8 +216,7 @@ const vmManagerHOC = function (WrappedComponent) {
         projectData: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
         projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         username: PropTypes.string,
-        vm: PropTypes.instanceOf(VM).isRequired,
-        gitJson: PropTypes.object
+        vm: PropTypes.instanceOf(VM).isRequired
     };
 
     const mapStateToProps = state => {

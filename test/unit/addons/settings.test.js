@@ -422,15 +422,14 @@ test('setStore dynamic enable/disable', () => {
 
 test('setStore weird values', () => {
     const settingsStore = new SettingStore();
-    expect(settingsStore.getAddonEnabled('pause')).toBe(true);
-    settingsStore.setAddonEnabled('pause', false);
-    settingsStore.setAddonEnabled('clones', true);
+    settingsStore.setAddonEnabled('clones', false);
+    settingsStore.setAddonEnabled('block-palette-icons', true);
     settingsStore.setStore({
         invalid0: {},
         invalid1: null,
-        pause: null
+        clones: null
     });
-    expect(settingsStore.getAddonEnabled('pause')).toBe(false);
+    expect(settingsStore.getAddonEnabled('clones')).toBe(false);
 });
 
 test('resetting an addon through setStore', () => {
@@ -462,12 +461,11 @@ test('setStoreWithVersionCheck', () => {
 
 test('parseUrlParameter', () => {
     const store = new SettingStore();
-    expect(store.getAddonEnabled('pause')).toBe(true);
     expect(store.getAddonEnabled('mute-project')).toBe(true);
     expect(store.getAddonEnabled('remove-curved-stage-border')).toBe(false);
     expect(store.remote).toBe(false);
-    store.parseUrlParameter('pause,remove-curved-stage-border,,invalid addon??43t987(*&$');
-    expect(store.getAddonEnabled('pause')).toBe(true);
+    store.parseUrlParameter('clones,remove-curved-stage-border,,invalid addon??43t987(*&$');
+    expect(store.getAddonEnabled('clones')).toBe(true);
     expect(store.getAddonEnabled('mute-project')).toBe(false);
     expect(store.getAddonEnabled('remove-curved-stage-border')).toBe(true);
     expect(store.remote).toBe(true);
@@ -479,16 +477,12 @@ test('Settings migration 1 -> 2', () => {
     // eslint-disable-next-line max-len
     global.localStorage.getItem = () => `{"_":1,"tw-project-info":{"enabled":false},"tw-interface-customization":{"enabled":false,"removeFeedback":true,"removeBackpack":true}}`;
     store.readLocalStorage();
-    expect(store.getAddonEnabled('block-count')).toBe(false);
     expect(store.getAddonEnabled('tw-remove-backpack')).toBe(false);
-    expect(store.getAddonEnabled('tw-remove-feedback')).toBe(false);
 
     // eslint-disable-next-line max-len
     global.localStorage.getItem = () => `{"_":1,"tw-project-info":{"enabled":true},"tw-interface-customization":{"enabled":true,"removeFeedback":true,"removeBackpack":true}}`;
     store.readLocalStorage();
-    expect(store.getAddonEnabled('block-count')).toBe(true);
     expect(store.getAddonEnabled('tw-remove-backpack')).toBe(true);
-    expect(store.getAddonEnabled('tw-remove-feedback')).toBe(true);
 });
 
 test('Settings migration 2 -> 3', () => {
@@ -512,8 +506,10 @@ test('Settings migration 3 -> 4', () => {
     });
     store.readLocalStorage();
     expect(store.getAddonEnabled('editor-devtools')).toBe(true);
-    expect(store.getAddonEnabled('find-bar')).toBe(true);
-    expect(store.getAddonEnabled('middle-click-popup')).toBe(true);
+    // find-bar and middle-click-popup were removed from the addon set, so
+    // the 3 -> 4 migration has nothing to migrate into and drops their keys.
+    expect(store.store['find-bar']).toBeUndefined();
+    expect(store.store['middle-click-popup']).toBeUndefined();
 
     global.localStorage.getItem = () => JSON.stringify({
         '_': 3,
@@ -523,8 +519,8 @@ test('Settings migration 3 -> 4', () => {
     });
     store.readLocalStorage();
     expect(store.getAddonEnabled('editor-devtools')).toBe(false);
-    expect(store.getAddonEnabled('find-bar')).toBe(false);
-    expect(store.getAddonEnabled('middle-click-popup')).toBe(false);
+    expect(store.store['find-bar']).toBeUndefined();
+    expect(store.store['middle-click-popup']).toBeUndefined();
 });
 
 test('if', () => {

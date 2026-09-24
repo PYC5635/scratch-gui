@@ -5,11 +5,7 @@ import {connect} from 'react-redux';
 import log from '../lib/utils/log';
 import CustomExtensionModalComponent from '../components/tw-custom-extension-modal/custom-extension-modal.jsx';
 import {closeCustomExtensionModal} from '../reducers/modals';
-import {manuallyTrustExtension, isTrustedExtension} from './tw-security-manager.jsx';
-import {getPersistedUnsandboxed, setPersistedUnsandboxed} from '../lib/persistence/tw-unsandboxed.js';
-import { AESettings } from '../lib/settings.js'
-
-const AEsettings = new AESettings();
+import {manuallyTrustExtension, markExtensionAsCustom} from './tw-security-manager.jsx';
 
 /**
  * @param {Blob} blob Blob
@@ -36,10 +32,10 @@ class CustomExtensionModal extends React.Component {
             'handleSwitchToURL',
             'handleSwitchToText',
             'handleChangeText',
+            'handleChangeUnsandboxed',
             'handleDragOver',
             'handleDragLeave',
-            'handleDrop',
-            'handleChangeUnsandboxed'
+            'handleDrop'
         ]);
 
         this.state = {
@@ -47,7 +43,9 @@ class CustomExtensionModal extends React.Component {
             url: '',
             files: null,
             text: '',
-            unsandboxed: getPersistedUnsandboxed()
+            // 非沙盒运行开关：默认关闭（沙盒开启）。
+            // 官方域名扩展不受此开关影响，始终自动非沙盒运行。
+            unsandboxed: false
         };
     }
 
@@ -128,12 +126,18 @@ class CustomExtensionModal extends React.Component {
         try {
             const urls = await this.getExtensionURLs();
 
-            if (this.state.type !== 'url') {
-                setPersistedUnsandboxed(this.state.unsandboxed);
-                if (this.state.unsandboxed) {
-                    for (const url of urls) {
-                        manuallyTrustExtension(url);
-                    }
+            // Mark all URLs as custom extensions so the security manager
+            // will always show a sandbox permission modal, even if the URL
+            // matches a trusted domain (e.g., gallery URLs).
+            for (const url of urls) {
+                markExtensionAsCustom(url);
+            }
+
+            // 用户勾选了"非沙盒运行"时才手动信任；
+            // 官方域名扩展由 isTrustedExtensionUrl 自动信任，不受此开关影响
+            if (this.state.unsandboxed) {
+                for (const url of urls) {
+                    manuallyTrustExtension(url);
                 }
             }
 
@@ -145,6 +149,12 @@ class CustomExtensionModal extends React.Component {
             // eslint-disable-next-line no-alert
             alert(err);
         }
+    }
+
+    handleChangeUnsandboxed (e) {
+        this.setState({
+            unsandboxed: e.target.checked
+        });
     }
 
     handleSwitchToFile () {
@@ -193,23 +203,6 @@ class CustomExtensionModal extends React.Component {
         }
     }
 
-    isUnsandboxed () {
-        if (this.state.type === 'url') {
-            return isTrustedExtension(this.state.url);
-        }
-        return this.state.unsandboxed;
-    }
-
-    canChangeUnsandboxed () {
-        return this.state.type !== 'url';
-    }
-
-    handleChangeUnsandboxed (e) {
-        this.setState({
-            unsandboxed: e.target.checked
-        });
-    }
-
     render () {
         return (
             <CustomExtensionModalComponent
@@ -228,11 +221,10 @@ class CustomExtensionModal extends React.Component {
                 onKeyDown={this.handleKeyDown}
                 text={this.state.text}
                 onChangeText={this.handleChangeText}
-                unsandboxed={this.isUnsandboxed()}
-                onChangeUnsandboxed={this.canChangeUnsandboxed() ? this.handleChangeUnsandboxed : null}
                 onLoadExtension={this.handleLoadExtension}
+                unsandboxed={this.state.unsandboxed}
+                onChangeUnsandboxed={this.handleChangeUnsandboxed}
                 onClose={this.handleClose}
-                showPreview={AEsettings.get('EnableExtensionPreview')}
             />
         );
     }
@@ -259,3 +251,5 @@ export default connect(
     mapStateToProps,
     mapDispatchToProps
 )(CustomExtensionModal);
+
+export {CustomExtensionModal};

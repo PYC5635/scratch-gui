@@ -1,5 +1,6 @@
 import React from 'react';
 import {Heart, ThumbsDown} from 'lucide-react';
+import {useIntl} from '../../lib/tw-use-intl.jsx';
 import {useUser} from '../UserContext.jsx';
 import {sameUser} from '../format';
 import styles from './ReactionButtons.module.css';
@@ -11,6 +12,7 @@ const TYPES = [
 
 const ReactionButtons = ({reactions, onReact, small}) => {
     const {user} = useUser();
+    const intl = useIntl();
     const lists = reactions || {};
     return (
         <span className={small ? styles.rowSmall : styles.row}>
@@ -22,7 +24,10 @@ const ReactionButtons = ({reactions, onReact, small}) => {
                         key={key}
                         className={mine ? styles.buttonOn : styles.button}
                         disabled={!user}
-                        title={!user ? 'Sign in to react' : null}
+                        title={!user ? intl.formatMessage({
+                            id: 'mw.community.comments.signInToReact',
+                            defaultMessage: 'Sign in to react'
+                        }) : null}
                         onClick={() => onReact(key)}
                     >
                         <Icon

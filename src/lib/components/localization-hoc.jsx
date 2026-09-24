@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 
 import ConnectedIntlProvider from '../connected-intl-provider.jsx';
+import IntlBridge from '../tw-use-intl.jsx';
 
 /*
  * Higher Order Component to provide localiztion state. Creates a nested IntlProvider
@@ -26,7 +27,9 @@ const LocalizationHOC = function (WrappedComponent) {
             } = this.props;
             return (
                 <ConnectedIntlProvider>
-                    <WrappedComponent {...componentProps} />
+                    <IntlBridge>
+                        <WrappedComponent {...componentProps} />
+                    </IntlBridge>
                 </ConnectedIntlProvider>
             );
         }

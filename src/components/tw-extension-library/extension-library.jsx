@@ -25,11 +25,6 @@ const messages = defineMessages({
         defaultMessage: 'Search extensions',
         description: 'Placeholder for the extension search field'
     },
-    categories: {
-        id: 'gui.extensionLibrary.categories',
-        defaultMessage: 'Extensions',
-        description: 'Header for the extension category sidebar'
-    },
     emptyStateLoading: {
         id: 'tw.extensionLibrary.emptyLoading',
         defaultMessage: 'Loading extensions...',
@@ -53,6 +48,7 @@ const messages = defineMessages({
 });
 
 const ALL = 'all';
+// 顶部区域入口：内置 TW Blocks、自定义扩展、自定义扩展库、Gallery 链接
 const topExtensionIds = new Set(['tw', 'custom_extension', 'custom_extension_gallery', 'gallery']);
 
 const labelOf = (tag, intl) => (
@@ -145,7 +141,6 @@ const ExtensionCard = ({item, onSelect, isLoaded}) => {
                     src={icon}
                     alt=""
                     draggable={false}
-                    crossOrigin="anonymous"
                 />
             ) : <div className={styles.cardIcon} />}
             {item.insetIconURL ? (
@@ -154,7 +149,6 @@ const ExtensionCard = ({item, onSelect, isLoaded}) => {
                     src={item.insetIconURL}
                     alt=""
                     draggable={false}
-                    crossOrigin="anonymous"
                 />
             ) : null}
             <div className={styles.cardText}>
@@ -201,10 +195,7 @@ const ExtensionCard = ({item, onSelect, isLoaded}) => {
                         {' '}
                         {item.credits.map((credit, index) => (
                             <React.Fragment key={index}>
-                                {typeof credit === 'object' && credit !== null && !React.isValidElement(credit)
-                                    ? (credit.name || JSON.stringify(credit))
-                                    : credit
-                                }{index < item.credits.length - 1 ? ', ' : null}
+                                {credit}{index < item.credits.length - 1 ? ', ' : null}
                             </React.Fragment>
                         ))}
                     </span>
@@ -324,14 +315,9 @@ class TWExtensionLibrary extends React.Component {
         const top = visible.filter(item => topExtensionIds.has(item.extensionId));
         const sourceOf = item => item.source ||
             (item.tags.includes('rotur') ? 'rotur' : item.tags.includes('mistium') ? 'mistium' :
-        item.tags.includes('tw') ? 'tw' : item.tags.includes('cy-scr-ext-hub') ? 'cy-scr-ext-hub' : 'scratch');
-        const sources = this.props.sources || [
-            ['scratch', 'Scratch'],
-            ['tw', 'TurboWarp'],
-            ['mistium', 'Mistium'],
-            ['rotur', 'PineEditor Accounts'],
-            ['cy-scr-ext-hub', 'CY ScrExt Hub']
-        ];
+                item.tags.includes('tw') ? 'tw' : item.tags.includes('sharkpool') ? 'sharkpool' :
+                item.tags.includes('ae') ? 'ae' : item.tags.includes('bilup') ? 'bilup' : 'scratch');
+        const sources = this.props.sources || [];
         const sections = sources.map(([source, sourceTitle]) => ({
             title: sourceTitle,
             items: visible.filter(item =>
@@ -377,7 +363,7 @@ class TWExtensionLibrary extends React.Component {
                         width="wide"
                     >
                         <ModalSidebarGroup>
-                            <ModalSidebarGroupHeader label={intl.formatMessage(messages.categories)} />
+                            <ModalSidebarGroupHeader label="Extensions" />
                             {sidebarTags.map(tag => (
                                 <TagItem
                                     key={tag.tag}
@@ -385,10 +371,9 @@ class TWExtensionLibrary extends React.Component {
                                     label={labelOf(tag, intl)}
                                     selected={this.state.selectedTag === tag.tag}
                                     onSelect={this.handleSelectTag}
-                                    icon={tag.icon}
-                                    status={tag.tag !== ALL && getSourceStatus ? getSourceStatus(tag.tag) : null}
-                                    removable={removableTags && removableTags.includes(tag.tag)}
                                     onRemove={this.handleRemoveTag}
+                                    removable={Array.isArray(removableTags) && removableTags.includes(tag.tag)}
+                                    status={tag.tag !== ALL && getSourceStatus ? getSourceStatus(tag.tag) : null}
                                 />
                             ))}
                         </ModalSidebarGroup>
@@ -409,7 +394,9 @@ class TWExtensionLibrary extends React.Component {
                             />
                         </div>
                         <div className={styles.scroll}>
-                            {showSections ? (
+                            {visible.length === 0 ? (
+                                <div className={styles.emptyState}>{emptyState()}</div>
+                            ) : showSections ? (
                                 <React.Fragment>
                                     {top.length ? (
                                         <div className={styles.grid}>
@@ -420,9 +407,9 @@ class TWExtensionLibrary extends React.Component {
                                                     onSelect={onItemSelected}
                                                     isLoaded={isLoaded}
                                                 />
-                                            ))}
-                                        </div>
-                                    ) : null}
+                                                ))}
+                                                </div>
+                                                ) : null}
                                     {sections.map(section => (
                                         <ExtensionSection
                                             key={section.title}
@@ -439,7 +426,7 @@ class TWExtensionLibrary extends React.Component {
                                         </ExtensionSection>
                                     ))}
                                 </React.Fragment>
-                            ) : visible.length ? (
+                            ) : (
                                 <div className={styles.grid}>
                                     {visible.map((item, index) => (
                                         <ExtensionCard
@@ -449,10 +436,6 @@ class TWExtensionLibrary extends React.Component {
                                             isLoaded={isLoaded}
                                         />
                                     ))}
-                                </div>
-                            ) : (
-                                <div className={styles.emptyState}>
-                                    {emptyState()}
                                 </div>
                             )}
                         </div>
@@ -468,14 +451,14 @@ TWExtensionLibrary.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types
     data: PropTypes.array,
     tags: PropTypes.arrayOf(PropTypes.object),
+    sources: PropTypes.arrayOf(PropTypes.array),
+    removableTags: PropTypes.arrayOf(PropTypes.string),
+    onRemoveCustomSource: PropTypes.func,
     title: PropTypes.string,
     onItemSelected: PropTypes.func.isRequired,
     onRequestClose: PropTypes.func,
-    onRemoveCustomSource: PropTypes.func,
     isLoaded: PropTypes.func,
-    getSourceStatus: PropTypes.func,
-    removableTags: PropTypes.arrayOf(PropTypes.string),
-    sources: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string))
+    getSourceStatus: PropTypes.func
 };
 
 export default injectIntl(TWExtensionLibrary);

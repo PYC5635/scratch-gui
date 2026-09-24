@@ -75,3 +75,25 @@
 .sprite-input {
     width: 8rem;
 }
+
+/* Short viewports (mobile landscape, etc.): compact sprite info so it doesn't
+   eat the vertical space the stage needs. Keep the name field, hide the less
+   essential x/y/direction/size row. */
+@media only screen and (max-height: 480px) {
+    .sprite-info {
+        padding: 0.35rem 0.5rem;
+        overflow: hidden;
+    }
+
+    .row-primary {
+        margin-bottom: 0;
+    }
+
+    .row-secondary {
+        display: none;
+    }
+
+    .sprite-input {
+        width: 6rem;
+    }
+}

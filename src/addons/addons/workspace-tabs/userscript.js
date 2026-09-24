@@ -26,7 +26,7 @@ const newSvg = (src, width, height) => {
  * @param {mainInputs} inputs the addon inputs
  */
 export default async function ({addon, console, msg}) {
-    if (typeof window !== 'undefined' && window.__RemixWarpNativeWorkspaceBookmarks) {
+    if (typeof window !== 'undefined' && window.__bilupNativeWorkspaceBookmarks) {
         return;
     }
     const vm = addon.tab.traps.vm;
@@ -860,9 +860,12 @@ export default async function ({addon, console, msg}) {
     });
 
     // Project change listeners - load bookmarks from project
-    vm.runtime.on('PROJECT_LOADED', () => {
-    // Load bookmarks from the new project
+    const onProjectLoaded = () => {
         loadBookmarksFromProject();
+    };
+    vm.runtime.on('PROJECT_LOADED', onProjectLoaded);
+    addon.self.addEventListener('disabled', () => {
+        vm.runtime.off('PROJECT_LOADED', onProjectLoaded);
     });
 
     // Function to set up workspace change tracking and cleanup

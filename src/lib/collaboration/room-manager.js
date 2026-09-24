@@ -439,11 +439,13 @@ const handleUserJoin = (service, payload, conn) => {
             if (service.roomPrivacy === 'private') return;
             if (service.roomPrivacy === 'public') approveJoinRequest(service, payload.id, payload.username, conn);
         }
-    } else if (isHostBroadcast) {
-        service.users.set(payload.id, payload);
-        service.emit('user-joined', payload);
-    } else if (isJoinRequest) {
-        // ignore
+    } else {
+        if (isHostBroadcast) {
+            service.users.set(payload.id, payload);
+            service.emit('user-joined', payload);
+        } else if (isJoinRequest) {
+            // ignore
+        }
     }
 };
 

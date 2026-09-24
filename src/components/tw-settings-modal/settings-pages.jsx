@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, injectIntl, intlShape} from 'react-intl';
 import FancyCheckbox from '../tw-fancy-checkbox/checkbox.jsx';
 
 import styles from './settings-modal.css';
@@ -15,7 +15,7 @@ Header.propTypes = {
     children: PropTypes.node
 };
 
-const AddonsPage = () => {
+const AddonsPage = ({intl}) => {
     const iframeRef = React.useRef(null);
 
     const syncCSSVariables = React.useCallback(() => {
@@ -80,13 +80,21 @@ const AddonsPage = () => {
         }
     }, [handleIframeLoad]);
 
+    let locale = 'en';
+    try {
+        locale = document.documentElement.lang || 'en';
+    } catch (e) { /* ignore */ }
+
     return (
         <div className={styles.addonsContainer}>
             <iframe
                 ref={iframeRef}
                 className={styles.addonsIframe}
-                title="Addons settings"
-                src="/addons.html"
+                title={intl.formatMessage({
+                    id: 'mw.settings.addonsSettings',
+                    defaultMessage: 'Addons settings'
+                })}
+                src={`/addons.html?locale=${encodeURIComponent(locale)}`}
                 frameBorder="0"
                 sandbox="allow-same-origin allow-scripts allow-modals allow-forms allow-popups"
             />
@@ -133,7 +141,7 @@ const ProjectPage = props => (
             <p className={styles.detail}>
                 <FormattedMessage
                     // eslint-disable-next-line max-len
-                    defaultMessage="If enabled, the current MistWarp theme will also be saved with the project settings."
+                    defaultMessage="If enabled, the current Bilup theme will also be saved with the project settings."
                     id="tw.settingsModal.storeThemeInProjectHelp"
                 />
             </p>
@@ -147,7 +155,13 @@ ProjectPage.propTypes = {
     onStoreThemeInProjectChange: PropTypes.func
 };
 
+AddonsPage.propTypes = {
+    intl: intlShape
+};
+
+const AddonsPageWithIntl = injectIntl(AddonsPage);
+
 export {
-    AddonsPage,
+    AddonsPageWithIntl as AddonsPage,
     ProjectPage
 };

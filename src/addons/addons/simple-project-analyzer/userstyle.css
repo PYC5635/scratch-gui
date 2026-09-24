@@ -31,24 +31,68 @@
 /* VSCode 布局下的分析按钮样式 */
 [class*="tabs"][class*="vscodeList"] .sa-analyze-button {
   width: 40px;
-  height: 30px;
+  height: 40px;
   font-size: 0;
   background-color: #00000000;
   border: 0;
   border-radius: 0 !important;
   margin: 0 !important;
-  padding: 0 !important;
+  padding-top: 5px;
+  padding-bottom: 5px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  margin-bottom: 10px !important;
-
 }
 
 [class*="tabs"][class*="vscodeList"] .sa-analyze-button img {
-  width: 2rem;
-  height: 2rem;
+  width: 22px;
+  height: auto;
+  filter: grayscale(100%);
+}
+
+/* VSCode 布局下按钮激活状态 - 与原始 tab 的激活样式一致 */
+[class*="tabs"][class*="vscodeList"] .sa-analyze-button.sa-spa-active,
+[class*="tabs"][class*="vscodeList"] .sa-analyze-button.is-selected {
+  background-color: var(--ui-white) !important;
+  box-shadow: inset 3px 0px 0px 0px var(--looks-secondary) !important;
+}
+
+[class*="tabs"][class*="vscodeList"] .sa-analyze-button.sa-spa-active img,
+[class*="tabs"][class*="vscodeList"] .sa-analyze-button.is-selected img {
+  filter: grayscale(0%);
+}
+
+/* 导出按钮样式 */
+.sa-analyze-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--ui-secondary);
+}
+
+.sa-export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  background-color: var(--motion-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: none;
+}
+
+.sa-export-button:hover {
+  background-color: var(--motion-primary);
+}
+
+.sa-export-button:active {
+  background-color: var(--motion-primary);
 }
 
 /* 模态框样式 */

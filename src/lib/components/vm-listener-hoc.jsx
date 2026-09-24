@@ -1,4 +1,5 @@
 import bindAll from 'lodash.bindall';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import PropTypes from 'prop-types';
 import React from 'react';
 import VM from 'scratch-vm';
@@ -25,9 +26,93 @@ import {
 import {openProjectThemePrompt} from '../../reducers/mw-project-theme';
 import {setCustomStageSize} from '../../reducers/custom-stage-size';
 import {openUnknownPlatformModal} from '../../reducers/modals';
-import {recordStageSize} from '../achievements.js';
-import implementGuiAPI from '../api/extension-gui';
+import {setTheme} from '../../reducers/theme';
+import {getIsLoading} from '../../reducers/project-state';
+import {Theme} from '../themes';
+import {CustomTheme} from '../themes/custom-themes.js';
 import {BLOCKS_TAB_INDEX} from '../../reducers/editor-tab';
+
+// Debounce utility: coalesces rapid calls into a single execution at the end
+// of the burst, with an optional leading-edge call.
+const debounce = (fn, delay) => {
+    let timer = null;
+    let leading = true;
+    return (...args) => {
+        if (leading) {
+            leading = false;
+            fn(...args);
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            leading = true;
+            fn(...args);
+        }, delay);
+    };
+};
+
+// Throttle utility: runs immediately on the first call, then guarantees at
+// least one execution every `delay` ms even when calls arrive continuously at
+// a higher rate (leading + trailing). Unlike the leading+trailing debounce
+// above, a sustained stream of calls can never starve execution, so it is the
+// right tool for per-frame sources such as MONITORS_UPDATE.
+const throttle = (fn, delay) => {
+    let lastRun = 0;
+    let timer = null;
+    let lastArgs = null;
+    return (...args) => {
+        lastArgs = args;
+        const now = typeof performance !== 'undefined' && typeof performance.now === 'function' ?
+            performance.now() : Date.now();
+        const remaining = delay - (now - lastRun);
+        if (remaining <= 0) {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            lastRun = now;
+            fn(...args);
+        } else if (!timer) {
+            timer = setTimeout(() => {
+                timer = null;
+                lastRun = typeof performance !== 'undefined' && typeof performance.now === 'function' ?
+                    performance.now() : Date.now();
+                fn(...lastArgs);
+            }, remaining);
+        }
+    };
+};
+
+// The unsandboxed extension GUI API pulls in the whole git toolchain
+// (browser-git). It is only needed when an unsandboxed extension runs, so load
+// it lazily instead of blocking the first editor load with it.
+let extensionGuiAPIPromise;
+const implementGuiAPI = Scratch => {
+    if (!extensionGuiAPIPromise) {
+        extensionGuiAPIPromise = import('../api/extension-gui');
+    }
+    extensionGuiAPIPromise
+        .then(module => module.default(Scratch))
+        .catch(e => console.error('Failed to load extension GUI API:', e));
+};
+
+const projectThemeSuppressed = () => {
+    try {
+        return new URLSearchParams(window.location.search).get('apply_project_theme') === '0';
+    } catch (e) {
+        return false;
+    }
+};
+
+const buildProjectTheme = payload => {
+    if (payload && payload.kind === 'custom' && payload.data) {
+        return CustomTheme.import(payload.data);
+    }
+    if (payload && payload.kind === 'standard' && payload.data) {
+        const d = payload.data;
+        return new Theme(d.accent, d.gui, d.blocks, d.menuBarAlign, d.wallpaper, d.fonts, null, d.appearance || {});
+    }
+    return null;
+};
 
 let compileErrorCounter = 0;
 
@@ -35,7 +120,7 @@ const PROJECT_THEME_IGNORE_STORAGE_KEY = 'mw:ignore-project-theme-prompts';
 
 const readIgnoreMap = () => {
     try {
-        const raw = localStorage.getItem(PROJECT_THEME_IGNORE_STORAGE_KEY);
+        const raw = getStorageItem(PROJECT_THEME_IGNORE_STORAGE_KEY);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         return parsed && typeof parsed === 'object' ? parsed : {};
@@ -53,9 +138,9 @@ const hashString = str => {
     return (hash >>> 0).toString(16);
 };
 
-const computePromptKey = mistwarpTheme => {
+const computePromptKey = bilupTheme => {
     try {
-        return hashString(JSON.stringify(mistwarpTheme));
+        return hashString(JSON.stringify(bilupTheme));
     } catch (e) {
         return null;
     }
@@ -129,6 +214,14 @@ const vmListenerHOC = function (WrappedComponent) {
             if (this.props.shouldUpdateTargets && !prevProps.shouldUpdateTargets) {
                 this.props.vm.emitTargetsUpdate(false /* Emit the event, but do not trigger project change */);
             }
+
+            // When project loading completes, request a targets update from the VM.
+            // During loading, handleTargetsUpdate skips all targetsUpdate events,
+            // so the sprites are never dispatched to Redux. This ensures they show
+            // up in the sprite panel after the project finishes loading.
+            if (!this.props.isLoadingProject && prevProps.isLoadingProject) {
+                this.props.vm.emitTargetsUpdate(false);
+            }
         }
         componentWillUnmount () {
             if (this.props.attachKeyboardEvents) {
@@ -168,15 +261,38 @@ const vmListenerHOC = function (WrappedComponent) {
             if (!runtime || typeof runtime.getStoredProjectOptions !== 'function') return;
 
             const stored = runtime.getStoredProjectOptions();
-            if (!stored || !stored.mistwarpTheme) return;
+            if (!stored || !stored.bilupTheme) return;
 
-            const promptKey = computePromptKey(stored.mistwarpTheme);
+            // On the community project page the project runs embedded, so the
+            // theme just applies (no prompt) unless the page suppressed it.
+            if (this.props.isEmbedded) {
+                if (projectThemeSuppressed()) return;
+                try {
+                    const theme = buildProjectTheme(stored.bilupTheme);
+                    if (theme) {
+                        this.props.onSetTheme(theme);
+                        try {
+                            window.parent.postMessage(
+                                {type: 'mw:project-theme-applied', theme: stored.bilupTheme},
+                                '*'
+                            );
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
+                } catch (e) {
+                    // ignore: bad theme payloads just don't apply
+                }
+                return;
+            }
+
+            const promptKey = computePromptKey(stored.bilupTheme);
             if (!promptKey) return;
 
             const ignored = readIgnoreMap();
             if (ignored[promptKey]) return;
 
-            this.props.onOpenProjectThemePrompt(stored.mistwarpTheme, promptKey);
+            this.props.onOpenProjectThemePrompt(stored.bilupTheme, promptKey);
         }
         handleCloudDataUpdate (hasCloudVariables) {
             if (this.props.hasCloudVariables !== hasCloudVariables) {
@@ -198,11 +314,16 @@ const vmListenerHOC = function (WrappedComponent) {
             });
         }
         handleProjectChanged () {
+            if (this.props.isLoadingProject) return;
             if (this.props.shouldUpdateProjectChanged && !this.props.projectChanged) {
                 this.props.onProjectChanged();
             }
         }
         handleTargetsUpdate (data) {
+            // During project loading the VM fires many targetsUpdate events.
+            // Skip them to avoid flooding Redux with intermediate states that
+            // will be immediately overwritten.
+            if (this.props.isLoadingProject) return;
             if (this.props.shouldUpdateTargets) {
                 this.props.onTargetsUpdate(data);
             }
@@ -253,12 +374,14 @@ const vmListenerHOC = function (WrappedComponent) {
             const {
                 /* eslint-disable no-unused-vars */
                 attachKeyboardEvents,
+                isLoadingProject,
                 isEditorObscured,
                 isEditorUsable,
                 projectChanged,
                 shouldUpdateTargets,
                 shouldUpdateProjectChanged,
                 onOpenProjectThemePrompt,
+                onSetTheme,
                 onBlockDragUpdate,
                 onGreenFlag,
                 onKeyDown,
@@ -293,6 +416,7 @@ const vmListenerHOC = function (WrappedComponent) {
     }
     VMListener.propTypes = {
         attachKeyboardEvents: PropTypes.bool,
+        isLoadingProject: PropTypes.bool,
         isEditorObscured: PropTypes.bool.isRequired,
         isEditorUsable: PropTypes.bool.isRequired,
         onBlockDragUpdate: PropTypes.func.isRequired,
@@ -319,6 +443,8 @@ const vmListenerHOC = function (WrappedComponent) {
         onPlatformMismatch: PropTypes.func.isRequired,
         onRuntimeOptionsChanged: PropTypes.func.isRequired,
         onOpenProjectThemePrompt: PropTypes.func,
+        onSetTheme: PropTypes.func,
+        isEmbedded: PropTypes.bool,
         onStageSizeChanged: PropTypes.func,
         onCompileError: PropTypes.func,
         onClearCompileErrors: PropTypes.func,
@@ -334,6 +460,7 @@ const vmListenerHOC = function (WrappedComponent) {
     };
     const mapStateToProps = state => ({
         hasCloudVariables: state.scratchGui.tw.hasCloudVariables,
+        isLoadingProject: getIsLoading(state.scratchGui.projectState.loadingState),
         isEditorObscured: (
             !state.scratchGui.mode.isPlayerOnly &&
             state.scratchGui.mode.isFullScreen
@@ -344,6 +471,7 @@ const vmListenerHOC = function (WrappedComponent) {
             state.scratchGui.editorTab.activeTabIndex === BLOCKS_TAB_INDEX
         ),
         projectChanged: state.scratchGui.projectChanged,
+        isEmbedded: state.scratchGui.mode.isEmbedded,
         // Do not emit target or project updates in fullscreen or player only mode
         // or when recording sounds (it leads to garbled recordings on low-power machines)
         shouldUpdateTargets: !state.scratchGui.mode.isFullScreen && !state.scratchGui.mode.isPlayerOnly &&
@@ -354,13 +482,32 @@ const vmListenerHOC = function (WrappedComponent) {
         username: state.session && state.session.session && state.session.session.user ?
             state.session.session.user.username : state.scratchGui.tw ? state.scratchGui.tw.username : ''
     });
-    const mapDispatchToProps = dispatch => ({
-        onTargetsUpdate: data => {
-            dispatch(updateTargets(data.targetList, data.editingTarget));
-        },
-        onMonitorsUpdate: monitorList => {
-            dispatch(updateMonitors(monitorList));
-        },
+    let debouncedMonitorsUpdate = null;
+        let debouncedTargetsUpdate = null;
+        const mapDispatchToProps = dispatch => ({
+            onTargetsUpdate: (() => {
+                if (!debouncedTargetsUpdate) {
+                    debouncedTargetsUpdate = debounce(data => {
+                        dispatch(updateTargets(data.targetList, data.editingTarget));
+                    }, 50);
+                }
+                return debouncedTargetsUpdate;
+            })(),
+        // Monitors update every frame while the VM is running. For large
+        // projects with many monitors this can easily overwhelm the React
+        // render cycle on low-end devices. Throttle to at most one dispatch
+        // per 50 ms so the UI stays responsive. (Throttle, not debounce: a
+        // leading+trailing debounce would let a continuous per-frame stream
+        // reset its timer forever and never dispatch until the stream stops,
+        // so on-screen variable/list values would not refresh during a run.)
+        onMonitorsUpdate: (() => {
+            if (!debouncedMonitorsUpdate) {
+                debouncedMonitorsUpdate = throttle(monitorList => {
+                    dispatch(updateMonitors(monitorList));
+                }, 50);
+            }
+            return debouncedMonitorsUpdate;
+        })(),
         onBlockDragUpdate: areBlocksOverGui => {
             dispatch(updateBlockDrag(areBlocksOverGui));
         },
@@ -377,19 +524,25 @@ const vmListenerHOC = function (WrappedComponent) {
         onInterpolationChanged: interpolation => dispatch(setInterpolationState(interpolation)),
         onCompilerOptionsChanged: options => dispatch(setCompilerOptionsState(options)),
         onPlatformMismatch: (platform, callback) => {
+            const isTurboWarp = platform && (
+                platform.name === 'TurboWarp' ||
+                (platform.url && platform.url.includes('turbowarp.org'))
+            );
+            if (isTurboWarp) {
+                callback();
+                return;
+            }
             dispatch(setPlatformMismatchDetails(platform, callback));
             dispatch(openUnknownPlatformModal());
         },
         onRuntimeOptionsChanged: options => dispatch(setRuntimeOptionsState(options)),
-        onStageSizeChanged: (width, height) => {
-            recordStageSize(width, height);
-            dispatch(setCustomStageSize(width, height));
-        },
+        onStageSizeChanged: (width, height) => dispatch(setCustomStageSize(width, height)),
         onCompileError: errors => dispatch(addCompileError(errors)),
         onClearCompileErrors: () => dispatch(clearCompileErrors()),
-        onOpenProjectThemePrompt: (mistwarpTheme, promptKey) => dispatch(
-            openProjectThemePrompt(mistwarpTheme, promptKey)
+        onOpenProjectThemePrompt: (bilupTheme, promptKey) => dispatch(
+            openProjectThemePrompt(bilupTheme, promptKey)
         ),
+        onSetTheme: theme => dispatch(setTheme(theme)),
         onShowExtensionAlert: data => {
             dispatch(showExtensionAlert(data));
         },

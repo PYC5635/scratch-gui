@@ -13,30 +13,45 @@ export default async function ({ addon, console, msg }) {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function getProjectSize() {
-        try {
-            let totalSize = 0;
-            const targets = vm.runtime.targets || [];
-            targets.forEach(target => {
-                const sprite = target.sprite || target;
-                
-                if (sprite.costumes && Array.isArray(sprite.costumes)) {
-                    sprite.costumes.forEach(costume => {
-                        if (costume.asset && costume.asset.data && costume.asset.data.byteLength) {
-                            totalSize += costume.asset.data.byteLength;
-                        }
-                    });
-                }
-                
-                if (sprite.sounds && Array.isArray(sprite.sounds)) {
-                    sprite.sounds.forEach(sound => {
-                        if (sound.asset && sound.asset.data && sound.asset.data.byteLength) {
-                            totalSize += sound.asset.data.byteLength;
-                        }
-                    });
+    function getTextBytes(text) {
+        const textEncoder = new TextEncoder();
+        return textEncoder.encode(text).length;
+    }
+
+    // 统计角色造型与声音素材的原始占用字节数
+    function getAssetsSize(sprite) {
+        let totalSize = 0;
+        if (sprite.costumes && Array.isArray(sprite.costumes)) {
+            sprite.costumes.forEach(costume => {
+                if (costume.asset && costume.asset.data && costume.asset.data.byteLength) {
+                    totalSize += costume.asset.data.byteLength;
                 }
             });
-            return totalSize;
+        }
+        if (sprite.sounds && Array.isArray(sprite.sounds)) {
+            sprite.sounds.forEach(sound => {
+                if (sound.asset && sound.asset.data && sound.asset.data.byteLength) {
+                    totalSize += sound.asset.data.byteLength;
+                }
+            });
+        }
+        return totalSize;
+    }
+
+    function getProjectSize() {
+        try {
+            const projectJSON = vm.toJSON();
+            const jsonString = typeof projectJSON === 'string' ? projectJSON : JSON.stringify(projectJSON);
+            let totalBytes = getTextBytes(jsonString);
+
+            // 加上所有角色（含舞台）造型/声音素材的占用（跳过克隆体避免重复）
+            const targets = vm.runtime.targets || [];
+            targets.forEach(target => {
+                if (!target.isOriginal) return;
+                totalBytes += getAssetsSize(target.sprite || target);
+            });
+
+            return totalBytes;
         } catch (e) {
             console.warn('[Project Size Display] Failed to calculate project size:', e);
             return 0;
@@ -48,6 +63,7 @@ export default async function ({ addon, console, msg }) {
         
         const targets = vm.runtime.targets || [];
         targets.forEach(target => {
+            if (!target.isOriginal) return; // 跳过克隆体
             const sprite = target.sprite || target;
             const blocks = sprite.blocks ? Object.values(sprite.blocks._blocks) : [];
             total += blocks.filter(block => !block.shadow).length;
@@ -59,27 +75,18 @@ export default async function ({ addon, console, msg }) {
     function getSelectedTargetStorageSize() {
         if (!vm.editingTarget) return '-';
         const target = vm.editingTarget;
-        if (target.isStage) return '-';
-        
+
         const sprite = target.sprite || target;
-        let totalSize = 0;
-        
-        if (sprite.costumes && Array.isArray(sprite.costumes)) {
-            sprite.costumes.forEach(costume => {
-                if (costume.asset && costume.asset.data && costume.asset.data.byteLength) {
-                    totalSize += costume.asset.data.byteLength;
-                }
-            });
+        let totalSize = getAssetsSize(sprite);
+
+        // 加上该角色代码与元数据在项目文件中的占用（不含素材二进制，避免重复计算）
+        try {
+            const targetJSON = vm.toJSON(target.id);
+            totalSize += getTextBytes(targetJSON);
+        } catch (e) {
+            console.warn('[Project Size Display] Failed to calculate target JSON size:', e);
         }
-        
-        if (sprite.sounds && Array.isArray(sprite.sounds)) {
-            sprite.sounds.forEach(sound => {
-                if (sound.asset && sound.asset.data && sound.asset.data.byteLength) {
-                    totalSize += sound.asset.data.byteLength;
-                }
-            });
-        }
-        
+
         return totalSize > 0 ? formatFileSize(totalSize) : '-';
     }
 
@@ -91,8 +98,8 @@ export default async function ({ addon, console, msg }) {
             const projectSize = getProjectSize();
             const targetSize = getSelectedTargetStorageSize();
 
-            const blocksText = msg('blocks-count') || '积木数';
-            const sizeText = msg('project-size') || '大小';
+            const blocksText = msg('blocks-count') || 'Blocks';
+            const sizeText = msg('project-size') || 'Size';
             
             sizeDisplay.querySelector('.sa-project-size-blocks').innerText = `${blocksText}: ${blockCount}`;
             sizeDisplay.querySelector('.sa-project-size-project').innerText = `${sizeText}: ${targetSize}/${formatFileSize(projectSize)}`;
@@ -135,6 +142,10 @@ export default async function ({ addon, console, msg }) {
             updateDisplay();
 
             let debounce;
+            const onProjectLoaded = () => {
+                isLoading = false;
+                updateDisplay();
+            };
             if (handler) {
                 vm.off("PROJECT_CHANGED", handler);
                 vm.runtime.off("PROJECT_LOADED", handler);
@@ -145,10 +156,7 @@ export default async function ({ addon, console, msg }) {
                 debounce = setTimeout(updateDisplay, 100);
             };
             vm.on("PROJECT_CHANGED", handler);
-            vm.runtime.on("PROJECT_LOADED", () => {
-                isLoading = false;
-                updateDisplay();
-            });
+            vm.runtime.on("PROJECT_LOADED", onProjectLoaded);
             
             if (addon.tab.redux) {
                 addon.tab.redux.addEventListener("statechanged", (e) => {

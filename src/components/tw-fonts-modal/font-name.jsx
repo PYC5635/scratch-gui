@@ -20,30 +20,7 @@ class FontName extends React.Component {
         this.state = {
             focused: false,
             rect: null,
-            localFonts: [
-                // Fallback fonts for browsers that don't support queryLocalFonts
-                'Arial',
-                'Arial Black',
-                'Comic Sans MS',
-                'Courier New',
-                'Georgia',
-                'Impact',
-                'Times New Roman',
-                'Trebuchet MS',
-                'Verdana',
-                'Microsoft YaHei',
-                'SimHei',
-                'SimSun',
-                'KaiTi',
-                'FangSong',
-                'STSong',
-                'STKaiti',
-                'STFangsong',
-                'STZhongsong',
-                'STXingkai',
-                'STXinwei',
-                'STLiti'
-            ]
+            localFonts: []
         };
     }
 

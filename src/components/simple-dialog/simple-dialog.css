@@ -1,23 +1,23 @@
 .modalContent .body {
-    padding: 1.5rem;
+    padding: 0.75rem 1rem;
     min-width: 300px;
     max-width: 500px;
 }
 
 .message {
-    margin: 0 0 1rem 0;
-    font-size: 1rem;
-    line-height: 1.5;
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 .input {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.4rem 0.5rem;
     border: 2px solid var(--ui-tertiary, #ccc);
     border-radius: 4px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-family: inherit;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     box-sizing: border-box;
 }
 
@@ -45,12 +45,12 @@
 }
 
 .okButton {
-    background-color: var(--ui-primary, #4d97ff);
+    background-color: var(--looks-secondary);
     color: white;
 }
 
 .okButton:hover {
-    background-color: var(--ui-primary-hover, #3b85ff);
+    background-color: color-mix(in srgb, var(--looks-secondary) 75%, black);
 }
 
 .okButton:active {

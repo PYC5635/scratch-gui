@@ -8,7 +8,7 @@ import {connect} from 'react-redux';
 import {STAGE_DISPLAY_SIZES} from '../lib/constants/layout-constants';
 import {getEventXY} from '../lib/utils/touch';
 import VideoProvider from '../lib/video/video-provider';
-import {BitmapAdapter as V2BitmapAdapter} from '@turbowarp/scratch-svg-renderer';
+import {BitmapAdapter as V2BitmapAdapter} from '@bilup/scratch-svg-renderer';
 
 import StageComponent from '../components/stage/stage.jsx';
 
@@ -18,10 +18,15 @@ import {
 } from '../reducers/color-picker';
 
 import {setHighQualityPenState} from '../reducers/tw';
-import {AESettings} from '../lib/settings.js';
 
 const colorPickerRadius = 20;
 const dragThreshold = 3; // Same as the block drag threshold
+
+// Throttle mouse position updates to ~60 Hz so the VM is not flooded with
+// input events on every single mousemove (which can fire at 200+ Hz on
+// high-refresh-rate displays). This significantly reduces CPU usage on low-end
+// devices without affecting input responsiveness.
+const MOUSE_THROTTLE_MS = 16; // ~60 fps
 
 class Stage extends React.Component {
     constructor (props) {
@@ -55,6 +60,7 @@ class Stage extends React.Component {
             colorInfo: null,
             question: null
         };
+        this._lastMouseMoveTime = 0;
         if (this.props.vm.renderer) {
             this.renderer = this.props.vm.renderer;
             this.canvas = this.renderer.canvas;
@@ -76,22 +82,15 @@ class Stage extends React.Component {
             // Only attach a video provider once because it is stateful
             this.props.vm.setVideoProvider(new VideoProvider());
 
+            // Calling draw a single time before any project is loaded just makes
+            // the canvas white instead of solid black–needed because it is not
+            // possible to use CSS to style the canvas to have a different
+            // default color
+            this.props.vm.renderer.draw();
+
             // tw: handle changes to high quality pen
             this.props.vm.renderer.on('UseHighQualityRenderChanged', this.props.onHighQualityPenChanged);
         }
-
-        // Set default stage background color based on theme and AESettings:
-        // When EnableDynamicStageBackground is enabled, white for light mode, black for dark mode
-        // When disabled (default), always white
-        const dynamicBgEnabled = AESettings.get('EnableDynamicStageBackground');
-        if (dynamicBgEnabled) {
-            const isDark = this.props.theme && typeof this.props.theme.isDark === 'function' && this.props.theme.isDark();
-            this.renderer.setBackgroundColor(isDark ? 0 : 1, isDark ? 0 : 1, isDark ? 0 : 1);
-        } else {
-            this.renderer.setBackgroundColor(1, 1, 1);
-        }
-        this.renderer.draw();
-
         this.props.vm.attachV2BitmapAdapter(new V2BitmapAdapter());
     }
     componentDidMount () {
@@ -107,12 +106,13 @@ class Stage extends React.Component {
             this.props.isFullScreen !== nextProps.isFullScreen ||
             this.props.isWindowFullScreen !== nextProps.isWindowFullScreen ||
             this.props.stageContainerWidth !== nextProps.stageContainerWidth ||
+            this.props.stageMaxHeight !== nextProps.stageMaxHeight ||
             this.props.dimensions !== nextProps.dimensions ||
             this.state.question !== nextState.question ||
             this.props.micIndicator !== nextProps.micIndicator ||
             this.props.isStarted !== nextProps.isStarted ||
-            this.props.customStageSize !== nextProps.customStageSize ||
-            this.props.theme !== nextProps.theme;
+            this.props.customStageSize.width !== nextProps.customStageSize.width ||
+            this.props.customStageSize.height !== nextProps.customStageSize.height;
     }
     componentDidUpdate (prevProps) {
         if (this.props.isColorPicking && !prevProps.isColorPicking) {
@@ -120,14 +120,22 @@ class Stage extends React.Component {
         } else if (!this.props.isColorPicking && prevProps.isColorPicking) {
             this.stopColorPickingLoop();
         }
-        // Update stage background color when theme changes (only if dynamic background is enabled)
-        if (this.props.theme !== prevProps.theme && AESettings.get('EnableDynamicStageBackground')) {
-            const isDark = this.props.theme && typeof this.props.theme.isDark === 'function' && this.props.theme.isDark();
-            this.renderer.setBackgroundColor(isDark ? 0 : 1, isDark ? 0 : 1, isDark ? 0 : 1);
-            this.renderer.draw();
-        }
         this.updateRect();
         this.renderer.resize(this.rect.width, this.rect.height);
+        // Update projection matrix and VM stage size when custom stage size changes
+        if (this.props.customStageSize.width !== prevProps.customStageSize.width ||
+            this.props.customStageSize.height !== prevProps.customStageSize.height) {
+            this.renderer.setStageSize(
+                -this.props.customStageSize.width / 2,
+                this.props.customStageSize.width / 2,
+                -this.props.customStageSize.height / 2,
+                this.props.customStageSize.height / 2
+            );
+            this.props.vm.setStageSize(
+                this.props.customStageSize.width,
+                this.props.customStageSize.height
+            );
+        }
     }
     componentWillUnmount () {
         this.detachMouseEvents(this.canvas);
@@ -254,7 +262,13 @@ class Stage extends React.Component {
             canvasWidth: this.rect.width,
             canvasHeight: this.rect.height
         };
-        this.props.vm.postIOData('mouse', coordinates);
+        // Throttle mouse IO updates to ~60 Hz so the VM is not overwhelmed
+        // by the 200+ Hz mousemove events that modern browsers fire.
+        const now = Date.now();
+        if (now - this._lastMouseMoveTime >= MOUSE_THROTTLE_MS) {
+            this._lastMouseMoveTime = now;
+            this.props.vm.postIOData('mouse', coordinates);
+        }
     }
     onMouseUp (e) {
         const {x, y} = getEventXY(e);
@@ -495,6 +509,7 @@ Stage.propTypes = {
     isStarted: PropTypes.bool,
     micIndicator: PropTypes.bool,
     stageContainerWidth: PropTypes.number,
+    stageMaxHeight: PropTypes.number,
     onActivateColorPicker: PropTypes.func,
     onDeactivateColorPicker: PropTypes.func,
     stageSize: PropTypes.oneOf(Object.keys(STAGE_DISPLAY_SIZES)).isRequired,
@@ -522,7 +537,6 @@ const mapStateToProps = state => ({
     dimensions: state.scratchGui.tw.dimensions,
     isStarted: state.scratchGui.vmStatus.started,
     micIndicator: state.scratchGui.micIndicator,
-    theme: state.scratchGui.theme.theme,
     // Do not use editor drag style in fullscreen or player mode.
     useEditorDragStyle: !(state.scratchGui.mode.isFullScreen || state.scratchGui.mode.isPlayerOnly)
 });

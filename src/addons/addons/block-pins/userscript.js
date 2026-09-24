@@ -263,13 +263,13 @@ export default async function({ addon, msg }) {
     ogPopulate.call(this, newTree);
   }
 
-  vm.runtime.on("PROJECT_LOADED", () => {
+  const onProjectLoaded = () => {
     populateInit = 0;
-  });
-  if (!autoLoadExtPins) vm.runtime.on("EXTENSION_ADDED", () => {
+  };
+  const onExtensionAdded = () => {
     populateInit = 2;
-  });
-  vm.runtime.on("EXTENSION_REMOVED", (extId, detail) => {
+  };
+  const onExtensionRemoved = (extId, detail) => {
     const removedId = typeof extId === "string" ? extId : (detail && detail.id) || "";
     if (!removedId) return;
 
@@ -277,8 +277,15 @@ export default async function({ addon, msg }) {
     pins = pins.filter((t) => !t.startsWith(removedId));
 
     populateInit = 2;
-  });
+  };
+
+  vm.runtime.on("PROJECT_LOADED", onProjectLoaded);
+  if (!autoLoadExtPins) vm.runtime.on("EXTENSION_ADDED", onExtensionAdded);
+  vm.runtime.on("EXTENSION_REMOVED", onExtensionRemoved);
   addon.self.addEventListener("disabled", () => {
     localStorage.removeItem("ADDONS_BLOCK-PINS");
+    vm.runtime.off("PROJECT_LOADED", onProjectLoaded);
+    vm.runtime.off("EXTENSION_ADDED", onExtensionAdded);
+    vm.runtime.off("EXTENSION_REMOVED", onExtensionRemoved);
   });
 }

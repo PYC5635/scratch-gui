@@ -11,6 +11,7 @@ import nodeCrypto from 'crypto';
 import crossFetch from 'cross-fetch';
 import yauzl from 'yauzl';
 import { fileURLToPath } from 'url';
+//import cliProgress from 'cli-progress';
 
 /** @typedef {import('yauzl').Entry} ZipEntry */
 /** @typedef {import('yauzl').ZipFile} ZipFile */
@@ -21,6 +22,52 @@ const __dirname = path.dirname(__filename);
 
 // base/root path for the project
 const basePath = path.join(__dirname, '..');
+
+// Parse command line arguments for proxy
+const args = process.argv.slice(2);
+const proxyArgIndex = args.indexOf('--proxy');
+const proxyUrl = proxyArgIndex !== -1 ? args[proxyArgIndex + 1] : null;
+
+// Create fetch with proxy support
+let fetchWithProxy = crossFetch;
+if (proxyUrl) {
+    console.info(`[Proxy] Using proxy: ${proxyUrl}`);
+    
+    if (proxyUrl.startsWith('http://')) {
+        // HTTP proxy
+        import('http-proxy-agent').then(({ HttpProxyAgent }) => {
+            const agent = new HttpProxyAgent(proxyUrl);
+            fetchWithProxy = (url, options = {}) => {
+                return crossFetch(url, { ...options, agent });
+            };
+        }).catch(err => {
+            console.warn(`[Proxy] Failed to load http-proxy-agent: ${err.message}`);
+        });
+    } else if (proxyUrl.startsWith('https://')) {
+        // HTTPS proxy
+        import('https-proxy-agent').then(({ HttpsProxyAgent }) => {
+            const agent = new HttpsProxyAgent(proxyUrl);
+            fetchWithProxy = (url, options = {}) => {
+                return crossFetch(url, { ...options, agent });
+            };
+        }).catch(err => {
+            console.warn(`[Proxy] Failed to load https-proxy-agent: ${err.message}`);
+        });
+    } else if (proxyUrl.startsWith('socks://') || proxyUrl.startsWith('socks5://')) {
+        // SOCKS proxy
+        const socksUrl = proxyUrl.replace('socks5://', 'socks://');
+        import('socks-proxy-agent').then(({ SocksProxyAgent }) => {
+            const agent = new SocksProxyAgent(socksUrl);
+            fetchWithProxy = (url, options = {}) => {
+                return crossFetch(url, { ...options, agent });
+            };
+        }).catch(err => {
+            console.warn(`[Proxy] Failed to load socks-proxy-agent: ${err.message}`);
+        });
+    } else {
+        console.warn(`[Proxy] Unsupported proxy protocol: ${proxyUrl}`);
+    }
+}
 
 /**
  * Extract the first matching file from a zip buffer.
@@ -78,18 +125,12 @@ const extractFirstMatchingFile = (filter, relativeDestDir, zipBuffer) => new Pro
 });
 
 const downloadMicrobitHex = async () => {
-    const hexFile = path.join(basePath, 'static', 'microbit', 'scratch-microbit-1.2.0.hex');
-    const generatedFile = path.join(basePath, 'src', 'generated', 'microbit-hex-url.cjs');
-    if (fs.existsSync(hexFile) && fs.existsSync(generatedFile)) {
-        console.info('microbit hex already exists, skipping download');
-        return;
-    }
     const url = 'https://packagerdata.turbowarp.org/scratch-microbit-1.2.0.hex.zip';
     const expectedSHA256 = 'dfd574b709307fe76c44dbb6b0ac8942e7908f4d5c18359fae25fbda3c9f4399';
     console.info(`Downloading ${url}`);
-    const response = await crossFetch(url);
+    const response = await fetchWithProxy(url);
     const zipBuffer = Buffer.from(await response.arrayBuffer());
-    const sha256 = nodeCrypto.createHash('sha256').update(zipBuffer).digest('hex');
+    const sha256 = nodeCrypto.createHash('sha-256').update(zipBuffer).digest('hex');
     if (sha256 !== expectedSHA256) {
         throw new Error(`microbit hex has SHA-256 ${sha256} but expected ${expectedSHA256}`);
     }
@@ -122,41 +163,113 @@ const downloadMicrobitHex = async () => {
     console.info(`Wrote ${relativeGeneratedFile}`);
 };
 
-const syncPenguinMod = async () => {
-    const relativeOutFile = path.join('static', 'penguinmod', 'extensions.js');
-    const absoluteOutFile = path.join(basePath, relativeOutFile);
-    if (fs.existsSync(absoluteOutFile)) {
-        console.info('[PenguinMod] extensions.js already exists, skipping fetch');
-        return;
-    }
-    const SOURCE = 'https://raw.githubusercontent.com/PenguinMod/PenguinMod-ExtensionsGallery/main/src/lib/extensions.js';
-    console.info('[PenguinMod] Fetching gallery…');
-    const res = await crossFetch(SOURCE);
-    if (!res.ok) throw new Error(`[PenguinMod] Fetch failed: ${res.status}`);
-    const code = await res.text();
-    //sanity check
-    if (!code.includes('export default'))
-        throw new Error('[PenguinMod] Invalid PenguinMod module');
-    const wrapped = `
-// AUTO-GENERATED — DO NOT EDIT
-// Source: ${SOURCE}
-// Synced at: ${new Date().toISOString()}
+// const downloadLibraryAssets = async () => {
+//     const libraryFiles = [
+//         path.join('src', 'lib', 'libraries', 'costumes.json'),
+//         path.join('src', 'lib', 'libraries', 'backdrops.json'),
+//         path.join('src', 'lib', 'libraries', 'sprites.json'),
+//         path.join('src', 'lib', 'libraries', 'sounds.json')
+//     ];
 
-${code}
-`;
-    fs.mkdirSync(path.dirname(absoluteOutFile), { recursive: true });
-    fs.writeFileSync(absoluteOutFile, wrapped, 'utf8');
-    console.info(`[PenguinMod] Wrote ${relativeOutFile}`);
-};
+//     const assetsDir = path.join('static', 'libassets');
+//     const absoluteAssetsDir = path.join(basePath, assetsDir);
+//     fs.mkdirSync(absoluteAssetsDir, { recursive: true });
 
+//     const md5extList = new Set();
+
+//     for (const libraryFile of libraryFiles) {
+//         const absoluteLibraryFile = path.join(basePath, libraryFile);
+//         if (!fs.existsSync(absoluteLibraryFile)) {
+//             console.warn(`Library file not found: ${libraryFile}`);
+//             continue;
+//         }
+//         const content = fs.readFileSync(absoluteLibraryFile, 'utf8');
+//         const items = JSON.parse(content);
+        
+//         for (const item of items) {
+//             if (item.costumes && Array.isArray(item.costumes)) {
+//                 for (const costume of item.costumes) {
+//                     if (costume.md5ext) {
+//                         md5extList.add(costume.md5ext);
+//                     }
+//                 }
+//             }
+//             if (item.sounds && Array.isArray(item.sounds)) {
+//                 for (const sound of item.sounds) {
+//                     if (sound.md5ext) {
+//                         md5extList.add(sound.md5ext);
+//                     }
+//                 }
+//             }
+//             if (item.md5ext) {
+//                 md5extList.add(item.md5ext);
+//             }
+//         }
+//     }
+
+//     console.info(`[Library Assets] Found ${md5extList.size} unique assets to download`);
+
+//     const totalAssets = md5extList.size;
+//     let downloaded = 0;
+//     let skipped = 0;
+//     let failed = 0;
+//     const failedItems = [];
+
+//     const progressBar = new cliProgress.SingleBar({
+//         format: '[Library Assets] [{bar}] {percentage}% | {value}/{total} | ETA: {eta}s',
+//         barCompleteChar: '\u2588',
+//         barIncompleteChar: '\u2591',
+//         hideCursor: true
+//     });
+
+//     progressBar.start(totalAssets, 0);
+
+//     for (const md5ext of md5extList) {
+//         const assetPath = path.join(assetsDir, md5ext);
+//         const absoluteAssetPath = path.join(basePath, assetPath);
+        
+//         if (fs.existsSync(absoluteAssetPath)) {
+//             skipped++;
+//             progressBar.update(downloaded + skipped);
+//             continue;
+//         }
+
+//         const url = `https://assets.scratch.mit.edu/internalapi/asset/${md5ext}/get/`;
+        
+//         try {
+//             const response = await fetchWithProxy(url);
+//             if (!response.ok) {
+//                 failed++;
+//                 failedItems.push({ md5ext, error: `HTTP ${response.status}` });
+//                 progressBar.update(downloaded + skipped + failed);
+//                 continue;
+//             }
+            
+//             const buffer = Buffer.from(await response.arrayBuffer());
+//             fs.writeFileSync(absoluteAssetPath, buffer);
+//             downloaded++;
+//             progressBar.update(downloaded + skipped + failed);
+//         } catch (error) {
+//             failed++;
+//             failedItems.push({ md5ext, error: error.message });
+//             progressBar.update(downloaded + skipped + failed);
+//         }
+//     }
+
+//     progressBar.stop();
+//     console.info(`[Library Assets] Downloaded: ${downloaded}, Skipped: ${skipped}, Failed: ${failed}`);
+    
+//     if (failed > 0) {
+//         console.warn('\n[Library Assets] Failed downloads:');
+//         for (const item of failedItems) {
+//             console.warn(`  - ${item.md5ext}: ${item.error}`);
+//         }
+//     }
+// };
 
 const prepublish = async () => {
     await downloadMicrobitHex();
-    try {
-        await syncPenguinMod();
-    } catch (error) {
-        console.warn('PenguinMod sync failed, continuing with build:', error.message);
-    }
+    // await downloadLibraryAssets();
 };
 
 prepublish().then(

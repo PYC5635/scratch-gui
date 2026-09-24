@@ -89,7 +89,10 @@ class SB3Downloader extends React.Component {
         this.props.saveProjectSb3().then(content => {
             this.finishedSaving();
             downloadBlob(this.props.projectFilename, content);
-        });
+        })
+            .catch(e => {
+                this.handleSaveError(e);
+            });
     }
     async saveAsNew () {
         if (!this.props.canSaveProject) {
@@ -102,7 +105,7 @@ class SB3Downloader extends React.Component {
                     {
                         description: 'Scratch 3 Project',
                         accept: {
-                            'application/octet-stream': '.sb3'
+                            'application/x.scratch.sb3': '.sb3'
                         }
                     }
                 ],
@@ -133,6 +136,28 @@ class SB3Downloader extends React.Component {
     }
     async saveToHandle (handle) {
         if (!this.props.canSaveProject) {
+            return;
+        }
+
+        // Embedding git history needs the full zip in memory (the streaming path
+        // can't inject extra files), so buffer the save when a repo exists.
+        const {repoExists} = await import('../lib/git/browser-git');
+        if (await repoExists()) {
+            const writable = await handle.createWritable();
+            this.startedSaving();
+            try {
+                const blob = await this.props.saveProjectSb3();
+                await writable.write(await blob.arrayBuffer());
+                await writable.close();
+                this.finishedSaving();
+            } catch (e) {
+                try {
+                    await writable.abort();
+                } catch (abortError) {
+                    // ignore
+                }
+                throw e;
+            }
             return;
         }
 
@@ -302,7 +327,13 @@ SB3Downloader.defaultProps = {
 
 const mapStateToProps = state => ({
     fileHandle: state.scratchGui.tw.fileHandle,
-    saveProjectSb3: state.scratchGui.vm.saveProjectSb3.bind(state.scratchGui.vm),
+    // Wrap the VM save so the .sb3 also carries the git repo (fractch tree + .git)
+    // under GIT_EMBED_DIR while keeping the normal project.json/assets at the top level.
+    saveProjectSb3: (...args) =>
+        state.scratchGui.vm.saveProjectSb3(...args).then(async content => {
+            const {embedRepoIntoSb3Blob} = await import('../lib/git/browser-git');
+            return embedRepoIntoSb3Blob(content);
+        }),
     saveProjectSb3Stream: state.scratchGui.vm.saveProjectSb3Stream.bind(state.scratchGui.vm),
     canSaveProject: getIsShowingProject(state.scratchGui.projectState.loadingState),
     projectFilename: getProjectFilename(state.scratchGui.projectTitle, projectTitleInitialState)

@@ -14,34 +14,14 @@ const InvalidEmbed = () => (
         <p>
             {'See '}
             <a
-                href="https://docs.turbowarp.org/embedding"
+                href="https://docs.bilup.org/advanced/embedding"
                 target="_blank"
                 rel="noreferrer"
             >
-                {'docs.turbowarp.org/embedding'}
+                {'docs.bilup.org/advanced/embedding'}
             </a>
             {/* eslint-disable-next-line max-len */}
-            {' for more information. You need to replace the iframe src with the embed page:'}
-        </p>
-        <p className={styles.code}>
-            {'https://turbowarp.org/<project ID>/embed'}
-        </p>
-        <p>
-            {'Here\'s an example of a full iframe to embed a project:'}
-        </p>
-        <p className={styles.code}>
-            {`<iframe src="https://turbowarp.org/60917032/embed" width="482" height="412" allowtransparency="true" frameborder="0" scrolling="no" allowfullscreen></iframe>`}
-        </p>
-        <p>
-            {'If you are seeing this page even though you aren\'t embedding anything, let us know on '}
-            <a
-                href={FEEDBACK_URL}
-                target="_blank"
-                rel="noreferrer"
-            >
-                {'scratch.mit.edu/users/GarboMuffin'}
-            </a>
-            {'.'}
+            {' for more information.'}
         </p>
     </div>
 );

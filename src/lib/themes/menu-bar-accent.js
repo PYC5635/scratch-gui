@@ -1,3 +1,4 @@
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 const ACCENT_MENU_BAR_KEY = 'mw:accent-menu-bar';
 const COMPACT_SAVE_KEY = 'mw:compact-save';
 const MENU_BAR_TEXT_KEY = 'mw:menu-bar-text';
@@ -6,7 +7,7 @@ const MENU_BAR_TEXT_OPTIONS = ['auto', 'light', 'dark'];
 const MENU_BAR_TEXT_DEFAULT = 'auto';
 
 const MENU_BAR_TEXT_LIGHT = '#ffffff';
-const MENU_BAR_TEXT_DARK = '#2e2e2e';
+const MENU_BAR_TEXT_DARK = '#000000';
 
 const notifyCloudSync = () => {
     try {
@@ -18,7 +19,7 @@ const notifyCloudSync = () => {
 
 const getAccentMenuBar = () => {
     try {
-        return localStorage.getItem(ACCENT_MENU_BAR_KEY) !== 'false';
+        return getStorageItem(ACCENT_MENU_BAR_KEY) !== 'false';
     } catch (_) {
         return true;
     }
@@ -35,7 +36,7 @@ const setAccentMenuBar = enabled => {
 
 const getMenuBarText = () => {
     try {
-        const stored = localStorage.getItem(MENU_BAR_TEXT_KEY);
+        const stored = getStorageItem(MENU_BAR_TEXT_KEY);
         return MENU_BAR_TEXT_OPTIONS.includes(stored) ? stored : MENU_BAR_TEXT_DEFAULT;
     } catch (_) {
         return MENU_BAR_TEXT_DEFAULT;
@@ -54,7 +55,7 @@ const setMenuBarText = value => {
 
 const getCompactSave = () => {
     try {
-        return localStorage.getItem(COMPACT_SAVE_KEY) === 'true';
+        return getStorageItem(COMPACT_SAVE_KEY) === 'true';
     } catch (_) {
         return false;
     }

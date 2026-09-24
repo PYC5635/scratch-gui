@@ -20,9 +20,10 @@ import dataURLToBlob from '../lib/utils/data-uri-to-blob';
 import EventTargetShim from './event-target';
 import AddonHooks from './hooks';
 import addons from './generated/addon-manifests';
-let addonMessages = {};
+import addonMessages from './addons-l10n/en.json';
 import l10nEntries from './generated/l10n-entries';
 import addonEntries from './generated/addon-entries';
+import CustomPlugins from './custom-plugins';
 import {addContextMenu} from './contextmenu';
 import * as modal from './modal';
 import * as textColorHelpers from './libraries/common/cs/text-color.esm.js';
@@ -36,83 +37,42 @@ const escapeHTML = str => str.replace(/([<>'"&])/g, (_, l) => `&#${l.charCodeAt(
 const kebabCaseToCamelCase = str => str.replace(/-([a-z])/g, g => g[1].toUpperCase());
 
 let _scratchClassNames = null;
-let _scratchClassNamesWarm = false;
-
-// 在浏览器空闲时预生成样式类缓存，避免首次调用 scratchClass() 时阻塞用户交互
-// 用一个"预热"标记，空闲时先算出来，真的要用时直接拿结果
-const scheduleIdle = typeof requestIdleCallback !== 'undefined'
-    ? requestIdleCallback
-    : cb => setTimeout(cb, 100);
-scheduleIdle(() => {
-    if (typeof document !== 'undefined' && document.styleSheets && !_scratchClassNamesWarm) {
-        try {
-            getScratchClassNames();
-        } catch (_e) {
-            // ignore
-        }
-    }
-}, {timeout: 10000});
-
 const getScratchClassNames = () => {
     if (_scratchClassNames) {
         return _scratchClassNames;
     }
-    _scratchClassNamesWarm = true;
-
-    const styleSheets = document.styleSheets;
-    const len = styleSheets ? styleSheets.length : 0;
-    const cssRules = [];
-    // 用普通 for 循环代替 Array.from + filter + map + flat 链式
-    // 减少中间数组和 GC 压力，对于大样式表集合差异明显
-    for (let i = 0; i < len; i++) {
-        const styleSheet = styleSheets[i];
-        const ownerNode = styleSheet.ownerNode;
-        // Ignore some scratch-paint stylesheets (快路径先检查 tagName，避免读 textContent)
-        if (ownerNode && ownerNode.tagName === 'STYLE') {
-            const text = ownerNode.textContent;
-            if (text && text.startsWith(
-                '/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.'
-            ) && (
-                text.includes('input_input-form') ||
-                text.includes('label_input-group_')
-            )) {
-                continue;
+    const cssRules = Array.from(document.styleSheets)
+        // Ignore some scratch-paint stylesheets
+        .filter(styleSheet => (
+            !(
+                styleSheet.ownerNode.textContent.startsWith(
+                    '/* DO NOT EDIT\n@todo This file is copied from GUI and should be pulled out into a shared library.'
+                ) &&
+                (
+                    styleSheet.ownerNode.textContent.includes('input_input-form') ||
+                    styleSheet.ownerNode.textContent.includes('label_input-group_')
+                )
+            )
+        ))
+        .map(e => {
+            try {
+                return [...e.cssRules];
+            } catch (_e) {
+                return [];
             }
-        }
-        try {
-            const rules = styleSheet.cssRules;
-            if (rules) {
-                const rLen = rules.length;
-                for (let j = 0; j < rLen; j++) {
-                    cssRules.push(rules[j]);
-                }
-            }
-        } catch (_e) {
-            // ignore - cross-origin stylesheets
-        }
-    }
-
-    const classSet = new Set();
-    const regex = /(([\w-]+?)_([\w-]+)_([\w\d-]+))/g;
-    const rLen = cssRules.length;
-    for (let i = 0; i < rLen; i++) {
-        const selectorText = cssRules[i].selectorText;
-        if (!selectorText) continue;
-        let match;
-        while ((match = regex.exec(selectorText)) !== null) {
-            classSet.add(match[0]);
-        }
-    }
-    _scratchClassNames = Array.from(classSet);
-
+        })
+        .flat();
+    const classes = cssRules
+        .map(e => e.selectorText)
+        .filter(e => e)
+        .map(e => e.match(/(([\w-]+?)_([\w-]+)_([\w\d-]+))/g))
+        .filter(e => e)
+        .flat();
+    _scratchClassNames = [...new Set(classes)];
     const observer = new MutationObserver(mutationList => {
-        const mLen = mutationList.length;
-        for (let m = 0; m < mLen; m++) {
-            const mutation = mutationList[m];
-            const nodes = mutation.addedNodes;
-            const nLen = nodes ? nodes.length : 0;
-            for (let n = 0; n < nLen; n++) {
-                if (nodes[n].tagName === 'STYLE') {
+        for (const mutation of mutationList) {
+            for (const node of mutation.addedNodes) {
+                if (node.tagName === 'STYLE') {
                     _scratchClassNames = null;
                     observer.disconnect();
                     return;
@@ -120,9 +80,9 @@ const getScratchClassNames = () => {
             }
         }
     });
-    if (document && document.head) {
-        observer.observe(document.head, {childList: true});
-    }
+    observer.observe(document.head, {
+        childList: true
+    });
     return _scratchClassNames;
 };
 
@@ -169,13 +129,7 @@ const getLocale = () => {
 const language = getLocale();
 
 const getTranslations = async () => {
-    // 先加载英文翻译作为默认
-    if (Object.prototype.hasOwnProperty.call(l10nEntries, 'en')) {
-        const enMessages = await l10nEntries['en']();
-        Object.assign(addonMessages, enMessages);
-    }
-    // 然后加载当前语言的翻译覆盖默认值
-    if (language !== 'en' && Object.prototype.hasOwnProperty.call(l10nEntries, language)) {
+    if (Object.prototype.hasOwnProperty.call(l10nEntries, language)) {
         const localeMessages = await l10nEntries[language]();
         Object.assign(addonMessages, localeMessages);
     }
@@ -777,7 +731,8 @@ class Self extends EventTargetShim {
 class AddonRunner {
     constructor (id) {
         AddonRunner.instances.push(this);
-        const manifest = addons[id];
+        // 内置插件走静态清单；自定义插件从登记处取（运行时导入，不在 addons 里）
+        const manifest = addons[id] || CustomPlugins.getManifest(id);
 
         this.id = id;
         this.manifest = manifest;
@@ -957,7 +912,10 @@ class AddonRunner {
             await untilInEditor();
         }
 
-        const mod = await addonEntries[this.id]();
+        // 自定义插件不走 webpack 生成的 addonEntries，直接从登记处取入口
+        const mod = CustomPlugins.isCustom(this.id) ?
+            await CustomPlugins.getEntry(this.id) :
+            await addonEntries[this.id]();
         this.resources = mod.resources;
 
         if (!this.manifest.noTranslations) {
@@ -968,7 +926,7 @@ class AddonRunner {
         // This number just has to be larger than the maximum number of userstyles in a single addon.
         const baseStylePrecedence = getPrecedence(this.id) * 100;
 
-        if (this.resources && this.manifest.userstyles) {
+        if (this.manifest.userstyles) {
             for (let i = 0; i < this.manifest.userstyles.length; i++) {
                 const userstyle = this.manifest.userstyles[i];
                 const userstylePrecedence = baseStylePrecedence + i;
@@ -999,15 +957,13 @@ class AddonRunner {
 
         this.updateCssVariables();
 
-        if (this.resources && this.manifest.userscripts) {
+        if (this.manifest.userscripts) {
             for (const userscript of this.manifest.userscripts) {
                 if (!SettingsStore.evaluateCondition(userscript.if)) {
                     continue;
                 }
                 const fn = this.resources[userscript.url];
-                if (typeof fn === 'function') {
-                    fn(this.publicAPI);
-                }
+                fn(this.publicAPI);
             }
         }
 
@@ -1040,9 +996,17 @@ SettingsStore.addEventListener('addon-changed', e => {
     }
 });
 
-for (const id of Object.keys(addons)) {
-    if (!SettingsStore.getAddonEnabled(id)) {
-        continue;
+// 启动：先从 IndexedDB 恢复自定义插件，再运行所有已启用的插件（内置 + 自定义）
+const boot = async () => {
+    await CustomPlugins.refreshFromDB();
+    // 注册表加载后重新读取本地存储，恢复自定义插件的开关/设置
+    SettingsStore.readLocalStorage();
+    const allAddonIds = [...Object.keys(addons), ...CustomPlugins.getIds()];
+    for (const id of allAddonIds) {
+        if (!SettingsStore.getAddonEnabled(id)) {
+            continue;
+        }
+        runAddon(id);
     }
-    runAddon(id);
-}
+};
+boot();

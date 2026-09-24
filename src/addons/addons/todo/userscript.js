@@ -106,7 +106,7 @@ export default async function ({ addon, msg }) {
     // 在加载的项目内寻找正确的Todo注释ID
     // 因为它保存的ID是会！变！的！
     // 那我这个设置‘todo’为id的意义是什么...
-    addon.tab.traps.vm.runtime.on("PROJECT_LOADED", () => {
+    const onProjectLoaded = () => {
         try {
             Object.values(addon.tab.traps.vm.runtime.getTargetForStage().comments).forEach(obj => {
                 if (obj.id == COMMENT_ID) return
@@ -116,7 +116,11 @@ export default async function ({ addon, msg }) {
             console.warn(e);
             // 没找到没关系
         }
-    })
+    };
+    addon.tab.traps.vm.runtime.on("PROJECT_LOADED", onProjectLoaded);
+    addon.self.addEventListener("disabled", () => {
+        addon.tab.traps.vm.runtime.off("PROJECT_LOADED", onProjectLoaded);
+    });
 
 
     let COMMENT_ID = 'todo'

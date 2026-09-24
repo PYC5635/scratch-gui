@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import classNames from 'classnames';
 import VM from 'scratch-vm';
 
@@ -17,11 +17,40 @@ const StageWrapperComponent = function (props) {
         isFullScreen,
         isRtl,
         isRendererSupported,
+        isStageHidden,
         loading,
         stageContainerWidth,
+        stageMaxHeight,
         stageSize,
         vm
     } = props;
+
+    // Box.componentRef expects a callback, not a ref object.
+    const wrapperElRef = useRef(null);
+    const handleWrapperRef = useCallback((node) => {
+        wrapperElRef.current = node;
+    }, []);
+    const wasFullScreenRef = useRef(false);
+
+    // Full-screen layout class. Toggled synchronously with the `isFullScreen`
+    // prop — no enter / exit animation.
+    const [isFullScreenLayout, setIsFullScreenLayout] = useState(false);
+
+    // React to fullscreen toggles
+    useLayoutEffect(() => {
+        if (isFullScreen !== wasFullScreenRef.current) {
+            wasFullScreenRef.current = isFullScreen;
+            setIsFullScreenLayout(isFullScreen);
+        }
+    }, [isFullScreen]);
+
+    // Handle initial mount: sync layout state without animation.
+    useEffect(() => {
+        if (isFullScreen && !wasFullScreenRef.current) {
+            wasFullScreenRef.current = true;
+            setIsFullScreenLayout(true);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <Box
@@ -29,33 +58,35 @@ const StageWrapperComponent = function (props) {
                 styles.stageWrapper,
                 {
                     [styles.embedded]: isEmbedded,
-                    [styles.fullScreen]: isFullScreen,
+                    [styles.fullScreen]: isFullScreenLayout,
                     [styles.loading]: loading,
-                    [styles.offsetControls]: !(isEmbedded || isFullScreen)
+                    [styles.offsetControls]: !(isEmbedded || isFullScreenLayout)
                 }
             )}
             dir={isRtl ? 'rtl' : 'ltr'}
+            componentRef={handleWrapperRef}
         >
             <Box className={styles.stageMenuWrapper}>
                 <StageHeader
-                    isFullScreen={isFullScreen}
-                    isEmbedded={isEmbedded}
                     stageContainerWidth={stageContainerWidth}
                     stageSize={stageSize}
                     vm={vm}
                 />
             </Box>
-            <Box className={styles.stageCanvasWrapper}>
-                {
-                    isRendererSupported ?
-                        <Stage
-                            stageContainerWidth={stageContainerWidth}
-                            stageSize={stageSize}
-                            vm={vm}
-                        /> :
-                        null
-                }
-            </Box>
+            {isStageHidden ? null : (
+                <Box className={styles.stageCanvasWrapper}>
+                    {
+                        isRendererSupported ?
+                            <Stage
+                                stageContainerWidth={stageContainerWidth}
+                                stageMaxHeight={stageMaxHeight}
+                                stageSize={stageSize}
+                                vm={vm}
+                            /> :
+                            null
+                    }
+                </Box>
+            )}
             {loading ? (
                 <Loader isFullScreen={isFullScreen} />
             ) : null}
@@ -68,8 +99,10 @@ StageWrapperComponent.propTypes = {
     isFullScreen: PropTypes.bool,
     isRendererSupported: PropTypes.bool.isRequired,
     isRtl: PropTypes.bool.isRequired,
+    isStageHidden: PropTypes.bool,
     loading: PropTypes.bool,
     stageContainerWidth: PropTypes.number,
+    stageMaxHeight: PropTypes.number,
     stageSize: PropTypes.oneOf(Object.keys(STAGE_DISPLAY_SIZES)).isRequired,
     vm: PropTypes.instanceOf(VM).isRequired
 };

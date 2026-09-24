@@ -11,6 +11,28 @@
     z-index: $z-index-modal;
     background-color: $ui-modal-overlay;
     color: $ui-modal-foreground;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    /* Promote the overlay to its own compositor layer while it fades in/out,
+       keeping the fade from triggering repaints on the rest of the page. */
+    will-change: opacity;
+}
+
+.modal-overlay.ReactModal__Overlay--after-open {
+    opacity: 1;
+    will-change: auto;
+}
+
+.modal-overlay.ReactModal__Overlay--before-close {
+    opacity: 0;
+}
+
+.modal-overlay.ReactModal__Overlay--after-open {
+    opacity: 1;
+}
+
+.modal-overlay.ReactModal__Overlay--before-close {
+    opacity: 0;
 }
 
 .modal-content * {
@@ -27,6 +49,24 @@
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     overflow: hidden;
+
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    /* Scale + opacity run on the compositor; promoting the modal to its own
+       layer avoids jank from re-rasterizing a large modal on old devices. */
+    will-change: transform, opacity;
+}
+
+.modal-content.ReactModal__Content--after-open {
+    opacity: 1;
+    transform: scale(1);
+    will-change: auto;
+}
+
+.modal-content.ReactModal__Content--before-close {
+    opacity: 0;
+    transform: scale(0.95);
 }
 
 .modal-content.full-screen {

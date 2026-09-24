@@ -1,11 +1,24 @@
 import BlockItem from '../../lib/find-bar/BlockItem';
-import {unlockAchievement} from '../../lib/achievements.js';
+import {getItem as getStorageItem} from '../../lib/utils/safe-storage.js';
+import {getCodeSearch, setFindBarApi} from '../../lib/find-bar/api';
 
 import Dropdown from './Dropdown';
 
+// Opcode -> scratch-blocks message key remapping for blocks whose opcode has
+// underscores that the message table does not.
+const operatorMap = {
+    'OPERATORS_LETTER_OF': 'OPERATORS_LETTEROF',
+    'OPERATORS_LETTERS_OF': 'OPERATORS_LETTERSOF',
+    'OPERATORS_INDEX_OF': 'OPERATORS_INDEXOF',
+    'OPERATORS_CHANGE_CASE': 'OPERATORS_CHANGECASE'
+};
+
 const normalizeType = type => {
     const upper = type.toUpperCase();
-    if (upper.startsWith('OPERATOR'))  return 'OPERATORS' + upper.slice(8);
+    if (upper.startsWith('OPERATOR')) {
+        const mapped = 'OPERATORS' + upper.slice(8);
+        return operatorMap[mapped] || mapped;
+    }
     if (upper === 'SOUND_SETEFFECTTO') return 'SOUND_SETEFFECTO';
     const controlMap = {
         'CONTROL_WAIT_UNTIL': 'CONTROL_WAITUNTIL',
@@ -16,13 +29,14 @@ const normalizeType = type => {
         'CONTROL_DELETE_THIS_CLONE': 'CONTROL_DELETETHISCLONE',
         'CONTROL_INCR_COUNTER': 'CONTROL_INCRCOUNTER',
         'CONTROL_CLEAR_COUNTER': 'CONTROL_CLEARCOUNTER',
-        'CONTROL_ALL_AT_ONCE': 'CONTROL_ALLATONCE'
+        'CONTROL_ALL_AT_ONCE': 'CONTROL_ALLATONCE',
+        'CONTROL_GET_COUNTER': 'CONTROL_COUNTER'
     };
     if (controlMap[upper]) return controlMap[upper];
     return upper;
 };
 
-const getMessages = (ScratchBlocks, blockJson, msgAny) => [
+const getMessages = (ScratchBlocks, blockJson) => [
     ScratchBlocks.Msg,
     Object.fromEntries(
         blockJson.flatMap(b => {
@@ -35,10 +49,21 @@ const getMessages = (ScratchBlocks, blockJson, msgAny) => [
                 i++;
             }
             if (messages.length === 0) return [];
-            return [[normalizedType, `${b.type.split('_', 1)[0]}: ${messages.join(' ')}`]];
+
+            let text = messages.join(' ');
+
+            // Extension blocks that render an icon (pen, music, ...) have their
+            // message prefixed with "%1 %2" placeholders mapping to the icon and
+            // a vertical separator. Strip them so the real translated text is
+            // left over, otherwise the search results would show "() ()text".
+            if (b.args0 && b.args0[0] && b.args0[0].type === 'field_image') {
+                text = text.replace(/^\s*%\d+(?:\s*%\d+)*/, '').trim();
+            }
+
+            if (!text) return [];
+            return [[normalizedType, text]];
         })
-    ),
-    msgAny
+    )
 ];
 
 const getColours = blockJson => Object.fromEntries(
@@ -66,11 +91,14 @@ export default class FindBarController {
         this.currentResultIndex = -1;
 
         this.isRegexMode = false;
-        this.isCaseSensitive = localStorage.getItem('sa-find-case-sensitive') === '1';
+        this.isCaseSensitive = getStorageItem('sa-find-case-sensitive') === '1';
 
         this.findBarOuter = null;
         this.findWrapper = null;
         this.findInput = null;
+        this.codeResults = [];
+        this.codeIndex = 0;
+        this.codeSearchToken = 0;
         this.dropdownOut = null;
         this.dropdown = new Dropdown({ScratchBlocks, utils, vm, msg});
         this.searchControls = null;
@@ -78,13 +106,24 @@ export default class FindBarController {
         this._onDocumentKeyDown = e => this.eventKeyDown(e);
         document.addEventListener('keydown', this._onDocumentKeyDown, true);
 
+        this._onDocumentPointerDown = e => {
+            if (!this.findBarOuter || !this.findBarOuter.classList.contains('mw-find-expanded')) return;
+            if (this.findBarOuter.contains(e.target)) return;
+            this.collapseMobileSearch();
+        };
+        document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
+
         this._cachedScratchBlocks = null;
         this._cachedScratchCostumes = null;
         this._cachedScratchSounds = null;
-        this._lastWorkspaceVersion = null;
+        this._cachedColours = null;
+        this._cachedMessages = null;
         this._debounceTimer = null;
-        this._workspaceChangeListener = null;
-        this._invalidSearchTimer = null;
+        this._searchChunkRaf = null;
+
+        this._invalidateOnVmChange = () => this._invalidateCache();
+        this.vm.on('PROJECT_CHANGED', this._invalidateOnVmChange);
+        this.vm.on('workspaceUpdate', this._invalidateOnVmChange);
     }
 
     get workspace () {
@@ -102,35 +141,8 @@ export default class FindBarController {
         this._cachedScratchBlocks = null;
         this._cachedScratchCostumes = null;
         this._cachedScratchSounds = null;
-        this._lastWorkspaceVersion = null;
-    }
-
-    _getWorkspaceVersion () {
-        const workspace = this.workspace;
-        if (!workspace) return null;
-        return workspace.id || (workspace.getAllBlocks && workspace.getAllBlocks().length);
-    }
-
-    _setupWorkspaceListener () {
-        if (this._workspaceChangeListener) return;
-
-        this._workspaceChangeListener = () => {
-            this._invalidateCache();
-            this.dropdown.empty();
-        };
-
-        const workspace = this.workspace;
-        if (workspace && workspace.addChangeListener) {
-            workspace.addChangeListener(this._workspaceChangeListener);
-        }
-    }
-
-    _removeWorkspaceListener () {
-        const workspace = this.workspace;
-        if (workspace && workspace.removeChangeListener && this._workspaceChangeListener) {
-            workspace.removeChangeListener(this._workspaceChangeListener);
-        }
-        this._workspaceChangeListener = null;
+        this._cachedColours = null;
+        this._cachedMessages = null;
     }
 
     createDom (root) {
@@ -157,6 +169,15 @@ export default class FindBarController {
                 <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
         `;
+
+        this.searchIcon.addEventListener('click', () => {
+            if (this.findBarOuter.classList.contains('mw-find-expanded')) {
+                this.collapseMobileSearch();
+            } else {
+                this.findBarOuter.classList.add('mw-find-expanded');
+                if (this.findInput) this.findInput.focus();
+            }
+        });
 
         this.dropdownOut = this.findWrapper.appendChild(document.createElement('label'));
         this.dropdownOut.className = 'sa-find-dropdown-out';
@@ -202,20 +223,27 @@ export default class FindBarController {
         this.searchStats.className = 'sa-find-stats';
 
         this.bindEvents();
-        this._setupWorkspaceListener();
         this.tabChanged();
+
+        setFindBarApi({
+            expand: () => this.expandMobileSearch(),
+            collapse: () => this.collapseMobileSearch()
+        });
     }
 
     destroy () {
+        setFindBarApi(null);
         document.removeEventListener('keydown', this._onDocumentKeyDown, true);
-        this._removeWorkspaceListener();
+        document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
+        this.vm.removeListener('PROJECT_CHANGED', this._invalidateOnVmChange);
+        this.vm.removeListener('workspaceUpdate', this._invalidateOnVmChange);
         if (this._debounceTimer) {
             clearTimeout(this._debounceTimer);
             this._debounceTimer = null;
         }
-        if (this._invalidSearchTimer) {
-            clearTimeout(this._invalidSearchTimer);
-            this._invalidSearchTimer = null;
+        if (this._searchChunkRaf) {
+            cancelAnimationFrame(this._searchChunkRaf);
+            this._searchChunkRaf = null;
         }
         if (this.findBarOuter) {
             this.findBarOuter.remove();
@@ -230,6 +258,10 @@ export default class FindBarController {
     bindEvents () {
         this.findInput.addEventListener('focus', () => {
             this.updateModifierVisibility();
+            if (getCodeSearch()) {
+                if (this.findInput.value) this.inputChange({skipDebounce: true});
+                return;
+            }
             this.showDropDown();
             if (this.findInput.value) {
                 this.inputChange({skipDebounce: true});
@@ -359,6 +391,21 @@ export default class FindBarController {
     }
 
     inputChange (options = {}) {
+        const codeSearch = getCodeSearch();
+        if (codeSearch) {
+            const query = this.findInput.value;
+            codeSearch.search(query, this.isCaseSensitive);
+            if (!query) {
+                this.showCodeResults([]);
+                return;
+            }
+            const token = ++this.codeSearchToken;
+            codeSearch.searchAll(query, this.isCaseSensitive).then(results => {
+                if (token === this.codeSearchToken) this.showCodeResults(results);
+            });
+            return;
+        }
+
         if (!this.findInput.value) {
             this.showAllItems();
             return;
@@ -389,49 +436,61 @@ export default class FindBarController {
 
         const listLI = this.dropdown.items;
 
-        let matches = 0;
-        for (const li of listLI) {
-            const procCode = li.data.procCode;
-            const opcode = li.data.opcode;
-            const displayName = li.displayName || procCode;
-            const match = this.findMatch({displayName, procCode, opcode, searchNeedle: searchVal, regex});
+        // Cancel any in-flight chunked search so a stale query never keeps
+        // touching the DOM after the user has typed something else.
+        if (this._searchChunkRaf) {
+            cancelAnimationFrame(this._searchChunkRaf);
+            this._searchChunkRaf = null;
+        }
 
-            if (match) {
-                matches++;
-                li.style.display = 'block';
+        // On big projects the result list can hold hundreds of <li> entries.
+        // Rebuilding every match synchronously can freeze the page, so spread
+        // the work across animation frames once the list is large enough.
+        const SEARCH_CHUNK_SIZE = 250;
+        let index = 0;
+        const processChunk = () => {
+            const end = Math.min(index + SEARCH_CHUNK_SIZE, listLI.length);
+            for (; index < end; index++) {
+                const li = listLI[index];
+                const procCode = li.data.procCode;
+                const opcode = li.data.opcode;
+                const displayName = li.displayName || procCode;
+                const match = this.findMatch({displayName, procCode, opcode, searchNeedle: searchVal, regex});
 
-                this.clearChildren(li);
+                if (match) {
+                    li.style.display = 'block';
 
-                if (match.matchInOpcode && opcode) {
-                    li.appendChild(document.createTextNode(displayName));
-                    li.appendChild(document.createTextNode(' ('));
+                    this.clearChildren(li);
 
-                    const opcodeSpan = document.createElement('span');
-                    opcodeSpan.className = 'sa-find-opcode';
+                    if (match.matchInOpcode && opcode) {
+                        li.appendChild(document.createTextNode(displayName));
+                        li.appendChild(document.createTextNode(' ('));
 
-                    this.appendHighlightedText(opcodeSpan, opcode, match.matchIndex, match.matchLength);
+                        const opcodeSpan = document.createElement('span');
+                        opcodeSpan.className = 'sa-find-opcode';
 
-                    li.appendChild(opcodeSpan);
-                    li.appendChild(document.createTextNode(')'));
+                        this.appendHighlightedText(opcodeSpan, opcode, match.matchIndex, match.matchLength);
+
+                        li.appendChild(opcodeSpan);
+                        li.appendChild(document.createTextNode(')'));
+                    } else {
+                        this.appendHighlightedText(li, displayName, match.matchIndex, match.matchLength);
+                    }
                 } else {
-                    this.appendHighlightedText(li, displayName, match.matchIndex, match.matchLength);
+                    li.style.display = 'none';
                 }
-            } else {
-                li.style.display = 'none';
             }
-        }
+            if (index < listLI.length) {
+                this._searchChunkRaf = requestAnimationFrame(processChunk);
+            } else {
+                this._searchChunkRaf = null;
+            }
+        };
 
-        if (this._invalidSearchTimer) {
-            clearTimeout(this._invalidSearchTimer);
-            this._invalidSearchTimer = null;
-        }
-        if (originalVal && matches === 0) {
-            this._invalidSearchTimer = setTimeout(() => {
-                if (this.findInput && this.findInput.value === originalVal) {
-                    unlockAchievement('invalid-search');
-                }
-                this._invalidSearchTimer = null;
-            }, 5000);
+        if (listLI.length > SEARCH_CHUNK_SIZE) {
+            this._searchChunkRaf = requestAnimationFrame(processChunk);
+        } else {
+            processChunk();
         }
     }
 
@@ -452,7 +511,81 @@ export default class FindBarController {
         }
     }
 
+    showCodeResults (results) {
+        this.dropdown.empty();
+        this.codeResults = results;
+        this.codeIndex = 0;
+        if (!results.length) {
+            this.hideDropDown();
+            return;
+        }
+        for (const result of results) {
+            const item = document.createElement('li');
+            item.className = 'sa-find-code-result';
+
+            const where = document.createElement('span');
+            where.className = 'sa-find-code-where';
+            where.textContent = `${result.filepath}:${result.line}`;
+
+            const preview = document.createElement('span');
+            preview.className = 'sa-find-code-preview';
+            preview.textContent = result.preview;
+
+            item.appendChild(where);
+            item.appendChild(preview);
+            item.addEventListener('mousedown', e => {
+                e.preventDefault();
+                const codeSearch = getCodeSearch();
+                if (codeSearch) codeSearch.open(result);
+                this.findInput.blur();
+            });
+
+            this.dropdown.items.push(item);
+            this.dropdown.el.appendChild(item);
+        }
+        this.selectCodeResult(0);
+        this.showDropDown();
+    }
+
+    selectCodeResult (index) {
+        const items = this.dropdown.items;
+        if (!items.length) return;
+        const wrapped = ((index % items.length) + items.length) % items.length;
+        this.codeIndex = wrapped;
+        items.forEach((item, i) => item.classList.toggle('sel', i === wrapped));
+        items[wrapped].scrollIntoView({block: 'nearest'});
+    }
+
     inputKeyDown (e) {
+        const codeSearch = getCodeSearch();
+        if (codeSearch) {
+            const results = this.codeResults || [];
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                if (results.length) {
+                    this.selectCodeResult(this.codeIndex + (e.key === 'ArrowDown' ? 1 : -1));
+                    e.preventDefault();
+                }
+            } else if (e.key === 'Enter') {
+                if (results[this.codeIndex]) {
+                    codeSearch.open(results[this.codeIndex]);
+                    this.findInput.blur();
+                } else {
+                    codeSearch.step(e.shiftKey ? -1 : 1);
+                }
+                e.preventDefault();
+            } else if (e.key === 'F3') {
+                codeSearch.step(e.shiftKey ? -1 : 1);
+                e.preventDefault();
+            } else if (e.key === 'Escape') {
+                this.findInput.value = '';
+                codeSearch.search('', this.isCaseSensitive);
+                this.showCodeResults([]);
+                this.findInput.blur();
+                e.preventDefault();
+            }
+            return;
+        }
+
         this.dropdown.inputKeyDown(e);
 
         if (e.key === 'F3') {
@@ -472,10 +605,22 @@ export default class FindBarController {
                 this.inputChange();
             } else {
                 this.findInput.blur();
+                this.collapseMobileSearch();
             }
             e.preventDefault();
             return;
         }
+    }
+
+    collapseMobileSearch () {
+        if (!this.findBarOuter) return;
+        this.findBarOuter.classList.remove('mw-find-expanded');
+    }
+
+    expandMobileSearch () {
+        if (!this.findBarOuter) return;
+        this.findBarOuter.classList.add('mw-find-expanded');
+        if (this.findInput) this.findInput.focus();
     }
 
     toggleCaseSensitive () {
@@ -559,20 +704,18 @@ export default class FindBarController {
 
         let scratchBlocks;
         const tabIndex = this.activeTabIndexRef.current;
-        const workspaceVersion = this._getWorkspaceVersion();
 
         switch (tabIndex) {
         case 0:
-            if (this._cachedScratchBlocks && this._lastWorkspaceVersion === workspaceVersion) {
+            if (this._cachedScratchBlocks) {
                 scratchBlocks = this._cachedScratchBlocks;
             } else {
                 scratchBlocks = this.getScratchBlocks();
                 this._cachedScratchBlocks = scratchBlocks;
-                this._lastWorkspaceVersion = workspaceVersion;
             }
             break;
         case 1:
-            if (this._cachedScratchCostumes) {
+            if (this._cachedScratchCostumes && this._cachedScratchCostumes.length > 0) {
                 scratchBlocks = this._cachedScratchCostumes;
             } else {
                 scratchBlocks = this.getScratchCostumes();
@@ -580,7 +723,7 @@ export default class FindBarController {
             }
             break;
         case 2:
-            if (this._cachedScratchSounds) {
+            if (this._cachedScratchSounds && this._cachedScratchSounds.length > 0) {
                 scratchBlocks = this._cachedScratchSounds;
             } else {
                 scratchBlocks = this.getScratchSounds();
@@ -594,9 +737,19 @@ export default class FindBarController {
 
         this.dropdown.empty();
 
-        const blockJson = this.vm.runtime.getBlocksJSON();
-        const colours = getColours(blockJson);
-        const messagesList = getMessages(this.ScratchBlocks, blockJson, this.msgAny);
+        let blockJson;
+        let colours;
+        let messagesList;
+        if (this._cachedColours && this._cachedMessages) {
+            colours = this._cachedColours;
+            messagesList = this._cachedMessages;
+        } else {
+            blockJson = this.vm.runtime.getBlocksJSON();
+            colours = getColours(blockJson);
+            messagesList = getMessages(this.ScratchBlocks, blockJson);
+            this._cachedColours = colours;
+            this._cachedMessages = messagesList;
+        }
 
         for (const proc of scratchBlocks) {
             const item = this.dropdown.addItem(proc, messagesList, colours);
@@ -622,41 +775,21 @@ export default class FindBarController {
         const myBlocks = [];
         const myBlocksByProcCode = {};
 
-        const currentTarget = this.utils.getEditingTarget();
-        const targets = [currentTarget];
+        const target = this.utils.getEditingTarget();
+        const vmBlocks = target && target.blocks && target.blocks._blocks;
+        if (!vmBlocks) return myBlocks;
 
-        for (const target of targets) {
-            const workspace = target === currentTarget ? this.workspace : target.blocks;
-            const spriteName = target.sprite ? target.sprite.name : null;
-            const isCurrentSprite = target === currentTarget;
+        const workspace = this.workspace;
+        if (!workspace) return myBlocks;
 
-            if (!isCurrentSprite && workspace && workspace._blocks) {
-                this.addBlocksFromTarget(target, myBlocks, myBlocksByProcCode, spriteName);
-            } else if (isCurrentSprite) {
-                this.addBlocksFromWorkspace(this.workspace, myBlocks, myBlocksByProcCode, spriteName, isCurrentSprite);
-            }
-        }
+        const spriteName = target.sprite ? target.sprite.name : null;
+        const isCurrentSprite = true;
 
-        const clsOrder = {flag: 0, receive: 1, event: 2, define: 3, var: 4, VAR: 5, list: 6, LIST: 7};
-
-        myBlocks.sort((a, b) => {
-            const t = clsOrder[a.cls] - clsOrder[b.cls];
-            if (t !== 0) return t;
-            if (a.lower < b.lower) return -1;
-            if (a.lower > b.lower) return 1;
-            return (a.y || 0) - (b.y || 0);
-        });
-
-        return myBlocks;
-    }
-
-    addBlocksFromWorkspace (workspace, myBlocks, myBlocksByProcCode, spriteName, isCurrentSprite) {
-        const topBlocks = workspace.getTopBlocks();
-
-        const addBlock = (cls, txt, root, opcode = null) => {
-            const id = root.id ? root.id : root.getId ? root.getId() : null;
+        const addBlock = (cls, txt, idOrBlock, opcode = null, y = null) => {
+            const id = (typeof idOrBlock === 'object' && idOrBlock !== null) ?
+                (idOrBlock.id || (typeof idOrBlock.getId === 'function' ? idOrBlock.getId() : null)) :
+                idOrBlock;
             const displayText = isCurrentSprite || !spriteName ? txt : `[${spriteName}] ${txt}`;
-
             const clone = myBlocksByProcCode[displayText];
             if (clone) {
                 if (!clone.clones) clone.clones = [];
@@ -665,7 +798,12 @@ export default class FindBarController {
             }
 
             const items = new BlockItem(cls, displayText, id, 0, opcode);
-            items.y = root.getRelativeToSurfaceXY ? root.getRelativeToSurfaceXY().y : null;
+            if (typeof idOrBlock === 'object' && idOrBlock !== null &&
+                typeof idOrBlock.getRelativeToSurfaceXY === 'function') {
+                items.y = idOrBlock.getRelativeToSurfaceXY().y;
+            } else {
+                items.y = y;
+            }
             items.spriteName = spriteName;
             items.isCurrentSprite = isCurrentSprite;
             myBlocks.push(items);
@@ -675,14 +813,22 @@ export default class FindBarController {
 
         const getDescFromField = root => {
             const fields = root.inputList[0];
-            let desc = '';
+            const parts = [];
             for (const fieldRow of fields.fieldRow) {
-                desc = desc ? `${desc} ` : '';
-                if (fieldRow.src_ === "static/blocks-media/default/green-flag.svg") desc += this.msgAny('_general/blocks/green-flag');
-                else desc += fieldRow.getText();
+                // The green flag icon's src is pathToMedia + "green-flag.svg"
+                // (e.g. "static/blocks-media/green-flag.svg"), so match on the
+                // filename instead of a hard-coded full path.
+                if (fieldRow.src_ && fieldRow.src_.endsWith('green-flag.svg')) {
+                    parts.push(this.msgAny('/_general/blocks/green-flag'));
+                } else {
+                    const text = String(fieldRow.getText()).trim();
+                    if (text) parts.push(text);
+                }
             }
-            return desc;
+            return parts.join(' ');
         };
+
+        const topBlocks = workspace.getTopBlocks();
 
         for (const root of topBlocks) {
             if (root.type === 'procedures_definition') {
@@ -743,7 +889,7 @@ export default class FindBarController {
                 const fieldRow = input.fieldRow;
                 if (!fieldRow) continue;
                 for (const field of fieldRow) {
-                    if (!isTextInputField(field)) continue;
+                    //if (!isTextInputField(field)) continue;
                     const text = String(field.getText()).trim();
                     if (text) values.push(text);
                 }
@@ -818,56 +964,165 @@ export default class FindBarController {
             item.isTextInputEntry = true;
         }
 
+        // The workspace only renders the scripts you are near, but searching has
+        // to cover the whole sprite, so pick up whatever is not rendered from the
+        // VM, which holds all of it either way.
+        this.addUnrenderedBlocks(workspace, addBlock);
+
+        const clsOrder = {flag: 0, receive: 1, event: 2, define: 3, var: 4, VAR: 5, list: 6, LIST: 7};
+        const rank = cls => (cls in clsOrder ? clsOrder[cls] : 8);
+
+        myBlocks.sort((a, b) => {
+            const t = rank(a.cls) - rank(b.cls);
+            if (t !== 0) return t;
+            if (a.lower < b.lower) return -1;
+            if (a.lower > b.lower) return 1;
+            return (a.y || 0) - (b.y || 0);
+        });
+
         return myBlocks;
     }
 
-    addBlocksFromTarget (target, myBlocks, myBlocksByProcCode, spriteName) {
-        const blocks = target.blocks;
-        if (!blocks._blocks) return;
+    /**
+     * Index the blocks the workspace has not rendered, straight from the VM.
+     * @param {object} workspace The Blockly workspace.
+     * @param {Function} addBlock Adds an entry, as used by addBlocksFromWorkspace.
+     */
+    addUnrenderedBlocks (workspace, addBlock) {
+        const target = this.utils.getEditingTarget();
+        const vmBlocks = target && target.blocks && target.blocks._blocks;
+        if (!vmBlocks) return;
 
-        const addBlock = (cls, txt, blockId, opcode = null) => {
-            const displayText = `[${spriteName}] ${txt}`;
-            const clone = myBlocksByProcCode[displayText];
-            if (clone) {
-                if (!clone.clones) clone.clones = [];
-                clone.clones.push(blockId);
-                return clone;
-            }
-            const items = new BlockItem(cls, displayText, blockId, 0, opcode);
-            items.spriteName = spriteName;
-            items.isCurrentSprite = false;
-            items.targetId = target.id;
-            myBlocks.push(items);
-            myBlocksByProcCode[displayText] = items;
-            return items;
-        };
-
-        for (const blockId of Object.keys(blocks._blocks)) {
-            const block = blocks._blocks[blockId];
-
-            if (block.topLevel) {
-                if (block.opcode === 'procedures_definition') {
-                    const procCode = block.mutation?.proccode || 'custom block';
-                    addBlock('define', `define ${procCode}`, blockId, block.opcode);
-                } else if (block.opcode === 'event_whenflagclicked') {
-                    addBlock('flag', 'when flag clicked', blockId, block.opcode);
-                } else if (block.opcode.startsWith('event_when')) {
-                    addBlock('event', block.opcode.replace('event_when', 'when '), blockId, block.opcode);
-                }
+        const scriptY = new Map();
+        if (typeof workspace.getDeferredScripts === 'function') {
+            for (const script of workspace.getDeferredScripts()) {
+                scriptY.set(script.id, script.y);
             }
         }
 
-        const variables = target.variables;
-        if (variables) {
+        const textOf = value => (
+            value === null || typeof value === 'undefined' ? '' : String(value).trim()
+        );
+        const fieldValuesOf = block => {
+            const values = [];
+            for (const name of Object.keys(block.fields || {})) {
+                const text = textOf(block.fields[name].value);
+                if (text) values.push(text);
+            }
+            for (const name of Object.keys(block.inputs || {})) {
+                const shadow = vmBlocks[block.inputs[name].shadow];
+                if (!shadow || !shadow.fields) continue;
+                for (const fieldName of Object.keys(shadow.fields)) {
+                    const text = textOf(shadow.fields[fieldName].value);
+                    if (text) values.push(text);
+                }
+            }
+            return values;
+        };
+        const hatLabel = block => {
+            const template = this.ScratchBlocks.Msg[normalizeType(block.opcode)];
+            if (typeof template === 'string') {
+                const values = fieldValuesOf(block);
+                let i = 0;
+                return template.replace(/%\d+/g, () => {
+                    const value = values[i++];
+                    return typeof value === 'undefined' ? '()' : value;
+                }).trim();
+            }
+            return block.opcode.replace('event_when', 'when ').replace(/_/g, ' ');
+        };
+
+        for (const blockId of Object.keys(vmBlocks)) {
+            const block = vmBlocks[blockId];
+            if (!block || block.shadow || !block.opcode) continue;
+            // Blocks that are already rendered on the workspace were indexed by
+            // getScratchBlocks() above. Only pick up blocks the workspace has
+            // NOT rendered (e.g. deferred/virtualized scripts off-screen);
+            // otherwise every visible hat gets listed twice.
+            if (typeof workspace.getBlockById === 'function' && workspace.getBlockById(blockId)) {
+                continue;
+            }
+            const opcode = block.opcode;
+            const y = block.topLevel && typeof block.y === 'number' ? block.y : null;
+
+            if (block.topLevel) {
+                if (opcode === 'procedures_definition') {
+                    const protoId = block.inputs && block.inputs.custom_block &&
+                        block.inputs.custom_block.block;
+                    const proto = protoId && vmBlocks[protoId];
+                    const procCode = (proto && proto.mutation && proto.mutation.proccode) ||
+                        'custom block';
+                    addBlock('define', `define ${procCode}`, blockId, opcode, y);
+                } else if (opcode === 'event_whenflagclicked') {
+                    const flag = this.msgAny('/_general/blocks/green-flag');
+                    const template = this.ScratchBlocks.Msg.EVENT_WHENFLAGCLICKED;
+                    const text = typeof template === 'string' ?
+                        template.replace('%1', flag) :
+                        `when ${flag} clicked`;
+                    addBlock('flag', text, blockId, opcode, y);
+                } else if (opcode === 'event_whenbroadcastreceived') {
+                    const eventName = (block.fields && block.fields.BROADCAST_OPTION &&
+                        block.fields.BROADCAST_OPTION.value) || 'message';
+                    addBlock('receive', this.msg('event', {name: eventName}), blockId, opcode, y)
+                        .eventName = eventName;
+                } else if (opcode.startsWith('event_when') || opcode === 'control_start_as_clone') {
+                    addBlock('event', hatLabel(block), blockId, opcode, y);
+                }
+            }
+
+            if (
+                !opcode.startsWith('data_') &&
+                !opcode.startsWith('event_') &&
+                !opcode.startsWith('procedures_') &&
+                opcode !== 'control_start_as_clone'
+            ) {
+                addBlock(opcode, opcode, blockId, opcode);
+            }
+
+            if (opcode === 'event_broadcast' || opcode === 'event_broadcastandwait') {
+                const menuId = block.inputs && block.inputs.BROADCAST_INPUT &&
+                    (block.inputs.BROADCAST_INPUT.block || block.inputs.BROADCAST_INPUT.shadow);
+                const menu = menuId && vmBlocks[menuId];
+                const eventName = menu && menu.fields && menu.fields.BROADCAST_OPTION ?
+                    menu.fields.BROADCAST_OPTION.value :
+                    this.msg('complex-broadcast');
+                addBlock('receive', this.msg('event', {name: eventName}), blockId, opcode)
+                    .eventName = eventName;
+            }
+
+            const values = fieldValuesOf(block);
+            if (values.length) {
+                addBlock(opcode, `${opcode}: ${values.join(', ')}`, blockId, opcode)
+                    .isTextInputEntry = true;
+            }
+        }
+
+        const addVars = (variables, isLocal) => {
+            if (!variables) return;
             for (const varId of Object.keys(variables)) {
                 const variable = variables[varId];
                 if (variable.type === '') {
-                    addBlock('var', `var ${variable.name}`, varId);
+                    addBlock(
+                        isLocal ? 'var' : 'VAR',
+                        isLocal ?
+                            this.msg('var-local', {name: variable.name}) :
+                            this.msg('var-global', {name: variable.name}),
+                        varId
+                    );
                 } else if (variable.type === 'list') {
-                    addBlock('list', `list ${variable.name}`, varId);
+                    addBlock(
+                        isLocal ? 'list' : 'LIST',
+                        isLocal ?
+                            this.msg('list-local', {name: variable.name}) :
+                            this.msg('list-global', {name: variable.name}),
+                        varId
+                    );
                 }
             }
-        }
+        };
+        const stage = this.vm.runtime.getTargetForStage();
+        if (stage) addVars(stage.variables, false);
+        if (target !== stage) addVars(target.variables, true);
     }
 
     getScratchCostumes () {
@@ -891,7 +1146,6 @@ export default class FindBarController {
         }
         return items;
     }
-
     getCallsToEvents () {
         const uses = [];
         const alreadyFound = new Set();

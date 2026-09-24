@@ -4,6 +4,8 @@
 
 .stage-wrapper {
     position: relative;
+    /* Only animate background-color changes (e.g. theme switch). */
+    transition: background-color 0.3s ease;
 }
 
 .stage-wrapper * {
@@ -19,6 +21,10 @@
     padding-top: 44px;
 }
 
+/* ------------------------------------------------------------------ */
+/* Fullscreen layout (no animation)                                    */
+/* ------------------------------------------------------------------ */
+
 .stage-wrapper.full-screen {
     position: fixed;
     top: $stage-menu-height;
@@ -27,15 +33,15 @@
     bottom: 0;
     z-index: $z-index-stage-wrapper-overlay;
     background-color: $fullscreen-background;
-    /* spacing between stage and control bar (on the top), or between
-    stage and window edges (on left/right/bottom) */
     padding: $stage-full-screen-stage-padding;
-
-    /* this centers the stage */
     display: flex;
     flex-direction: column;
     align-items: center;
 }
+
+/* ------------------------------------------------------------------ */
+/* Embedded / loading overrides                                        */
+/* ------------------------------------------------------------------ */
 
 .stage-wrapper.embedded {
     background-color: transparent;

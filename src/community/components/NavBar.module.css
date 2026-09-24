@@ -24,16 +24,9 @@
 }
 
 .logo {
-    width: 27px;
     height: 27px;
+    width: auto;
     display: block;
-}
-
-.wordmark {
-    font-weight: 800;
-    font-size: 19px;
-    color: var(--menu-bar-foreground, #fff);
-    letter-spacing: -0.02em;
 }
 
 .links {

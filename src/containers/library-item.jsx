@@ -4,6 +4,7 @@ import React from 'react';
 import {injectIntl, intlShape, defineMessages} from 'react-intl';
 
 import LibraryItemComponent from '../components/library-item/library-item.jsx';
+import storage from '../lib/persistence/storage.js';
 
 
 class LibraryItem extends React.PureComponent {
@@ -120,8 +121,10 @@ class LibraryItem extends React.PureComponent {
     }
     render () {
         const iconMd5 = this.curIconMd5();
+        // TW: Use storage.assetHost instead of hardcoded URL
+        const assetHost = storage.getAssetHost() || 'https://assets.r2.bilup.org';
         const iconURL = iconMd5 ?
-            `https://rw-asset.pages.dev/asset/${iconMd5}` :
+            `${assetHost}/${iconMd5}` :
             this.props.iconRawURL;
         return (
             <LibraryItemComponent
@@ -138,6 +141,8 @@ class LibraryItem extends React.PureComponent {
                 id={this.props.id}
                 insetIconURL={this.props.insetIconURL}
                 internetConnectionRequired={this.props.internetConnectionRequired}
+                isBackdrop={this.props.isBackdrop}
+                isSound={this.props.isSound}
                 isPlaying={this.props.isPlaying}
                 name={this.props.name}
                 credits={this.props.credits}
@@ -184,6 +189,8 @@ LibraryItem.propTypes = {
     incompatibleWithScratch: PropTypes.bool,
     insetIconURL: PropTypes.string,
     internetConnectionRequired: PropTypes.bool,
+    isBackdrop: PropTypes.bool,
+    isSound: PropTypes.bool,
     isPlaying: PropTypes.bool,
     name: PropTypes.oneOfType([
         PropTypes.string,

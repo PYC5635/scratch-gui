@@ -105,7 +105,6 @@
     flex: 1 1 auto;
     min-width: 0;
     max-width: 200px;
-    flex-shrink: 1;
 }
 
 :global(.sa-find-bar[hidden]) {
@@ -207,6 +206,34 @@
     overflow: hidden;
 }
 
+:global(.sa-find-code-result) {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-weight: normal !important;
+    color: var(--text-primary, #575e75);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+:global(.sa-find-code-result:hover),
+:global(.sa-find-code-result.sel) {
+    background: var(--ui-tertiary, #d9e3f2);
+}
+
+:global(.sa-find-code-where) {
+    flex: 0 0 auto;
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+
+:global(.sa-find-code-preview) {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 :global(.sa-find-dropdown > li > b) {
     background-color: #aaffaa;
     color: black;
@@ -259,12 +286,14 @@
 }
 
 :global(.sa-find-dropdown .sa-find-flag) {
-    color: var(--event-primary, var(--editorTheme3-event-primary, #ffbf00));
+    /* The green flag hat is an Events block, so use the events category
+       colour instead of the operators green. */
+    color: var(--events-primary, var(--editorTheme3-events-primary, #ffab19));
 }
 
 :global(.sa-find-dropdown .sa-find-flag:hover),
 :global(.sa-find-dropdown .sa-find-flag.sel) {
-    background-color: var(--event-primary, var(--editorTheme3-event-primary, #ffbf00));
+    background-color: var(--events-primary, var(--editorTheme3-events-primary, #ffab19));
     color: var(--sa-block-text-on-bright-background);
 }
 
@@ -368,4 +397,35 @@
     }
 
 
+}
+
+@media only screen and (max-width: 900px) {
+    :global(.mw-native-find-bar:not(.mw-find-expanded)) {
+        display: none;
+    }
+
+    :global(.mw-native-find-bar.mw-find-expanded) {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        box-sizing: border-box;
+        width: 100%;
+        margin: 0;
+        padding: 6px 8px;
+        background: var(--ui-primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    :global(.mw-native-find-bar.mw-find-expanded .sa-find-wrapper) {
+        max-width: none;
+        width: 100%;
+        flex: 1;
+    }
+
+    :global(.mw-native-find-bar.mw-find-expanded .sa-find-dropdown-out) {
+        display: block;
+        flex: 1;
+    }
 }

@@ -14,11 +14,9 @@ import ReadClipboard from './read-clipboard.jsx';
 import Notify from './notify.jsx';
 import Geolocate from './geolocate.jsx';
 import Embed from './embed.jsx';
+import Download from './download.jsx';
 import DelayedMountPropertyHOC from './delayed-mount-property-hoc.jsx';
 import styles from './security-manager-modal.css';
-import { AESettings } from '../../lib/settings.js'
-
-const settings = new AESettings();
 
 const messages = defineMessages({
     title: {
@@ -39,8 +37,18 @@ const SecurityManagerModalComponent = props => (
         id="securitymanagermodal"
     >
         <Box className={styles.body}>
+            {props.showLoadAll ? (
+                <p>
+                    <FormattedMessage
+                        // eslint-disable-next-line max-len
+                        defaultMessage="Trust this project with full access and bypass every permission popup? Only continue if you made it or checked its contents."
+                        description="Warning before bypassing all security prompts for a trusted project"
+                        id="mw.securityManager.ownerBypassWarning"
+                    />
+                </p>
+            ) : null}
             {props.type === SecurityModals.LoadExtension ? (
-                <LoadExtensionModal {...props.data} onSkip={() => settings.get('skipExtWarn')} />
+                <LoadExtensionModal {...props.data} />
             ) : props.type === SecurityModals.Fetch ? (
                 <FetchModal {...props.data} />
             ) : props.type === SecurityModals.OpenWindow ? (
@@ -59,6 +67,8 @@ const SecurityManagerModalComponent = props => (
                 <Geolocate {...props.data} />
             ) : props.type === SecurityModals.Embed ? (
                 <Embed {...props.data} />
+            ) : props.type === SecurityModals.Download ? (
+                <Download {...props.data} />
             ) : null}
 
             <Box className={styles.buttons}>
@@ -67,37 +77,59 @@ const SecurityManagerModalComponent = props => (
                     onClick={props.onDenied}
                     disabled={!props.enableButtons}
                 >
-                    <FormattedMessage
-                        defaultMessage="Deny"
-                        description="Button in modal asking user for permission to load extension, access file, etc."
-                        id="tw.securityManager.deny"
-                    />
+                    {props.type === SecurityModals.LoadExtension ? (
+                        <FormattedMessage
+                            defaultMessage="Don't run"
+                            description="Button refusing to run potentially dangerous project code"
+                            id="mw.securityManager.dontRun"
+                        />
+                    ) : (
+                        <FormattedMessage
+                            defaultMessage="Deny"
+                            description="Button denying a project capability"
+                            id="tw.securityManager.deny"
+                        />
+                    )}
                 </button>
-                {settings.get('skipExtWarn') && props.type === SecurityModals.LoadExtension && (
+                {props.showLoadAll ? (
                     <button
-                        className={styles.allowButton}
-                        onClick={() => {
-                            props.onAllowed();
-                        }}
+                        className={styles.loadAllButton}
+                        onClick={props.onLoadAll}
                         disabled={!props.enableButtons}
                     >
                         <FormattedMessage
-                            defaultMessage="全部同意"
-                            description="Button to allow all extensions at once"
-                            id="tw.securityManager.allowAll"
+                            defaultMessage="Trust project, bypass all"
+                            description="Button bypassing all security prompts for a trusted project"
+                            id="mw.securityManager.ownerBypass"
                         />
                     </button>
-                )}
+                ) : null}
                 <button
                     className={styles.allowButton}
                     onClick={props.onAllowed}
                     disabled={!props.enableButtons}
                 >
-                    <FormattedMessage
-                        defaultMessage="Allow"
-                        description="Button in modal asking user for permission to load extension, access file, etc."
-                        id="tw.securityManager.allow"
-                    />
+                    {props.type === SecurityModals.LoadExtension ? (
+                        props.data.unsandboxed ? (
+                            <FormattedMessage
+                                defaultMessage="Run with full access"
+                                description="Button allowing project code to run outside the sandbox"
+                                id="mw.securityManager.runFullAccess"
+                            />
+                        ) : (
+                            <FormattedMessage
+                                defaultMessage="Run extension"
+                                description="Button allowing project code to run in a sandbox"
+                                id="mw.securityManager.runSandboxed"
+                            />
+                        )
+                    ) : (
+                        <FormattedMessage
+                            defaultMessage="Allow"
+                            description="Button allowing a project capability"
+                            id="tw.securityManager.allow"
+                        />
+                    )}
                 </button>
             </Box>
         </Box>
@@ -108,11 +140,13 @@ SecurityManagerModalComponent.propTypes = {
     intl: intlShape,
     type: PropTypes.oneOf(Object.values(SecurityModals)),
     enableButtons: PropTypes.bool,
+    showLoadAll: PropTypes.bool,
     // Each modal may have different type of data
     // eslint-disable-next-line react/forbid-prop-types
     data: PropTypes.object.isRequired,
     onAllowed: PropTypes.func.isRequired,
-    onDenied: PropTypes.func.isRequired
+    onDenied: PropTypes.func.isRequired,
+    onLoadAll: PropTypes.func.isRequired
 };
 
 // Prevent accidentally pressing buttons immediately when a prompt appears.

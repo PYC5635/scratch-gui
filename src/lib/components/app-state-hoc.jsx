@@ -9,7 +9,7 @@ import localesReducer, {initLocale, localesInitialState} from '../../reducers/lo
 
 import {setPlayer, setFullScreen} from '../../reducers/mode.js';
 
-import locales from '@remixwarp/scratch-l10n';
+import locales from '@bilup/scratch-l10n';
 import {detectLocale} from '../utils/detect-locale';
 
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
@@ -33,6 +33,11 @@ const AppStateHOC = function (WrappedComponent, localesOnly) {
 
             let initializedLocales = localesInitialState;
             const locale = detectLocale(Object.keys(locales));
+            // Reflect the active editor locale on the document element so that
+            // same-origin iframes (e.g. the addons settings page) can inherit it.
+            try {
+                document.documentElement.lang = locale;
+            } catch (e) { /* ignore */ }
             if (locale !== 'en') {
                 initializedLocales = initLocale(initializedLocales, locale);
             }

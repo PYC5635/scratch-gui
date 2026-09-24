@@ -2,6 +2,7 @@ import React, {useEffect} from 'react';
 import {Routes, Route, useLocation} from 'react-router-dom';
 import {initPrefetch} from './prefetch-editor.js';
 import {UserProvider} from './UserContext.jsx';
+import {useIntl} from '../lib/tw-use-intl.jsx';
 import setPageMeta from './page-meta.js';
 import NavBar from './components/NavBar.jsx';
 import BetaBanner from './components/BetaBanner.jsx';
@@ -23,23 +24,24 @@ import Leaderboard from './pages/Leaderboard.jsx';
 import Admin from './pages/Admin.jsx';
 
 const ROUTE_TITLES = [
-    ['/explore', 'Explore'],
-    ['/settings', 'Settings'],
-    ['/mystuff/project/', 'Manage project'],
-    ['/mystuff', 'My Stuff'],
-    ['/wallet', 'Wallet'],
-    ['/notifications', 'Notifications'],
-    ['/news', 'News'],
-    ['/leaderboard', 'Leaderboard'],
-    ['/users/', 'Profile'],
-    ['/project/', 'Project']
+    ['/explore', 'mw.community.route.explore', 'Explore'],
+    ['/settings', 'mw.community.route.settings', 'Settings'],
+    ['/mystuff/project/', 'mw.community.route.manageProject', 'Manage project'],
+    ['/mystuff', 'mw.community.route.myStuff', 'My Stuff'],
+    ['/wallet', 'mw.community.route.wallet', 'Wallet'],
+    ['/notifications', 'mw.community.route.notifications', 'Notifications'],
+    ['/news', 'mw.community.route.news', 'News'],
+    ['/leaderboard', 'mw.community.route.leaderboard', 'Leaderboard'],
+    ['/users/', 'mw.community.route.profile', 'Profile'],
+    ['/project/', 'mw.community.route.project', 'Project']
 ];
 
 const RouteMeta = () => {
     const {pathname} = useLocation();
+    const intl = useIntl();
     useEffect(() => {
         const match = ROUTE_TITLES.find(([prefix]) => pathname.startsWith(prefix));
-        setPageMeta({title: match ? match[1] : null});
+        setPageMeta({title: match ? intl.formatMessage({id: match[1], defaultMessage: match[2]}) : null});
         window.scrollTo(0, 0);
     }, [pathname]);
     return null;

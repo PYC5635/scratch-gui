@@ -1,4 +1,5 @@
 import EventTarget from '../../addons/event-target.js';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 
 const STORAGE_PREFIX = 'mw:varmanager:';
 
@@ -8,20 +9,20 @@ const DEFINITIONS = [
         type: 'select',
         default: 'all',
         options: [
-            {value: 'all', label: {id: 'mw.variableManager.all', defaultMessage: '全部'}},
-            {value: 'variables', label: {id: 'mw.variableManager.variables', defaultMessage: '变量'}},
-            {value: 'lists', label: {id: 'mw.variableManager.lists', defaultMessage: '列表'}},
-            {value: 'cloud', label: {id: 'mw.variableManager.cloud', defaultMessage: '云变量'}}
+            {value: 'all', label: 'mw.variableManager.all'},
+            {value: 'variables', label: 'mw.variableManager.variables'},
+            {value: 'lists', label: 'mw.variableManager.lists'},
+            {value: 'cloud', label: 'mw.variableManager.cloud'}
         ],
-        label: {id: 'mw.variableManager.defaultFilter', defaultMessage: '默认筛选'},
-        help: {id: 'mw.variableManager.defaultFilterHelp', defaultMessage: '变量管理器打开时默认使用的筛选器。'}
+        label: 'mw.variableManager.defaultFilter',
+        help: 'mw.variableManager.defaultFilterHelp'
     },
     {
         id: 'live_update',
         type: 'boolean',
         default: true,
-        label: {id: 'mw.variableManager.liveUpdate', defaultMessage: '实时更新'},
-        help: {id: 'mw.variableManager.liveUpdateHelp', defaultMessage: '当变量或列表改变时自动刷新显示。'}
+        label: 'mw.variableManager.liveUpdate',
+        help: 'mw.variableManager.liveUpdateHelp'
     },
     {
         id: 'update_throttle',
@@ -30,8 +31,8 @@ const DEFINITIONS = [
         min: 16,
         max: 2000,
         step: 1,
-        label: {id: 'mw.variableManager.updateThrottle', defaultMessage: '更新节流（毫秒）'},
-        help: {id: 'mw.variableManager.updateThrottleHelp', defaultMessage: '限制变量管理器更新的频率。较小的值会使更新更频繁，但可能影响性能。'}
+        label: 'mw.variableManager.updateThrottle',
+        help: 'mw.variableManager.updateThrottleHelp'
     },
     {
         id: 'variable_max_length',
@@ -40,8 +41,8 @@ const DEFINITIONS = [
         min: 1000,
         max: 100000000,
         step: 1000,
-        label: {id: 'mw.variableManager.variableMaxLength', defaultMessage: '变量最大长度'},
-        help: {id: 'mw.variableManager.variableMaxLengthHelp', defaultMessage: '单个变量值的最大字符长度。'}
+        label: 'mw.variableManager.variableMaxLength',
+        help: 'mw.variableManager.variableMaxLengthHelp'
     },
     {
         id: 'list_max_length',
@@ -50,8 +51,8 @@ const DEFINITIONS = [
         min: 1000,
         max: 100000000,
         step: 1000,
-        label: {id: 'mw.variableManager.listMaxLength', defaultMessage: '列表最大长度'},
-        help: {id: 'mw.variableManager.listMaxLengthHelp', defaultMessage: '单个列表最多可包含的元素数量。'}
+        label: 'mw.variableManager.listMaxLength',
+        help: 'mw.variableManager.listMaxLengthHelp'
     }
 ];
 
@@ -88,7 +89,7 @@ const getSetting = id => {
     if (!definition) return null;
     let stored = null;
     try {
-        stored = localStorage.getItem(STORAGE_PREFIX + id);
+        stored = getStorageItem(STORAGE_PREFIX + id);
     } catch (e) {
         stored = null;
     }

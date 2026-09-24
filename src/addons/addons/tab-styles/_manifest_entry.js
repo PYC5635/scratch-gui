@@ -12,19 +12,15 @@ const manifest = {
     {
         "name": "RyaninCn11",
         "url": "https://github.com/RyaninCn11"
-    },
-    {
-        "name": "笑小朗",
-        "url": "https://github.com/xiaolanglang"
     }
   ],
   "dynamicDisable": true,
   "userstyles": [
     {
-      "url": "RemixWarp.css",
+      "url": "bilup.css",
       "if": {
         "settings": {
-          "tab_style": "RemixWarp"
+          "tab_style": "bilup"
         }
       }
     },
@@ -41,14 +37,6 @@ const manifest = {
       "if": {
         "settings": {
           "tab_style": "scratchbox"
-        }
-      }
-    },
-    {
-      "url": "remixwarp(v2).css",
-      "if": {
-        "settings": {
-          "tab_style": "remixwarp(v2)"
         }
       }
     },
@@ -77,8 +65,8 @@ const manifest = {
       "type": "select",
       "potentialValues": [
         {
-            "name": "RemixWarp",
-            "id": "RemixWarp"
+            "name": "Bilup",
+            "id": "bilup"
         },
         {
             "name": "TurboWarp",
@@ -87,13 +75,9 @@ const manifest = {
         {
             "name": "ScratchBox",
             "id": "scratchbox"
-        },
-        {
-            "name": "RemixWarp (V2)",
-            "id": "remixwarp(v2)"
         }
       ],
-      "default": "RemixWarp"
+      "default": "Bilup"
     },
     {
       "dynamic": true,

@@ -51,20 +51,6 @@
     border-radius: 5px;
 }
 
-.stageButtonsGroup {
-    display: flex;
-    align-items: center;
-}
-
-.stageButtonsGroup > * {
-    margin-left: 0.2rem;
-}
-
-[dir="rtl"] .stageButtonsGroup > * {
-    margin-left: 0;
-    margin-right: 0.2rem;
-}
-
 [dir="ltr"] .stage-size-toggle-group,
 [dir="ltr"] .settings-button {
     margin-right: .2rem;
@@ -85,6 +71,11 @@
     padding: 0.375rem;
     user-select: none;
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.stage-button:hover {
+    border-color: $looks-secondary;
 }
 
 .stage-button:active {
@@ -105,4 +96,10 @@
 .fullscreen-buttons-row {
     /* relied on by addons */
     display: flex;
+}
+
+@media only screen and (max-width: 900px) {
+    .stage-size-toggle-group {
+        display: none;
+    }
 }

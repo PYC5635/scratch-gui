@@ -1,7 +1,7 @@
 import EventTarget from '../../addons/event-target.js';
 import createEngine from './engine.js';
 import createBlockHelpers from './block-helpers.js';
-import registerDebuggerBlocks from './blocks.js';
+import registerDebuggerBlocks, {relocalizeDebuggerBlocks} from './blocks.js';
 
 const MAX_LOGS = 200000;
 
@@ -116,6 +116,25 @@ const initDebugger = vm => {
         onClearLogs: clearLogs,
         msg
     });
+
+    // The injected debugger blocks capture their display name from msg() at
+    // registration time, so they stay stuck in the language that was active
+    // then. Re-apply their text whenever the UI locale changes.
+    let prevLocale;
+    const relocalizeBlocks = () => {
+        if (!(typeof window !== 'undefined' && window.ReduxStore && vm.runtime)) return;
+        const state = window.ReduxStore.getState();
+        const locale = state.locales && state.locales.locale;
+        if (locale !== prevLocale) {
+            prevLocale = locale;
+            relocalizeDebuggerBlocks(vm, {msg});
+        }
+    };
+    const store = typeof window !== 'undefined' && window.ReduxStore;
+    if (store) {
+        prevLocale = store.getState().locales && store.getState().locales.locale;
+        store.subscribe(relocalizeBlocks);
+    }
 
     const afterStepCallbacks = [];
     if (!vm.runtime.__mwDebuggerAfterStep) {

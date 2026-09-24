@@ -4,8 +4,10 @@ import {connect} from 'react-redux';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import bindAll from 'lodash.bindall';
+import {PackageOpen, FileJson, ShieldCheck, Blocks, Cat, Palette, Github} from 'lucide-react';
+import {getLoaderSettings} from '../../lib/mw/loader-settings';
 import styles from './loader.css';
-import {getIsLoadingWithId} from '../../reducers/project-state';
+import {getIsFetchingWithId, getIsLoadingWithId} from '../../reducers/project-state';
 import topBlock from './top-block.svg';
 import middleBlock from './middle-block.svg';
 import bottomBlock from './bottom-block.svg';
@@ -42,129 +44,219 @@ const messages = defineMessages({
         defaultMessage: 'Loading assets ({complete}/{total}) …',
         description: 'Appears when loading project assets from a project file on the user\'s computer',
         id: 'tw.loader.loadingAssets'
+    },
+    preparingProject: {
+        defaultMessage: 'Preparing project … (large projects may take a moment)',
+        description: 'Appears after assets are loaded while the project data is being processed',
+        id: 'tw.loader.preparingProject'
+    },
+    unzipping: {
+        defaultMessage: 'Unzipping project …',
+        description: 'Appears while the project file is being decompressed',
+        id: 'mw.loader.unzipping'
+    },
+    parsing: {
+        defaultMessage: 'Parsing project data …',
+        description: 'Appears while the project json is being parsed',
+        id: 'mw.loader.parsing'
+    },
+    checking: {
+        defaultMessage: 'Checking project …',
+        description: 'Appears while the project is being validated',
+        id: 'mw.loader.checking'
+    },
+    building: {
+        defaultMessage: 'Building blocks …',
+        description: 'Appears while the project data is being turned into blocks and sprites',
+        id: 'mw.loader.building'
+    },
+    installing: {
+        defaultMessage: 'Adding sprites …',
+        description: 'Appears while the sprites are being added to the project',
+        id: 'mw.loader.installing'
     }
 });
 
+const STAGE_ICONS = {
+    unzipping: PackageOpen,
+    parsing: FileJson,
+    checking: ShieldCheck,
+    building: Blocks,
+    installing: Cat,
+    assets: Palette
+};
+
+const STAGE_PROGRESS = {
+    unzipping: [0, 20],
+    parsing: [20, 75],
+    checking: [75, 80],
+    building: [80, 85],
+    assets: [85, 97],
+    installing: [97, 100]
+};
+
+const formatBytes = bytes => {
+    if (!bytes || bytes < 1024) return `${bytes || 0} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// How often the quote at the bottom changes, in ms.
+const QUOTE_INTERVAL = 5000;
+
+// Array of random loading messages
 const randomMessages = [
   "Also try TurboWarp!",
   "Also try MistWarp!",
-  "Also try PineEditor!",
   "Also try 02Engine!",
   "Also try AstraEditor!"
 ];
 
-const TYPE_STRING = '["ˍ"*/';
+// Because progress events are fired so often during the very performance-critical loading
+// process and React updates are very slow, we bypass React for updating the progress bar.
 
 class LoaderComponent extends React.Component {
     constructor (props) {
         super(props);
         bindAll(this, [
             'handleAssetProgress',
+            'handleLoadProgress',
             'handleProjectLoaded',
+            'rotateQuote',
             'barInnerRef',
-            'messageRef'
+            'messageRef',
+            'detailRef',
+            'quoteRef'
         ]);
         this.barInnerEl = null;
         this.messageEl = null;
+        this.detailEl = null;
+        this.quoteEl = null;
+        this.overallProgress = 0;
         this.ignoreProgress = false;
-        this.randomMessage = randomMessages[Math.floor(Math.random() * randomMessages.length)];
-        this._mounted = false;
-        
-        this.state = {
-            displayText: TYPE_STRING
-        };
-        this.typingInterval = null;
-        this.lastUpdateTime = Date.now();
-        this.currentIndex = TYPE_STRING.length;
+        this.quoteTimer = null;
+        // Shuffle so a session does not repeat quotes until it has run out.
+        this.quotes = randomMessages
+            .map(text => ({text, order: Math.random()}))
+            .sort((a, b) => a.order - b.order)
+            .map(entry => entry.text);
+        this.settings = getLoaderSettings();
+        if (this.settings.customQuotes.length) {
+            this.quotes = this.settings.customQuotes
+                .map(text => ({text, order: Math.random()}))
+                .sort((a, b) => a.order - b.order)
+                .map(entry => entry.text);
+        }
+        this.quoteIndex = 0;
+        this.randomMessage = this.quotes[0];
+        this.state = {stage: null};
     }
-    
     componentDidMount () {
-        this._mounted = true;
-        if (this.props.vm) {
-            this.handleAssetProgress(
-                this.props.vm.runtime.finishedAssetRequests,
-                this.props.vm.runtime.totalAssetRequests
-            );
-            this.props.vm.on('ASSET_PROGRESS', this.handleAssetProgress);
-            this.props.vm.runtime.on('PROJECT_LOADED', this.handleProjectLoaded);
+        this.handleAssetProgress(
+            this.props.vm.runtime.finishedAssetRequests,
+            this.props.vm.runtime.totalAssetRequests
+        );
+        this.props.vm.on('ASSET_PROGRESS', this.handleAssetProgress);
+        this.props.vm.on('LOAD_PROGRESS', this.handleLoadProgress);
+        this.props.vm.runtime.on('PROJECT_LOADED', this.handleProjectLoaded);
+        if (this.settings.showQuotes) {
+            this.quoteTimer = setInterval(this.rotateQuote, QUOTE_INTERVAL);
         }
-        this.startTyping();
     }
-    
     componentWillUnmount () {
-        this._mounted = false;
-        if (this.props.vm) {
-            this.props.vm.off('ASSET_PROGRESS', this.handleAssetProgress);
-            this.props.vm.runtime.off('PROJECT_LOADED', this.handleProjectLoaded);
-        }
-        if (this.typingInterval) {
-            clearInterval(this.typingInterval);
+        this.props.vm.off('ASSET_PROGRESS', this.handleAssetProgress);
+        this.props.vm.off('LOAD_PROGRESS', this.handleLoadProgress);
+        this.props.vm.runtime.off('PROJECT_LOADED', this.handleProjectLoaded);
+        clearInterval(this.quoteTimer);
+    }
+    setStage (stage) {
+        if (this.state.stage !== stage) {
+            this.setState({stage});
         }
     }
-    
-    startTyping = () => {
-        if (this.typingInterval) {
-            clearInterval(this.typingInterval);
+    setOverallProgress (progress) {
+        if (!this.barInnerEl) {
+            return;
         }
-        
-        this.currentIndex = 0;
-        if (this._mounted) {
-            this.setState({
-                displayText: ''
-            });
-        }
-        
-        this.typingInterval = setInterval(() => {
-            if (!this._mounted) {
-                clearInterval(this.typingInterval);
-                return;
-            }
-            
-            const now = Date.now();
-            if (now - this.lastUpdateTime > 3000) {
-                this.setState({
-                    displayText: TYPE_STRING
-                });
-                this.currentIndex = TYPE_STRING.length;
-                return;
-            }
-            
-            if (this.currentIndex <= TYPE_STRING.length) {
-                this.setState({
-                    displayText: TYPE_STRING.substring(0, this.currentIndex)
-                });
-                this.lastUpdateTime = now;
-                this.currentIndex++;
-            } else {
-                this.setState({
-                    displayText: TYPE_STRING
-                });
-                setTimeout(() => {
-                    if (!this._mounted) return;
-                    this.currentIndex = 0;
-                    this.setState({
-                        displayText: ''
-                    });
-                }, 1000);
-            }
-        }, 150);
+        this.overallProgress = Math.max(this.overallProgress, Math.min(100, progress));
+        this.barInnerEl.style.width = `${this.overallProgress}%`;
     }
-    
+    rotateQuote () {
+        if (!this.quoteEl) {
+            return;
+        }
+        this.quoteIndex = (this.quoteIndex + 1) % this.quotes.length;
+        const next = this.quotes[this.quoteIndex];
+        this.quoteEl.classList.add(styles.quoteLeaving);
+        setTimeout(() => {
+            if (!this.quoteEl) {
+                return;
+            }
+            this.quoteEl.textContent = next;
+            this.quoteEl.classList.remove(styles.quoteLeaving);
+        }, 400);
+    }
+    // What the VM is doing right now: unzipping, parsing, and so on. These all
+    // happen before any asset request, so they cannot fight over the message.
+    handleLoadProgress ({stage, loaded, total}) {
+        if (this.ignoreProgress || !this.messageEl) {
+            return;
+        }
+        const message = messages[stage];
+        if (!message) {
+            return;
+        }
+        this.setStage(stage);
+        this.messageEl.textContent = this.props.intl.formatMessage(message);
+        const range = STAGE_PROGRESS[stage];
+        if (range) {
+            const fraction = loaded && total ? Math.min(1, loaded / total) : 0;
+            this.setOverallProgress(range[0] + ((range[1] - range[0]) * fraction));
+        }
+
+        if (!this.detailEl) {
+            return;
+        }
+        if (stage === 'unzipping' && total) {
+            this.detailEl.textContent = `${formatBytes(loaded)} of ${formatBytes(total)}`;
+        } else if (total) {
+            this.detailEl.textContent = formatBytes(total);
+        } else {
+            this.detailEl.textContent = '';
+        }
+    }
     handleAssetProgress (finished, total) {
         if (this.ignoreProgress || !this.barInnerEl || !this.messageEl) {
             return;
         }
 
         if (total === 0) {
-            this.barInnerEl.style.width = '0';
-            this.messageEl.textContent = this.props.intl.formatMessage(messages.projectData);
+            // Started loading a new project.
+            if (this.overallProgress === 0) {
+                this.setOverallProgress(0);
+                this.messageEl.textContent = this.props.intl.formatMessage(messages.projectData);
+                if (this.detailEl) {
+                    this.detailEl.textContent = '';
+                }
+            }
+        } else if (finished >= total) {
+            this.setOverallProgress(STAGE_PROGRESS.assets[1]);
+            this.messageEl.textContent = this.props.intl.formatMessage(messages.preparingProject);
+            if (this.detailEl) {
+                this.detailEl.textContent = '';
+            }
         } else {
-            this.barInnerEl.style.width = `${finished / total * 100}%`;
+            this.setStage('assets');
+            const range = STAGE_PROGRESS.assets;
+            this.setOverallProgress(range[0] + ((range[1] - range[0]) * (finished / total)));
             const message = this.props.isRemote ? messages.downloadingAssets : messages.loadingAssets;
             this.messageEl.textContent = this.props.intl.formatMessage(message, {
                 complete: finished,
                 total
             });
+            if (this.detailEl) {
+                this.detailEl.textContent = '';
+            }
         }
     }
     handleProjectLoaded () {
@@ -172,6 +264,7 @@ class LoaderComponent extends React.Component {
             return;
         }
 
+        this.setOverallProgress(100);
         this.ignoreProgress = true;
         this.props.vm.runtime.resetProgress();
     }
@@ -181,7 +274,15 @@ class LoaderComponent extends React.Component {
     messageRef (message) {
         this.messageEl = message;
     }
+    detailRef (detail) {
+        this.detailEl = detail;
+    }
+    quoteRef (quote) {
+        this.quoteEl = quote;
+    }
     render () {
+        const StageIcon = STAGE_ICONS[this.state.stage];
+        const settings = this.settings;
         return (
             <div
                 className={classNames(styles.background, {
@@ -189,59 +290,91 @@ class LoaderComponent extends React.Component {
                 })}
             >
                 <div className={styles.container}>
-                    <div 
-                        className={styles.typingText}
-                        style={{
-                            color: '#ffffff',
-                            fontSize: '24px',
-                            fontWeight: 'bold',
-                            minHeight: '30px',
-                            letterSpacing: '2px',
-                            marginBottom: '15px',
-                            display: 'block',
-                            zIndex: 100
-                        }}
-                    >
-                        {this.state.displayText}
-                    </div>
-                    
-                    <div className={styles.blockAnimation}>
-                        <img
-                            className={styles.topBlock}
-                            src={topBlock}
-                            draggable={false}
-                        />
-                        <img
-                            className={styles.middleBlock}
-                            src={middleBlock}
-                            draggable={false}
-                        />
-                        <img
-                            className={styles.bottomBlock}
-                            src={bottomBlock}
-                            draggable={false}
-                        />
-                    </div>
+                    {settings.showAnimation ? (
+                        <div className={styles.blockAnimation}>
+                            <img
+                                className={styles.topBlock}
+                                src={topBlock}
+                                draggable={false}
+                            />
+                            <img
+                                className={styles.middleBlock}
+                                src={middleBlock}
+                                draggable={false}
+                            />
+                            <img
+                                className={styles.bottomBlock}
+                                src={bottomBlock}
+                                draggable={false}
+                            />
+                        </div>
+                    ) : null}
 
-                    <div className={styles.title}>
-                        {mainMessages[this.props.messageId]}
+                    {settings.showTitle ? (
+                        <div className={styles.title}>
+                            {mainMessages[this.props.messageId]}
+                        </div>
+                    ) : null}
+
+                    <div
+                        className={styles.status}
+                        hidden={!settings.showStatus}
+                    >
+                        {StageIcon ? (
+                            <StageIcon
+                                className={styles.stageIcon}
+                                size={18}
+                                strokeWidth={2.25}
+                            />
+                        ) : null}
+                        <div
+                            className={styles.message}
+                            ref={this.messageRef}
+                        />
                     </div>
 
                     <div
-                        className={styles.message}
-                        ref={this.messageRef}
-                    />
-
-                    <div className={styles.barOuter}>
+                        className={styles.barOuter}
+                        hidden={!settings.showProgress}
+                    >
                         <div
-                            className={styles.barInner}
+                            className={classNames(styles.barInner, {
+                                [styles.indeterminate]: this.props.isFetching
+                            })}
                             ref={this.barInnerRef}
                         />
                     </div>
-                    
-                    <div className={styles.randomMessage}>
-                        {this.randomMessage}
-                    </div>
+
+                    <div
+                        className={styles.detail}
+                        hidden={!settings.showDetail}
+                        ref={this.detailRef}
+                    />
+
+                    {settings.showQuotes ? (
+                        <div
+                            className={styles.randomMessage}
+                            ref={this.quoteRef}
+                        >
+                            {this.randomMessage}
+                        </div>
+                    ) : null}
+
+                    {settings.showGithub ? (
+                        <a
+                            className={styles.githubCta}
+                            href="https://github.com/bilup"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            <Github size={14} />
+                            <FormattedMessage
+                                defaultMessage="Follow Bilup on GitHub"
+                                description="Link on the loading screen to the Bilup GitHub organisation"
+                                id="mw.loader.github"
+                            />
+                        </a>
+                    ) : null}
                 </div>
             </div>
         );
@@ -250,6 +383,7 @@ class LoaderComponent extends React.Component {
 
 LoaderComponent.propTypes = {
     intl: intlShape,
+    isFetching: PropTypes.bool,
     isFullScreen: PropTypes.bool,
     isRemote: PropTypes.bool,
     messageId: PropTypes.string,
@@ -270,10 +404,14 @@ LoaderComponent.defaultProps = {
     messageId: 'gui.loader.headline'
 };
 
-const mapStateToProps = state => ({
-    isRemote: getIsLoadingWithId(state.scratchGui.projectState.loadingState),
-    vm: state.scratchGui.vm
-});
+const mapStateToProps = state => {
+    const loadingState = state.scratchGui.projectState.loadingState;
+    return {
+        isFetching: getIsFetchingWithId(loadingState),
+        isRemote: getIsLoadingWithId(loadingState),
+        vm: state.scratchGui.vm
+    };
+};
 
 const mapDispatchToProps = () => ({});
 

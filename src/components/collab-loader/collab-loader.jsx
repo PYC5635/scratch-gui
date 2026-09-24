@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {FormattedMessage} from 'react-intl';
 import {connect} from 'react-redux';
 import styles from './collab-loader.css';
 import topBlock from '../loader/top-block.svg';
@@ -31,11 +32,29 @@ const CollabLoader = ({isLoading, message, progress}) => {
                 </div>
 
                 <div className={styles.title}>
-                    {message || 'Waiting for host...'}
+                    {message || (
+                        <FormattedMessage
+                            defaultMessage="Waiting for host..."
+                            description="Collaboration loader title shown while waiting for the host"
+                            id="mw.collabLoader.waitingForHost"
+                        />
+                    )}
                 </div>
 
                 <div className={styles.message}>
-                    {progress > 0 ? 'Host is loading project...' : 'Please wait'}
+                    {progress > 0 ? (
+                        <FormattedMessage
+                            defaultMessage="Host is loading project..."
+                            description="Collaboration loader message when the host is loading the project"
+                            id="mw.collabLoader.hostLoading"
+                        />
+                    ) : (
+                        <FormattedMessage
+                            defaultMessage="Please wait"
+                            description="Collaboration loader message while waiting"
+                            id="mw.collabLoader.pleaseWait"
+                        />
+                    )}
                 </div>
 
                 <div className={styles.barOuter}>

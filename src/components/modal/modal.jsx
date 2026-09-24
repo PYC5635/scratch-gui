@@ -20,6 +20,7 @@ const ModalComponent = props => (
         contentLabel={props.contentLabel}
         overlayClassName={styles.modalOverlay}
         onRequestClose={props.onRequestClose}
+        closeTimeoutMS={250}
     >
         <Box
             dir={props.isRtl ? 'rtl' : 'ltr'}

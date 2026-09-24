@@ -43,7 +43,23 @@ const getAssetData = (vm, md5ext) => {
     const cached = cacheFor(vm).get(md5ext);
     if (cached) return cached;
     const asset = findAssetInTargets(vm, md5ext);
-    return asset && asset.data ? asset.data : null;
+    if (asset && asset.data) return asset.data;
+    // Fall back to the storage asset cache: assets the VM fetched from the
+    // asset server (library sprites/costumes) live there even before any
+    // target references them. Without this, a peer that added a sprite a
+    // moment ago could fail to serve the bytes its own SPRITE_ADD op needs.
+    try {
+        const storage = vm.runtime && vm.runtime.storage;
+        if (storage && typeof storage.get === 'function') {
+            const dotIndex = md5ext.lastIndexOf('.');
+            const assetId = dotIndex === -1 ? md5ext : md5ext.slice(0, dotIndex);
+            const storageAsset = storage.get(assetId);
+            if (storageAsset && storageAsset.data) return storageAsset.data;
+        }
+    } catch (e) {
+        // Storage lookup is best-effort.
+    }
+    return null;
 };
 
 /**

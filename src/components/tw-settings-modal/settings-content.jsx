@@ -26,6 +26,10 @@ const messages = defineMessages({
         defaultMessage: 'Click for help',
         description: 'Hover text of help icon in settings',
         id: 'tw.settingsModal.help'
+    },
+    cloudServerPlaceholder: {
+        defaultMessage: 'ws://localhost:8000',
+        id: 'mw.settings.cloudServerPlaceholder'
     }
 });
 
@@ -273,7 +277,7 @@ const RemoveMiscLimits = props => (
                 id="tw.settingsModal.removeMiscLimitsHelp"
             />
         }
-        slug="remove-misc-limits"
+        slug="remove-limits"
     />
 );
 
@@ -482,7 +486,7 @@ const CloudVariableServer = props => (
                     onSubmit={props.onCloudVariableServerChange}
                     className={styles['cloud-variable-server-input']}
                     type="text"
-                    placeholder="ws://localhost:8000"
+                    placeholder={props.intl.formatMessage(messages.cloudServerPlaceholder)}
                 />
             </div>
         }
@@ -499,8 +503,11 @@ const CloudVariableServer = props => (
 
 CloudVariableServer.propTypes = {
     cloudVariableServer: PropTypes.string,
-    onCloudVariableServerChange: PropTypes.func
+    onCloudVariableServerChange: PropTypes.func,
+    intl: intlShape
 };
+
+const InjectedCloudVariableServer = injectIntl(CloudVariableServer);
 
 const StoreProjectOptions = ({onStoreProjectOptions}) => (
     <div className={styles.setting}>
@@ -518,7 +525,10 @@ const StoreProjectOptions = ({onStoreProjectOptions}) => (
             <p>
                 <FormattedMessage
                     // eslint-disable-next-line max-len
-                    defaultMessage="Stores the selected settings in the project so they will be automatically applied when TurboWarp loads this project. Warp timer and disable compiler will not be saved."
+                    defaultMessage="Stores the selected settings in the project so they will be automatically applied when {APP_NAME} loads this project. Warp timer and disable compiler will not be saved."
+                    values={{
+                        APP_NAME
+                    }}
                     description="Help text for the store settings in project button"
                     id="tw.settingsModal.storeProjectOptionsHelp"
                 />
@@ -593,7 +603,7 @@ const SettingsContent = props => (
                 id="tw.settingsModal.cloud"
             />
         </Header>
-        <CloudVariableServer
+        <InjectedCloudVariableServer
             cloudVariableServer={props.cloudVariableServer}
             onCloudVariableServerChange={props.onCloudVariableServerChange}
         />
@@ -668,4 +678,5 @@ SettingsContent.propTypes = {
     onCloudVariableServerChange: PropTypes.func
 };
 
+export {BooleanSetting};
 export default injectIntl(SettingsContent);

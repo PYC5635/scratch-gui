@@ -97,14 +97,14 @@ const style = document.createElement('style');
 style.textContent = css;
 document.head.appendChild(style);
 
-const WINDOW_Z_INDEX_BASE = 9700;
-const WINDOW_Z_INDEX_MAX = 9799;
+const WINDOW_Z_INDEX_BASE = 8000;
+const WINDOW_Z_INDEX_MAX = 8999;
 let nextZIndex = WINDOW_Z_INDEX_BASE;
 
 // Some UI overlays (like the project loader) sit above the normal window range.
 // This tier is for specific windows that must remain interactable above those overlays.
 // Keep below the context menu layer (see src/css/z-index.css).
-const WINDOW_ON_TOP_Z_INDEX_BASE = 9800;
+const WINDOW_ON_TOP_Z_INDEX_BASE = 9600;
 const WINDOW_ON_TOP_Z_INDEX_MAX = 9999;
 let nextOnTopZIndex = WINDOW_ON_TOP_Z_INDEX_BASE;
 let windowCount = 0;
@@ -131,11 +131,13 @@ window.addEventListener('pagehide', () => {
 });
 
 const copyStylesInto = doc => {
+    const fragment = doc.createDocumentFragment();
     for (const node of document.querySelectorAll('head style, head link[rel="stylesheet"], body style')) {
         const clone = doc.importNode(node, true);
         clone.setAttribute('data-mw-copied-style', '');
-        doc.head.appendChild(clone);
+        fragment.appendChild(clone);
     }
+    doc.head.appendChild(fragment);
 };
 
 const copyRootAttributesInto = doc => {
@@ -147,18 +149,31 @@ const copyRootAttributesInto = doc => {
 
 let styleObserver = null;
 let resyncScheduled = false;
+let resyncDebounceTimer = null;
+
+const RESYNC_DEBOUNCE_MS = 50;
 
 const scheduleResync = () => {
     if (resyncScheduled) return;
     resyncScheduled = true;
-    requestAnimationFrame(() => {
-        resyncScheduled = false;
-        for (const win of activeWindows.values()) {
-            if (win.resyncStyles) {
-                win.resyncStyles();
+
+    // Debounce: if multiple mutations arrive within a short window, batch them
+    // into a single RAF callback. This avoids expensive style re-copying when
+    // many style changes happen in rapid succession (e.g. theme switching).
+    if (resyncDebounceTimer) {
+        clearTimeout(resyncDebounceTimer);
+    }
+    resyncDebounceTimer = setTimeout(() => {
+        resyncDebounceTimer = null;
+        requestAnimationFrame(() => {
+            resyncScheduled = false;
+            for (const win of activeWindows.values()) {
+                if (win.resyncStyles) {
+                    win.resyncStyles();
+                }
             }
-        }
-    });
+        });
+    }, RESYNC_DEBOUNCE_MS);
 };
 
 const ensureStyleObserver = () => {
@@ -219,6 +234,10 @@ class AddonWindow {
         this.resizePointerId = null;
         this.resizeHandle = null;
         this.savedState = null; // For maximize/restore
+        this._pendingDragPos = null; // RAF-batched drag position
+        this._dragRaf = null; // Pending drag RAF id
+        this._pendingResize = null; // RAF-batched resize state
+        this._resizeRaf = null; // Pending resize RAF id
         
         this.createWindow();
         activeWindows.set(this.id, this);
@@ -488,19 +507,45 @@ class AddonWindow {
         const minY = 0;
         const maxY = window.innerHeight - minVisiblePixels;
         
-        this.x = Math.max(minX, Math.min(newX, maxX));
-        this.y = Math.max(minY, Math.min(newY, maxY));
+        const clampedX = Math.max(minX, Math.min(newX, maxX));
+        const clampedY = Math.max(minY, Math.min(newY, maxY));
         
-        this.element.style.left = `${this.x}px`;
-        this.element.style.top = `${this.y}px`;
-        
-        this.onMove(this.x, this.y);
+        // Batch position update via RAF to avoid layout thrashing
+        this._pendingDragPos = {x: clampedX, y: clampedY};
+        if (!this._dragRaf) {
+            this._dragRaf = window.requestAnimationFrame(() => {
+                this._dragRaf = null;
+                if (this._pendingDragPos) {
+                    const pos = this._pendingDragPos;
+                    this._pendingDragPos = null;
+                    this.x = pos.x;
+                    this.y = pos.y;
+                    this.element.style.left = `${pos.x}px`;
+                    this.element.style.top = `${pos.y}px`;
+                    this.onMove(pos.x, pos.y);
+                }
+            });
+        }
     };
     
     handleDragEnd = e => {
         if (e && this.dragPointerId !== null && e.pointerId !== this.dragPointerId) return;
 
         this.isDragging = false;
+        // Flush any pending RAF-batched position
+        if (this._dragRaf) {
+            window.cancelAnimationFrame(this._dragRaf);
+            this._dragRaf = null;
+        }
+        if (this._pendingDragPos) {
+            const pos = this._pendingDragPos;
+            this._pendingDragPos = null;
+            this.x = pos.x;
+            this.y = pos.y;
+            this.element.style.left = `${pos.x}px`;
+            this.element.style.top = `${pos.y}px`;
+            this.onMove(pos.x, pos.y);
+        }
         if (this.dragPointerId !== null) {
             try {
                 this.headerElement.releasePointerCapture(this.dragPointerId);
@@ -689,24 +734,50 @@ class AddonWindow {
             newY = this.resizeStart.top + (this.resizeStart.height - newHeight);
         }
         
-        // Update dimensions
-        this.width = newWidth;
-        this.height = newHeight;
-        this.x = newX;
-        this.y = newY;
-        
-        this.element.style.width = `${newWidth}px`;
-        this.element.style.height = `${newHeight}px`;
-        this.element.style.left = `${newX}px`;
-        this.element.style.top = `${newY}px`;
-        
-        this.onResize(newWidth, newHeight);
+        // Batch resize update via RAF to avoid layout thrashing
+        this._pendingResize = {width: newWidth, height: newHeight, x: newX, y: newY};
+        if (!this._resizeRaf) {
+            this._resizeRaf = window.requestAnimationFrame(() => {
+                this._resizeRaf = null;
+                if (this._pendingResize) {
+                    const r = this._pendingResize;
+                    this._pendingResize = null;
+                    this.width = r.width;
+                    this.height = r.height;
+                    this.x = r.x;
+                    this.y = r.y;
+                    this.element.style.width = `${r.width}px`;
+                    this.element.style.height = `${r.height}px`;
+                    this.element.style.left = `${r.x}px`;
+                    this.element.style.top = `${r.y}px`;
+                    this.onResize(r.width, r.height);
+                }
+            });
+        }
     };
     
     handleResizeEnd = e => {
         if (e && this.resizePointerId !== null && e.pointerId !== this.resizePointerId) return;
 
         this.isResizing = false;
+        // Flush any pending RAF-batched resize
+        if (this._resizeRaf) {
+            window.cancelAnimationFrame(this._resizeRaf);
+            this._resizeRaf = null;
+        }
+        if (this._pendingResize) {
+            const r = this._pendingResize;
+            this._pendingResize = null;
+            this.width = r.width;
+            this.height = r.height;
+            this.x = r.x;
+            this.y = r.y;
+            this.element.style.width = `${r.width}px`;
+            this.element.style.height = `${r.height}px`;
+            this.element.style.left = `${r.x}px`;
+            this.element.style.top = `${r.y}px`;
+            this.onResize(r.width, r.height);
+        }
         const handle = this.resizeHandle;
         if (handle && this.resizePointerId !== null) {
             try {
@@ -816,6 +887,14 @@ class AddonWindow {
     }
 
     hide () {
+        // A destroy is already in progress: the closing animation is playing
+        // and the element will be removed from the DOM when it finishes.
+        // Hiding again here would cancel that removal (leaking the element),
+        // so bail out and let destroy() finish its work.
+        if (this.isDestroying) {
+            return this;
+        }
+
         // Cancel any pending animation timer
         if (this._animTimer) {
             clearTimeout(this._animTimer);
@@ -878,6 +957,18 @@ class AddonWindow {
             this._animTimer = null;
         }
 
+        // Cancel any pending drag/resize RAF
+        if (this._dragRaf) {
+            window.cancelAnimationFrame(this._dragRaf);
+            this._dragRaf = null;
+            this._pendingDragPos = null;
+        }
+        if (this._resizeRaf) {
+            window.cancelAnimationFrame(this._resizeRaf);
+            this._resizeRaf = null;
+            this._pendingResize = null;
+        }
+
         // Ask the window's owner whether closing is allowed. If the owner
         // vetoes the close (returns false), abort the destroy entirely so the
         // window stays visible and can be opened again later. The onClose
@@ -937,10 +1028,6 @@ class AddonWindow {
         }
     }
 
-    close () {
-        this.destroy(true);
-    }
-
     abortAnimation (enabled) {
         if (!this.element || !this.element.style) return;
         if (this._animTimer) {
@@ -978,6 +1065,30 @@ class AddonWindow {
         this.element.style.transition = 'none';
     }
 
+    close () {
+        this.destroy(true);
+    }
+    
+    minimize () {
+        if (this.destroyOnMinimize) {
+            // Like close(), give the owner a chance to veto. Otherwise the
+            // window would be destroyed while the owner still thinks it is
+            // open, making it impossible to open it again later.
+            if (this.onClose() === false) {
+                return this;
+            }
+            this.onMinimize();
+            this.destroy(false);
+            return this;
+        }
+
+        this.hide();
+        this.isMinimized = true;
+        this.onMinimize();
+        this.updateMaximizeButton();
+        return this;
+    }
+    
     /**
      * Animate the window between two rectangles using a pure transform
      * (translate + scale), which runs on the compositor thread and does NOT
@@ -1018,20 +1129,6 @@ class AddonWindow {
         }
     }
 
-    minimize () {
-        if (this.destroyOnMinimize) {
-            this.onMinimize();
-            this.destroy(false);
-            return this;
-        }
-
-        this.hide();
-        this.isMinimized = true;
-        this.onMinimize();
-        this.updateMaximizeButton();
-        return this;
-    }
-    
     restore () {
         // Cancel any pending animation timer, like show()/hide()/destroy() do,
         // so an interrupted maximize/restore animation cannot leave a stale
@@ -1226,6 +1323,7 @@ class NativeAddonWindow {
         this.isVisible = false;
         this.isMinimized = false;
         this.isMaximized = false;
+        this.isDestroying = false;
         this.zIndex = ++nextZIndex;
 
         this.onClose = options.onClose || (() => {});
@@ -1383,11 +1481,14 @@ class NativeAddonWindow {
     }
 
     destroy (callOnClose = true) {
+        // Ask the owner first; abort if the close is vetoed. The onClose
+        // callback is already invoked here, so it is NOT invoked again below.
+        if (callOnClose && this.onClose() === false) {
+            return this;
+        }
+        this.isDestroying = true;
         activeWindows.delete(this.id);
         this.closePopup();
-        if (callOnClose) {
-            this.onClose();
-        }
     }
 
     close () {
@@ -1396,6 +1497,12 @@ class NativeAddonWindow {
 
     minimize () {
         if (this.destroyOnMinimize) {
+            // Like close(), give the owner a chance to veto. Otherwise the
+            // window would be destroyed while the owner still thinks it is
+            // open, making it impossible to open it again later.
+            if (this.onClose() === false) {
+                return this;
+            }
             this.onMinimize();
             this.destroy(false);
             return this;

@@ -29,13 +29,32 @@ class AddonWindow extends React.Component {
             closable: this.props.closable,
             resizable: this.props.resizable,
             onClose: () => {
-                if (!this.unmounting) {
-                    this.props.onClose();
+                if (this.unmounting) {
+                    return;
                 }
+                // Delay the owner's close action until the window's closing
+                // animation has played out. Calling it synchronously would
+                // usually dispatch a Redux close / unmount this component,
+                // which removes the portal content instantly and makes it look
+                // like there is no close animation at all. window-manager
+                // removes the element itself after the animation finishes.
+                setTimeout(() => {
+                    if (!this.unmounting) {
+                        this.props.onClose();
+                    }
+                }, 220);
             },
             onMinimize: () => {
                 if (!this.unmounting && this.props.onMinimize) {
-                    this.props.onMinimize();
+                    // Same as onClose: let the hide animation finish before the
+                    // owner unmounts the window, otherwise the window is
+                    // destroyed (and removed) while the animation is still
+                    // playing.
+                    setTimeout(() => {
+                        if (!this.unmounting && this.props.onMinimize) {
+                            this.props.onMinimize();
+                        }
+                    }, 220);
                 }
             }
         });

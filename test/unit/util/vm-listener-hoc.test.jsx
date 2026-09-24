@@ -3,7 +3,7 @@ import configureStore from 'redux-mock-store';
 import {mount} from 'enzyme';
 import VM from 'scratch-vm';
 
-import vmListenerHOC from '../../../src/lib/vm-listener-hoc.jsx';
+import vmListenerHOC from '../../../src/lib/components/vm-listener-hoc.jsx';
 
 describe('VMListenerHOC', () => {
     const mockStore = configureStore();

@@ -1,4 +1,4 @@
-import defineDynamicBlock from '../../../src/lib/define-dynamic-block';
+import defineDynamicBlock from '../../../src/lib/utils/define-dynamic-block.js';
 
 import BlockType from 'scratch-vm/src/extension-support/block-type';
 

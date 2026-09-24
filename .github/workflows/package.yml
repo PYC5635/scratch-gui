@@ -1,0 +1,48 @@
+name: Update pnpm-lock.yaml
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'  # 每周一凌晨 2:00 UTC
+
+permissions:
+  contents: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: develop
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Delete pnpm-lock.yaml
+        run: rm -f pnpm-lock.yaml
+
+      - name: Regenerate pnpm-lock.yaml
+        run: pnpm install --lockfile-only --ignore-scripts
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add pnpm-lock.yaml
+          git commit -m "chore: update pnpm-lock.yaml" || echo "No changes"
+          git push origin develop

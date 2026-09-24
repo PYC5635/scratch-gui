@@ -9,31 +9,10 @@ export default async function ({ addon, console, msg }) {
   let flyoutLock = false;
   let closeOnMouseUp = false;
   let scrollAnimation = true;
-  let isVSCodeLayout = false;
 
   const SVG_NS = "http://www.w3.org/2000/svg";
 
   const Blockly = await addon.tab.traps.getBlockly();
-
-  function getAESettings() {
-    let aeSettings = {};
-    try {
-      aeSettings = JSON.parse(localStorage.getItem('AESettings') || '{}');
-    } catch (e) {
-      aeSettings = {};
-    }
-    return aeSettings;
-  }
-
-  function checkVSCodeLayout() {
-    const aeSettings = getAESettings();
-    isVSCodeLayout = Boolean(aeSettings.EnableVSCodeLayout);
-  }
-
-  checkVSCodeLayout();
-
-  // 监听设置变化
-  window.addEventListener('ae-settings-changed', checkVSCodeLayout);
 
   function getSpeedValue() {
     let data = {
@@ -156,7 +135,17 @@ export default async function ({ addon, console, msg }) {
       if (closeOnMouseUp) {
         onmouseleave();
         closeOnMouseUp = false;
+        toggle = false;
       }
+    });
+
+    Blockly.getMainWorkspace().addChangeListener((e) => {
+      if (addon.self.disabled || flyoutLock) return;
+      if (e.type !== Blockly.Events.CREATE) return;
+      if (flyOut.classList.contains("sa-flyoutClose")) return;
+      closeOnMouseUp = false;
+      toggle = false;
+      onmouseleave(null);
     });
 
     if (addon.self.enabledLate && getToggleSetting() === "category" && !addon.settings.get("lockLoad")) {
@@ -293,16 +282,6 @@ export default async function ({ addon, console, msg }) {
     lockObject.appendChild(lockButton);
     flyOut.appendChild(lockObject);
 
-    // 调整VS Code布局下的锁定按钮位置
-    checkVSCodeLayout();
-    if (isVSCodeLayout) {
-      // 在VS Code布局下，强制将锁定按钮定位到右侧
-      lockObject.style.position = "absolute";
-      lockObject.style.right = "15px";
-      lockObject.style.top = "3px";
-      lockObject.style.transform = "none";
-    }
-
     onmouseleave(null, 0);
     toggle = false;
 
@@ -315,7 +294,12 @@ export default async function ({ addon, console, msg }) {
       };
       element.onmouseleave = (e) => {
         const toggleSetting = getToggleSetting();
-        if (!addon.self.disabled && (toggleSetting === "hover" || toggleSetting === "cathover")) onmouseleave(e);
+        if (addon.self.disabled) return;
+        if (toggleSetting === "hover" || toggleSetting === "cathover") {
+          onmouseleave(e);
+        } else if (toggleSetting === "category" && e && e.buttons) {
+          onmouseleave(e);
+        }
       };
     }
     placeHolderDiv.onmouseenter = (e) => {

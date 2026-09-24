@@ -147,6 +147,14 @@ const manifest = {
     },
     {
       "dynamic": true,
+      "name": "strings",
+      "id": "strings-color",
+      "type": "color",
+      "default": "#00A6A6",
+      "allowTransparency": true
+    },
+    {
+      "dynamic": true,
       "name": "variables",
       "id": "data-color",
       "type": "color",
@@ -183,12 +191,7 @@ const manifest = {
       "id": "sa-color",
       "type": "color",
       "default": "#29BEB8",
-      "allowTransparency": true,
-      "if": {
-        "addonEnabled": [
-          "debugger"
-        ]
-      }
+      "allowTransparency": true
     },
     {
       "dynamic": true,

@@ -3,8 +3,8 @@ import configureStore from 'redux-mock-store';
 
 import {mountWithIntl} from '../../helpers/intl-helpers.jsx';
 
-import ProjectFetcherHOC from '../../../src/lib/project-fetcher-hoc.jsx';
-import storage from '../../../src/lib/storage';
+import ProjectFetcherHOC from '../../../src/lib/components/project-fetcher-hoc.jsx';
+import storage from '../../../src/lib/persistence/storage.js';
 import {LoadingState} from '../../../src/reducers/project-state';
 
 jest.mock('react-ga');
@@ -16,13 +16,24 @@ describe('ProjectFetcherHOC', () => {
     beforeEach(() => {
         store = mockStore({
             scratchGui: {
+                mode: {
+                    isEmbedded: true
+                },
                 projectState: {},
                 vm: {
                     clear: () => {},
+                    loadProject: () => {},
                     stop: () => {}
                 }
             }
         });
+    });
+
+    test('reads embedded mode from the store', () => {
+        const Component = () => <div />;
+        const WrappedComponent = ProjectFetcherHOC(Component);
+        const mounted = mountWithIntl(<WrappedComponent store={store} />);
+        expect(mounted.find(Component).prop('isEmbedded')).toBe(true);
     });
 
     test.skip('when there is an id, it tries to update the store with that id', () => {
