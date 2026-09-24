@@ -59,6 +59,7 @@ import ProjectSaverHOC from '../lib/components/project-saver-hoc.jsx';
 import storage from '../lib/persistence/storage';
 import vmListenerHOC from '../lib/components/vm-listener-hoc.jsx';
 import vmManagerHOC from '../lib/components/vm-manager-hoc.jsx';
+import {applySkipAssetLoading} from '../lib/mw-skip-asset-loading';
 import cloudManagerHOC from '../lib/components/cloud-manager-hoc.jsx';
 
 import GUIComponent from '../components/gui/gui.jsx';
@@ -97,6 +98,9 @@ class GUI extends React.Component {
         this.props.onStorageInit(storage);
         this.props.onVmInit(this.props.vm);
         setProjectIdMetadata(this.props.projectId);
+        // Apply the "skip assets on load" preference to the VM so every project
+        // load path (file, cloud, URL, git, ...) sees it immediately.
+        applySkipAssetLoading(this.props.vm);
 
         rwcBridge.init();
 

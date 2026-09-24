@@ -11,6 +11,8 @@ import {getStyleSetting, setStyleSetting} from '../lib/mw-style-settings';
 import {getAppearanceSetting, setAppearanceSetting} from '../lib/mw-appearance-settings';
 import {getVanillaPalette, setVanillaPalette} from '../lib/mw-vanilla-palette';
 import {getHideOperatorArrows, setHideOperatorArrows} from '../lib/mw-operator-arrows';
+import {getBlockLazyLoading, setBlockLazyLoading} from '../lib/mw-block-lazy-loading';
+import {getSkipAssetLoading, applySkipAssetLoading, setSkipAssetLoading} from '../lib/mw-skip-asset-loading';
 import WindowManager from '../addons/window-system/window-manager.js';
 
 const messages = defineMessages({
@@ -53,6 +55,8 @@ class UsernameModal extends React.Component {
             squareStageCorners: getAppearanceSetting('square-stage-corners'),
             hideExtensionButton: getAppearanceSetting('hide-extension-button'),
             hideOperatorArrows: getHideOperatorArrows(),
+            blockLazyLoading: getBlockLazyLoading(),
+            skipAssetLoading: getSkipAssetLoading(),
             hideDeleteButton: getAppearanceSetting('hide-delete-button'),
             hideBackpack: getAppearanceSetting('hide-backpack')
         };
@@ -96,7 +100,9 @@ class UsernameModal extends React.Component {
             'handleWindowAnimationChange',
             'handleEnableStageResizeChange',
             'handleUnclipPaletteChange',
-            'handleVanillaPaletteChange'
+            'handleVanillaPaletteChange',
+            'handleBlockLazyLoadingChange',
+            'handleSkipAssetLoadingChange'
         ]);
     }
 
@@ -131,6 +137,20 @@ class UsernameModal extends React.Component {
         const value = e.target.checked;
         this.setState({hideOperatorArrows: value});
         setHideOperatorArrows(value);
+    }
+
+    handleBlockLazyLoadingChange (e) {
+        const value = e.target.checked;
+        this.setState({blockLazyLoading: value});
+        setBlockLazyLoading(value);
+    }
+
+    handleSkipAssetLoadingChange (e) {
+        const value = e.target.checked;
+        this.setState({skipAssetLoading: value});
+        setSkipAssetLoading(this.props.vm, value);
+        // Re-apply to the VM in case it was replaced (e.g. via cloud/new project).
+        applySkipAssetLoading(this.props.vm);
     }
 
     handleHideDeleteButtonChange (e) {
@@ -473,6 +493,10 @@ class UsernameModal extends React.Component {
                 onHideExtensionButtonChange={this.handleHideExtensionButtonChange}
                 hideOperatorArrows={this.state.hideOperatorArrows}
                 onHideOperatorArrowsChange={this.handleHideOperatorArrowsChange}
+                blockLazyLoading={this.state.blockLazyLoading}
+                onBlockLazyLoadingChange={this.handleBlockLazyLoadingChange}
+                skipAssetLoading={this.state.skipAssetLoading}
+                onSkipAssetLoadingChange={this.handleSkipAssetLoadingChange}
                 hideDeleteButton={this.state.hideDeleteButton}
                 onHideDeleteButtonChange={this.handleHideDeleteButtonChange}
                 hideBackpack={this.state.hideBackpack}

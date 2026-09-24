@@ -604,6 +604,32 @@ HideOperatorArrows.propTypes = {
     onChange: PropTypes.func.isRequired
 };
 
+const BlockLazyLoading = ({value, onChange}) => (
+    <BooleanSetting
+        value={value}
+        onChange={onChange}
+        label="积木懒加载"
+        help="只加载视野及其 1.5 倍方形范围内的积木，拖动积木区时实时加载，远离视野的积木会释放缓存，大幅加快大型作品的编辑。"
+    />
+);
+BlockLazyLoading.propTypes = {
+    value: PropTypes.bool.isRequired,
+    onChange: PropTypes.func.isRequired
+};
+
+const SkipAssetLoading = ({value, onChange}) => (
+    <BooleanSetting
+        value={value}
+        onChange={onChange}
+        label="作品不加载素材进入"
+        help="加载作品时先跳过全部素材，直接进入并加载积木（受积木懒加载影响），素材在进入后于后台逐个加载，加载期间作品仍可正常运行与编辑。"
+    />
+);
+SkipAssetLoading.propTypes = {
+    value: PropTypes.bool.isRequired,
+    onChange: PropTypes.func.isRequired
+};
+
 const HideDeleteButton = ({value, onChange}) => (
     <BooleanSetting
         value={value}
@@ -2351,6 +2377,22 @@ const pageConfigurations = {
                         })
                     },
                     {
+                        component: BlockLazyLoading,
+                        props: props => ({
+                            value: props.blockLazyLoading,
+                            onChange: props.onBlockLazyLoadingChange,
+                            intl: props.intl
+                        })
+                    },
+                    {
+                        component: SkipAssetLoading,
+                        props: props => ({
+                            value: props.skipAssetLoading,
+                            onChange: props.onSkipAssetLoadingChange,
+                            intl: props.intl
+                        })
+                    },
+                    {
                         component: UnclipPalette,
                         props: props => ({
                             value: props.unclipPalette,
@@ -3227,6 +3269,10 @@ SettingsModalComponent.propTypes = {
     onHideExtensionButtonChange: PropTypes.func,
     hideOperatorArrows: PropTypes.bool,
     onHideOperatorArrowsChange: PropTypes.func,
+    blockLazyLoading: PropTypes.bool,
+    onBlockLazyLoadingChange: PropTypes.func,
+    skipAssetLoading: PropTypes.bool,
+    onSkipAssetLoadingChange: PropTypes.func,
     hideDeleteButton: PropTypes.bool,
     onHideDeleteButtonChange: PropTypes.func,
     hideBackpack: PropTypes.bool,

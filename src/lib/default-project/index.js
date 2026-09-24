@@ -3,8 +3,7 @@ import projectData from './project-data';
 /* eslint-disable import/no-unresolved */
 import overrideDefaultProject from '!arraybuffer-loader!./override-default-project.sb3';
 import backdrop from '!raw-loader!./cd21514d0531fdffb22204e0ec5ed84a.svg';
-import spriteCostume from '!raw-loader!./Fox.svg';
-import yuCostume from '!raw-loader!./yu.svg';
+import spriteCostume from '!raw-loader!./Pineapple.svg';
 /* eslint-enable import/no-unresolved */
 import {TextEncoder} from '../tw-text-encoder';
 import {
@@ -13,25 +12,16 @@ import {
     base64ToUint8Array
 } from '../custom-default-sprite';
 
-// 默认角色池：编辑器和每次打开时随机选择一个
+// 默认角色：菠萝（名字固定为“菠萝”，造型为 🍍 表情）
 const defaultSprites = [
     {
-        nameZh: '轻盈狐',
-        nameEn: 'Flick Fox',
-        assetId: '927d672925e7b99f7813735c484c6922',
+        nameZh: '菠萝',
+        nameEn: 'Pineapple',
+        assetId: '8f0f8b6f6e61d4c0c0f1e7f4a1b2e4d6',
         dataFormat: 'svg',
-        rotationCenterX: 49.78,
-        rotationCenterY: 44.67,
+        rotationCenterX: 64,
+        rotationCenterY: 64,
         svgContent: spriteCostume
-    },
-    {
-        nameZh: '玉米',
-        nameEn: 'Yu',
-        assetId: '9273979838f04746e92167f6c4ddb8be',
-        dataFormat: 'svg',
-        rotationCenterX: 48.79,
-        rotationCenterY: 65.50,
-        svgContent: yuCostume
     }
 ];
 
@@ -103,9 +93,9 @@ const defaultProject = translator => {
         }
     }
 
-    // 默认：从角色池中随机选取一个
+    // 默认：使用菠萝作为默认角色
     const lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
-    const picked = defaultSprites[Math.floor(Math.random() * defaultSprites.length)];
+    const picked = defaultSprites[0];
 
     // 更新项目 JSON 中的角色信息
     const spriteTarget = projectJson.targets[1];

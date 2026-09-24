@@ -14,11 +14,7 @@ messages = { ...messages, ...sharedMessages };
 // use the default message if a translation function is not passed
 const defaultTranslator = msgObj => {
     if (msgObj.id === 'gui.sharedMessages.sprite') {
-        const lang = navigator.language || navigator.userLanguage;
-        if (lang.startsWith('zh')) {
-            return '轻盈狐';
-        }
-        return 'Flick Fox';
+        return '菠萝';
     }
     return msgObj.defaultMessage;
 };
@@ -60,7 +56,7 @@ const projectData = translateFunction => {
             },
             {
                 isStage: false,
-                name: (navigator.language || navigator.userLanguage || '').toLowerCase().startsWith('zh') ? '轻盈狐' : 'Flick Fox',
+                name: '菠萝',
                 variables: {},
                 lists: {},
                 broadcasts: {},
@@ -69,13 +65,13 @@ const projectData = translateFunction => {
                 currentCostume: 0,
                 costumes: [
                     {
-                        assetId: '927d672925e7b99f7813735c484c6922',
+                        assetId: '8f0f8b6f6e61d4c0c0f1e7f4a1b2e4d6',
                         name: translator(messages.costume, {index: 1}),
                         bitmapResolution: 1,
-                        md5ext: '927d672925e7b99f7813735c484c6922.svg',
+                        md5ext: '8f0f8b6f6e61d4c0c0f1e7f4a1b2e4d6.svg',
                         dataFormat: 'svg',
-                        rotationCenterX: 49.78,
-                        rotationCenterY: 44.67
+                        rotationCenterX: 64,
+                        rotationCenterY: 64
                     }
                 ],
                 sounds: [],

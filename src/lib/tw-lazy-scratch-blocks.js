@@ -28,6 +28,15 @@ const load = () => {
                 // ignore
             }
 
+            try {
+                const blocksNS = _ScratchBlocks.ScratchBlocks;
+                if (blocksNS && typeof blocksNS.setBlockLazyLoading === 'function') {
+                    blocksNS.setBlockLazyLoading(localStorage.getItem('mw:block-lazy-loading') !== 'false');
+                }
+            } catch (e) {
+                // ignore
+            }
+
             const Procedures = _ScratchBlocks.Procedures;
             if (Procedures && typeof Procedures.flyoutCategory === 'function') {
                 const originalFlyoutCategory = Procedures.flyoutCategory;
