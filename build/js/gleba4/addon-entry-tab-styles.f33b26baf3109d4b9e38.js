@@ -1,0 +1,1 @@
+(window.webpackJsonpGUI=window.webpackJsonpGUI||[]).push([[63],{1989:function(n,s,c){"use strict";c.r(s),c.d(s,"resources",function(){return p});var o=c(527),r=c.n(o),t=c(528),a=c.n(t),e=c(529),u=c.n(e),w=c(530),i=c.n(w);const p={"turbowarp.css":r.a,"scratchbox.css":a.a,"icon-only.css":u.a,"text-only.css":i.a}}}]);
