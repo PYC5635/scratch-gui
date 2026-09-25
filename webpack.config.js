@@ -307,6 +307,7 @@ if (!hasSdepsStore) {
     // in CI they resolve to the npm-installed equivalents already in deps.
     alias['@bilup/scratch-l10n'] = path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n');
     alias['@bilup/scratch-svg-renderer'] = path.resolve(__dirname, 'node_modules/@turbowarp/scratch-svg-renderer');
+    alias['@bilup/scratch-storage'] = path.resolve(__dirname, 'node_modules/@turbowarp/scratch-storage');
     // scratch-vm's transitive deps resolve normally from its own nested
     // node_modules once the _sdeps redirects are removed.
     delete alias['@bilup/scratch-render-fonts'];
