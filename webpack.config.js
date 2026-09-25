@@ -146,6 +146,7 @@ const base = {
                 /node_modules[\\/]monaco-editor/,
                 /node_modules[\\/]rotur-sdk/,
                 /node_modules[\\/]accounts-sdk/,
+                /node_modules[\\/]fake-indexeddb/,
                 /node_modules[\\/]@remixwarp[\\/]scratch-l10n/
             ],
             exclude: [

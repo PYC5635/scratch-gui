@@ -600,10 +600,6 @@ class LanguageService {
         console.log('editorMessages 键:', Object.keys(editorMessages));
         
         Object.keys(locales).forEach(locale => {
-            // 跳过 scratch-l10n 自带的 lzh（文言）：与下方内置 zh-wenyan（文言文）
-            // 重复，且 lzh 翻译稀疏不全，统一由内置完整语言包取代。
-            if (locale === 'lzh') return;
-
             const localeData = locales[locale];
             const messages = editorMessages[locale] || {};
             
@@ -613,15 +609,6 @@ class LanguageService {
                 isSystem: true  // 标记为系统语言
             };
         });
-
-        // PineEditor 内置文言文语言包（zh-wenyan）
-        if (editorMessages['zh-wenyan']) {
-            available['zh-wenyan'] = {
-                name: '文言文',
-                messages: editorMessages['zh-wenyan'],
-                isSystem: true
-            };
-        }
         
         console.log('系统语言数量:', Object.keys(available).length);
         console.log('用户语言包数量:', Object.keys(this.userLanguagePackages).length);
