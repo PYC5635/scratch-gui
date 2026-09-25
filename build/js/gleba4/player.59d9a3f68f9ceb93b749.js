@@ -1,1 +1,0 @@
-var GUI=(window.webpackJsonpGUI=window.webpackJsonpGUI||[]).push([[113],{1793:function(e,n,r){"use strict";r.r(n);r(371);var a=r(0),t=r.n(a),c=r(299),o=r(170);Object(o.a)(t.a.createElement(c.a,{isPlayerOnly:!0}))},387:function(e,n){e.exports=require("electron")}},[[1793,1,2,0]]]);

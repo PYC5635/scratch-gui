@@ -80,6 +80,10 @@ const settingsThemeTab = value => {
     if (THEME_TABS.some(tab => tab.key === value)) return value;
     return THEME_TABS[0].key;
 };
+const settingsSection = value => {
+    if (SECTIONS.some(section => section.key === value)) return value;
+    return SECTIONS[0].key;
+};
 
 const NOTIFICATION_SETTINGS = [
     ['social', 'settings.notifSocial'],

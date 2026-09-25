@@ -240,7 +240,14 @@ const WarpThemePanel = ({onThemeChange}) => {
             await request(`/theme?uuid=${encodeURIComponent(item.uuid)}`, token, {method: 'DELETE'});
             if (mountedRef.current) setSelected(null);
             await refresh();
-        });
+        } catch (err) {
+            if (mountedRef.current) {
+                setDeleteError(err.message || String(err));
+            }
+        } finally {
+            releaseDelete();
+            if (mountedRef.current) setBusy(false);
+        }
     };
 
     const submitReport = () => run(async () => {
