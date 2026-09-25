@@ -294,6 +294,34 @@ if (!process.env.CI) {
     base.plugins.push(new webpack.ProgressPlugin());
 }
 
+// The repo builds either in the local dev environment (with the _sdeps store,
+// which holds the @bilup forks and scratch-vm's nested installed deps) or from
+// pure npm-installed packages (GitHub Actions CI). The _sdeps-only bits below
+// are only valid when that directory exists, so gate them on fs availability.
+const _sdepsStore = path.resolve(__dirname, '..', '_sdeps', 'node_modules');
+const hasSdepsStore = fs.existsSync(_sdepsStore);
+if (!hasSdepsStore) {
+    const alias = base.resolve.alias;
+    // Directly imported by src but only shipped via the _sdeps @bilup forks;
+    // in CI they resolve to the npm-installed equivalents already in deps.
+    alias['@bilup/scratch-l10n'] = path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n');
+    alias['@bilup/scratch-svg-renderer'] = path.resolve(__dirname, 'node_modules/@turbowarp/scratch-svg-renderer');
+    // scratch-vm's transitive deps resolve normally from its own nested
+    // node_modules once the _sdeps redirects are removed.
+    delete alias['@bilup/scratch-render-fonts'];
+    delete alias['@turbowarp/sb3fix'];
+    delete alias['@turbowarp/json'];
+    delete alias['@turbowarp/paper'];
+    delete alias['htmlparser2'];
+    delete alias['entities'];
+    delete alias['domhandler'];
+    delete alias['domutils'];
+    delete alias['domelementtype'];
+    // The _sdeps fallback dirs don't exist in CI.
+    base.resolve.modules = [path.resolve(__dirname, 'node_modules')];
+    base.resolveLoader.modules = [path.resolve(__dirname, 'node_modules')];
+}
+
 module.exports = [
     // to run editor examples
     defaultsDeep({}, base, {
