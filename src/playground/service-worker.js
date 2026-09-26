@@ -2,8 +2,8 @@
 // Bump this whenever a deploy changes the asset graph. The activate handler
 // deletes every cache whose name is not one of the two below, so a bump is what
 // evicts a previously poisoned cache from returning visitors.
-const CACHE_NAME = 'pineeditor-cache-v2';
-const RUNTIME_CACHE = 'pineeditor-runtime';
+const CACHE_NAME = 'pinewarp-cache-v2';
+const RUNTIME_CACHE = 'pinewarp-runtime';
 
 // Assets to cache immediately
 const PRECACHE_URLS = [

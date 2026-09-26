@@ -110,7 +110,7 @@
         </div>
 
         <div class="iframe-container">
-            <iframe id="pineEditorFrame" src="http://localhost:8601/" title="PineWarp Editor"></iframe>
+            <iframe id="pineWarpFrame" src="http://localhost:8601/" title="PineWarp Editor"></iframe>
         </div>
     </div>
 
@@ -176,7 +176,7 @@
         }
 
         function sendMessageToPineWarp(message) {
-            const iframe = document.getElementById('pineEditorFrame');
+            const iframe = document.getElementById('pineWarpFrame');
             
             console.log('Sending message to PineWarp:', message);
             
@@ -198,7 +198,7 @@
 
         // Update the default PineWarp URL based on the current protocol
         window.addEventListener('load', function() {
-            const iframe = document.getElementById('pineEditorFrame');
+            const iframe = document.getElementById('pineWarpFrame');
             const currentProtocol = window.location.protocol;
             const defaultUrl = currentProtocol === 'https:' ? 
                 'https://localhost:8601/' : 
