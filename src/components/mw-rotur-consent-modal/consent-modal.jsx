@@ -48,7 +48,7 @@ const RoturConsentModal = props => {
             <Modal
                 className={styles.modalContent}
                 onRequestClose={props.onShareNo}
-                contentLabel="Bilup Accounts"
+                contentLabel="PineWarp Accounts"
                 id="roturconsentmodal"
             >
                 <Box className={styles.body}>
@@ -61,7 +61,7 @@ const RoturConsentModal = props => {
                     <p>
                         {intl.formatMessage({
                             id: 'mw.roturConsent.shareBody',
-                            defaultMessage: '"{name}" wants to show that you\'re using it on your Bilup Accounts profile'
+                            defaultMessage: '"{name}" wants to show that you\'re using it on your PineWarp Accounts profile'
                         }, {
                             name: data.name || intl.formatMessage({
                                 id: 'mw.roturConsent.thisProject',
@@ -111,7 +111,7 @@ const RoturConsentModal = props => {
         <Modal
             className={styles.modalContent}
             onRequestClose={props.onDenied}
-            contentLabel="Bilup Accounts"
+            contentLabel="PineWarp Accounts"
             id="roturconsentmodal"
         >
             <Box className={styles.body}>
@@ -141,7 +141,7 @@ const RoturConsentModal = props => {
                                 <h2>
                                     {intl.formatMessage({
                                         id: 'mw.roturConsent.confirmTitle',
-                                        defaultMessage: 'Confirm Bilup Accounts action'
+                                        defaultMessage: 'Confirm PineWarp Accounts action'
                                     })}
                                 </h2>
                                 <p>
@@ -170,13 +170,13 @@ const RoturConsentModal = props => {
                         <h2>
                             {intl.formatMessage({
                                 id: 'mw.roturConsent.connectTitle',
-                                defaultMessage: 'Connect to Bilup Accounts'
+                                defaultMessage: 'Connect to PineWarp Accounts'
                             })}
                         </h2>
                         <p>
                             {intl.formatMessage({
                                 id: 'mw.roturConsent.connectBody',
-                                defaultMessage: '"{name}" wants to use your Bilup Accounts account'
+                                defaultMessage: '"{name}" wants to use your PineWarp Accounts account'
                             }, {
                                 name: data.name || intl.formatMessage({
                                     id: 'mw.roturConsent.thisProject',
@@ -203,7 +203,7 @@ const RoturConsentModal = props => {
                             <p>
                                 {intl.formatMessage({
                                     id: 'mw.roturConsent.noScopes',
-                                    defaultMessage: 'This just lets the project read your public Bilup Accounts info.'
+                                    defaultMessage: 'This just lets the project read your public PineWarp Accounts info.'
                                 })}
                             </p>
                         ) : null}

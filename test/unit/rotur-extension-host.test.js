@@ -19,7 +19,7 @@ jest.mock('../../src/lib/rotur/identity.js', () => ({
 import {callRotur, commitGrant} from '../../src/lib/rotur/extension-bridge.js';
 import {RoturExtensionHost} from '../../src/containers/rotur-extension-host.jsx';
 
-test('trusted projects skip Bilup Accounts permission prompts', async () => {
+test('trusted projects skip PineWarp Accounts permission prompts', async () => {
     const host = new RoturExtensionHost({
         vm: {runtime: {_mwProjectTrusted: true}},
         projectTitle: 'Project'
@@ -33,7 +33,7 @@ test('trusted projects skip Bilup Accounts permission prompts', async () => {
     expect(host.acquireModalLock).not.toHaveBeenCalled();
 });
 
-test('trusted projects still confirm sensitive Bilup Accounts actions', async () => {
+test('trusted projects still confirm sensitive PineWarp Accounts actions', async () => {
     const host = new RoturExtensionHost({
         vm: {runtime: {_mwProjectTrusted: true}}
     });

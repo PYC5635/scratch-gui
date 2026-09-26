@@ -198,7 +198,7 @@ export class TWGitModal extends React.Component {
             // Settings
             defaultBranch: readLocal(DEFAULT_BRANCH_KEY, 'main'),
             autoCommit: readLocal(AUTO_COMMIT_KEY, 'false') === 'true',
-            // Bilup Git
+            // PineWarp Git
             roturRepos: [],
             roturReposLoaded: false,
             roturReposLoading: false,
@@ -998,7 +998,7 @@ export class TWGitModal extends React.Component {
     async handleRoturLogin () {
         const api = getRoturSessionApi();
         if (!api || typeof api.login !== 'function') {
-            this.setState({error: 'Bilup Accounts session is not ready yet. Try again in a moment.'});
+            this.setState({error: 'PineWarp Accounts session is not ready yet. Try again in a moment.'});
             return;
         }
         try {

@@ -164,8 +164,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts"
-                description="Name of the Bilup Accounts extension"
+                defaultMessage="PineWarp Accounts"
+                description="Name of the PineWarp Accounts extension"
                 id="tw.extension.rotur.name"
             />
         ),
@@ -173,8 +173,8 @@ export default [
         iconURL: roturAccountIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Log in with Bilup Accounts and read who the player is."
-                description="Description of the Bilup Accounts extension"
+                defaultMessage="Log in with PineWarp Accounts and read who the player is."
+                description="Description of the PineWarp Accounts extension"
                 id="tw.extension.rotur.description"
             />
         ),
@@ -185,8 +185,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Economy"
-                description="Name of the Bilup Accounts Economy extension"
+                defaultMessage="PineWarp Accounts Economy"
+                description="Name of the PineWarp Accounts Economy extension"
                 id="tw.extension.roturEconomy.name"
             />
         ),
@@ -195,7 +195,7 @@ export default [
         description: (
             <FormattedMessage
                 defaultMessage="Credits, transfers, and daily rewards."
-                description="Description of the Bilup Accounts Economy extension"
+                description="Description of the PineWarp Accounts Economy extension"
                 id="tw.extension.roturEconomy.description"
             />
         ),
@@ -206,8 +206,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Keys"
-                description="Name of the Bilup Accounts Keys extension"
+                defaultMessage="PineWarp Accounts Keys"
+                description="Name of the PineWarp Accounts Keys extension"
                 id="tw.extension.roturKeys.name"
             />
         ),
@@ -215,8 +215,8 @@ export default [
         iconURL: roturKeysIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Buy, sell, and check Bilup Accounts keys."
-                description="Description of the Bilup Accounts Keys extension"
+                defaultMessage="Buy, sell, and check PineWarp Accounts keys."
+                description="Description of the PineWarp Accounts Keys extension"
                 id="tw.extension.roturKeys.description"
             />
         ),
@@ -227,8 +227,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Status"
-                description="Name of the Bilup Accounts Status extension"
+                defaultMessage="PineWarp Accounts Status"
+                description="Name of the PineWarp Accounts Status extension"
                 id="tw.extension.roturStatus.name"
             />
         ),
@@ -236,8 +236,8 @@ export default [
         iconURL: roturStatusIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Read and set Bilup Accounts status and presence."
-                description="Description of the Bilup Accounts Status extension"
+                defaultMessage="Read and set PineWarp Accounts status and presence."
+                description="Description of the PineWarp Accounts Status extension"
                 id="tw.extension.roturStatus.description"
             />
         ),
@@ -248,8 +248,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Social"
-                description="Name of the Bilup Accounts Social extension"
+                defaultMessage="PineWarp Accounts Social"
+                description="Name of the PineWarp Accounts Social extension"
                 id="tw.extension.roturSocial.name"
             />
         ),
@@ -257,8 +257,8 @@ export default [
         iconURL: roturSocialIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Posts, follows, and friends on Bilup Accounts."
-                description="Description of the Bilup Accounts Social extension"
+                defaultMessage="Posts, follows, and friends on PineWarp Accounts."
+                description="Description of the PineWarp Accounts Social extension"
                 id="tw.extension.roturSocial.description"
             />
         ),
@@ -269,8 +269,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Shop"
-                description="Name of the Bilup Accounts Shop extension"
+                defaultMessage="PineWarp Accounts Shop"
+                description="Name of the PineWarp Accounts Shop extension"
                 id="tw.extension.roturShop.name"
             />
         ),
@@ -279,7 +279,7 @@ export default [
         description: (
             <FormattedMessage
                 defaultMessage="Items and cosmetics marketplace."
-                description="Description of the Bilup Accounts Shop extension"
+                description="Description of the PineWarp Accounts Shop extension"
                 id="tw.extension.roturShop.description"
             />
         ),
@@ -290,8 +290,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Groups"
-                description="Name of the Bilup Accounts Groups extension"
+                defaultMessage="PineWarp Accounts Groups"
+                description="Name of the PineWarp Accounts Groups extension"
                 id="tw.extension.roturGroups.name"
             />
         ),
@@ -300,7 +300,7 @@ export default [
         description: (
             <FormattedMessage
                 defaultMessage="Communities, roles, and group economy."
-                description="Description of the Bilup Accounts Groups extension"
+                description="Description of the PineWarp Accounts Groups extension"
                 id="tw.extension.roturGroups.description"
             />
         ),
@@ -311,8 +311,8 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Bilup Accounts Files"
-                description="Name of the Bilup Accounts Files extension"
+                defaultMessage="PineWarp Accounts Files"
+                description="Name of the PineWarp Accounts Files extension"
                 id="tw.extension.roturFiles.name"
             />
         ),
@@ -320,8 +320,8 @@ export default [
         iconURL: roturFilesIcon,
         description: (
             <FormattedMessage
-                defaultMessage="Read and manage your Bilup Accounts file storage."
-                description="Description of the Bilup Accounts Files extension"
+                defaultMessage="Read and manage your PineWarp Accounts file storage."
+                description="Description of the PineWarp Accounts Files extension"
                 id="tw.extension.roturFiles.description"
             />
         ),
@@ -719,7 +719,7 @@ export const galleryMore = {
     description: (
         <FormattedMessage
             // eslint-disable-next-line max-len
-            defaultMessage="Including extensions from TurboWarp, Mistium, Bilup Accounts, SharkPool, Bilup, and AstraEditor."
+            defaultMessage="Including extensions from TurboWarp, Mistium, PineWarp Accounts, SharkPool, PineWarp, and AstraEditor."
             description="Appears after the extension list from the gallery was loaded successfully"
             id="tw.extensionGallery.more"
         />

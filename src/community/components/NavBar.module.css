@@ -24,9 +24,10 @@
 }
 
 .logo {
-    width: 27px;
-    height: 27px;
-    display: block;
+    font-size: 27px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .wordmark {

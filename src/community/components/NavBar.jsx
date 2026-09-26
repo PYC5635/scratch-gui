@@ -318,11 +318,13 @@ const NavBar = () => {
                     className={styles.brand}
                     aria-label="MistWarp"
                 >
-                    <img
+                    <span
                         className={styles.logo}
-                        src={logo}
-                        alt=""
-                    />
+                        role="img"
+                        aria-label="PineWarp"
+                    >
+                        🍍
+                    </span>
                     <span className={styles.wordmark}>MistWarp</span>
                 </Link>
 

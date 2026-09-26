@@ -161,7 +161,7 @@ const CustomExtensionModal = props => (
                                 description="Warning that appears when disabling extension security sandbox"
                                 id="tw.customExtensionModal.unsandboxedWarning2"
                                 values={{
-                                    APP_NAME: 'Bilup'
+                                    APP_NAME: 'PineWarp'
                                 }}
                             />
                         </p>

@@ -76,7 +76,7 @@ const UserProvider = ({children}) => {
             }
         }
         applyThemeVisuals(detectTheme());
-        // A transient /me failure while Bilup Accounts is logged in should not flip the
+        // A transient /me failure while PineWarp Accounts is logged in should not flip the
         // UI to signed-out; fall back to a minimal user so it stays logged in.
         const baseUser = me || (identityUser ? {username: identityUser.username} : null);
         setUser(normalizeUser(baseUser ? {...baseUser, group_tag: roturProfile?.group_tag || ''} : null));

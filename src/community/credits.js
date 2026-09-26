@@ -1,6 +1,6 @@
 import {ensureScopes} from '../lib/rotur/client.js';
 
-// 爱发电 credit tiers (Bilup). Buying opens an ifdian.net order page.
+// 爱发电 credit tiers (PineWarp). Buying opens an ifdian.net order page.
 const PURCHASE_TIERS = [
     {credits: 50, price: 6.99, link: 'https://ifdian.net/order/create?product_type=1&plan_id=9336922490c911f1b6855254001e7c00&sku=%5B%7B%22sku_id%22%3A%22934012c290c911f1ac695254001e7c00%22,%22count%22%3A1%7D%5D'},
     {credits: 200, price: 19.99, link: 'https://ifdian.net/order/create?product_type=1&plan_id=9336922490c911f1b6855254001e7c00&sku=%5B%7B%22sku_id%22%3A%229348610290c911f183e45254001e7c00%22,%22count%22%3A1%7D%5D'},
@@ -21,7 +21,7 @@ const CREDIT_PACKS = [
     {credits: 500, price: 15.99, lookupKey: 'rotur_credits_500'}
 ];
 
-// Detect an "insufficient funds" failure from a Bilup Accounts transfer error.
+// Detect an "insufficient funds" failure from a PineWarp Accounts transfer error.
 const isInsufficientFunds = error => {
     const message = String((error && error.message) || error || '').toLowerCase();
     return message.includes('insufficient') || message.includes('not enough') || message.includes('balance');

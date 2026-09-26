@@ -33,7 +33,7 @@ const ProjectThemeModal = props => (
             <p>
                 <FormattedMessage
                     defaultMessage="This project has a custom theme. Would you like to apply it?"
-                    description="Prompt shown when a project contains a stored Bilup theme"
+                    description="Prompt shown when a project contains a stored PineWarp theme"
                     id="mw.projectThemeModal.prompt"
                 />
             </p>

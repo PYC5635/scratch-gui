@@ -97,7 +97,7 @@ const stagePaths = async args => {
     return count;
 };
 
-const SHELL_HELP = `Bilup Fractch shell
+const SHELL_HELP = `PineWarp Fractch shell
 
   files      cat cp file find head ln ls md mkdir mv rm rmdir stat tail touch tree wc
   text       awk column comm cut diff expand fold grep join nl od paste rev rg sed sort
@@ -221,7 +221,7 @@ const currentUser = () => shellUser.rotur || shellUser.local || 'player';
 const gitHelp = `Supported git commands:
   status, add, rm, commit, log, branch, checkout, diff --name-only,
   config, remote, rev-parse
-Use Bilup's Version Control window for clone, pull, push, and merges.\n`;
+Use PineWarp's Version Control window for clone, pull, push, and merges.\n`;
 
 const createGitCommand = state => defineCommand('git', async args => {
     const fs = getFs();

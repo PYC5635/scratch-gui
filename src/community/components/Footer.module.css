@@ -22,9 +22,10 @@
 }
 
 .logo {
-    width: 40px;
-    height: 40px;
-    display: block;
+    font-size: 40px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .wordmark {

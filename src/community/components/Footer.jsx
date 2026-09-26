@@ -9,11 +9,13 @@ const Footer = () => (
     <footer className={styles.footer}>
         <div className={styles.inner}>
             <div className={styles.brand}>
-                <img
+                <span
                     className={styles.logo}
-                    src={logo}
-                    alt=""
-                />
+                    role="img"
+                    aria-label="PineWarp"
+                >
+                    🍍
+                </span>
                 <div>
                     <span className={styles.wordmark}>MistWarp</span>
                     <p className={styles.tagline}>Build, share, and remix projects together.</p>

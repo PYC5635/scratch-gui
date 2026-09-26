@@ -239,7 +239,7 @@ const Footer = () => (
                 <div className={styles.footerSection}>
                     <a href="https://packager.bilup.org/">
                         {/* Do not translate */}
-                        {'Bilup Packager'}
+                        {'PineWarp Packager'}
                     </a>
                     <a href="https://docs.bilup.org/advanced/embedding">
                         <FormattedMessage
