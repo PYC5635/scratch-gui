@@ -1,4 +1,4 @@
-export type ExtensionSource = "scratch" | "tw" | "mistium" | "sharkpool" | "bilup" | "ae" | "special" | "external";
+export type ExtensionSource = "scratch" | "tw" | "mistium" | "sharkpool" | "pinewarp" | "ae" | "special" | "external";
 
 export interface ExtensionRegistryItem {
   extensionId: string;
@@ -83,7 +83,7 @@ const safeFetchJson = async <T>(url: string, fallback: T): Promise<T> => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.json();
   } catch (error) {
-    console.warn("[Bilup Nova] Failed to fetch extension registry", url, error);
+    console.warn("[PineWarp Nova] Failed to fetch extension registry", url, error);
     return fallback;
   }
 };
@@ -94,11 +94,11 @@ export const fetchRemoteExtensions = async (forceRefresh = false) => {
     return cachedRemoteExtensions;
   }
 
-  const [twData, mistData, sharkPoolData, bilupData, aeData] = await Promise.all([
+  const [twData, mistData, sharkPoolData, pinewarpData, aeData] = await Promise.all([
     safeFetchJson<any>("https://extensions.turbowarp.org/generated-metadata/extensions-v0.json", { extensions: [] }),
     safeFetchJson<any>("https://extensions.mistium.com/generated-metadata/extensions-v0.json", { extensions: [] }),
     safeFetchJson<any>("https://sharkpools-extensions.vercel.app/Extension-Keys.json", { extensions: {} }),
-    safeFetchJson<any>("https://extensions.bilup.org/generated-metadata/extensions-v0.json", { extensions: [] }),
+    safeFetchJson<any>("https://extensions.pinewarp.org/generated-metadata/extensions-v0.json", { extensions: [] }),
     safeFetchJson<any>("https://editors.astras.top/extensions/generated-metadata/extensions-v0.json", { extensions: [] }),
   ]);
 
@@ -136,18 +136,18 @@ export const fetchRemoteExtensions = async (forceRefresh = false) => {
     incompatibleWithScratch: !extension.scratchCompatible,
   }));
 
-  const bilupExtensions = (Array.isArray(bilupData.extensions) ? bilupData.extensions : []).map((extension: any) => ({
+  const pinewarpExtensions = (Array.isArray(pinewarpData.extensions) ? pinewarpData.extensions : []).map((extension: any) => ({
     name: normalizeText(extension.name),
     description: normalizeText(extension.description),
     extensionId: normalizeText(extension.id),
-    extensionURL: `https://extensions.bilup.org/${extension.slug}.js`,
-    iconURL: `https://extensions.bilup.org/${extension.image || "images/unknown.svg"}`,
-    source: "bilup" as ExtensionSource,
-    tags: ["bilup"],
+    extensionURL: `https://extensions.pinewarp.org/${extension.slug}.js`,
+    iconURL: `https://extensions.pinewarp.org/${extension.image || "images/unknown.svg"}`,
+    source: "pinewarp" as ExtensionSource,
+    tags: ["pinewarp"],
     credits: [...(extension.original || []), ...(extension.by || [])].map(creditToText).filter(Boolean),
     docsURI: null,
     samples: extension.samples ? extension.samples.map((sample: string) => ({
-      href: `${ROOT}editor?project_url=https://extensions.bilup.org/samples/${encodeURIComponent(sample)}.sb3`,
+      href: `${ROOT}editor?project_url=https://extensions.pinewarp.org/samples/${encodeURIComponent(sample)}.sb3`,
       text: sample,
     })) : null,
     incompatibleWithScratch: !extension.scratchCompatible,
@@ -185,7 +185,7 @@ export const fetchRemoteExtensions = async (forceRefresh = false) => {
 
   cachedRemoteExtensions = [
     ...twExtensions,
-    ...bilupExtensions,
+    ...pinewarpExtensions,
     ...mistExtensions,
     ...sharkPoolExtensions,
     ...aeExtensions,
@@ -278,7 +278,7 @@ export const resolveKnownExtension = async (options: {
       item: {
         extensionId: extensionId || getURLStem(extensionURL) || "external_extension",
         name: extensionId || getURLStem(extensionURL) || extensionURL,
-        description: "External extension URL supplied directly to Bilup Nova.",
+        description: "External extension URL supplied directly to PineWarp Nova.",
         source: "external" as ExtensionSource,
         extensionURL,
         tags: ["external"],

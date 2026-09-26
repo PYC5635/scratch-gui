@@ -3,18 +3,20 @@ import {Link} from 'react-router-dom';
 import {FormattedMessage} from 'react-intl';
 import {Github} from 'lucide-react';
 import {editorUrl} from '../api';
-import logo from '../assets/bilup-logo.svg';
+
 import styles from './Footer.module.css';
 
 const Footer = () => (
     <footer className={styles.footer}>
         <div className={styles.inner}>
             <div className={styles.brand}>
-                <img
+                <span
                     className={styles.logo}
-                    src={logo}
-                    alt="Bilup"
-                />
+                    role="img"
+                    aria-label="PineWarp"
+                >
+                    🍍
+                </span>
                 <div>
                     <p className={styles.tagline}>
                         <FormattedMessage
@@ -79,7 +81,7 @@ const Footer = () => (
                             id="mw.community.footer.news"
                         />
                     </Link>
-                    <a href="mailto:support@bilup.org">
+                    <a href="mailto:support@pinewarp.org">
                         <FormattedMessage
                             defaultMessage="Report a bug"
                             description="Footer link to report a bug"
@@ -96,7 +98,7 @@ const Footer = () => (
                         />
                     </span>
                     <a
-                        href="https://github.com/bilup"
+                        href="https://github.com/pinewarp"
                         target="_blank"
                         rel="noreferrer"
                         className={styles.iconRow}
@@ -105,10 +107,10 @@ const Footer = () => (
                         GitHub
                     </a>
                     <a
-                        href="https://accounts.bilup.org"
+                        href="https://accounts.pinewarp.org"
                         target="_blank"
                         rel="noreferrer"
-                    >Bilup Accounts</a>
+                    >PineWarp Accounts</a>
                     <Link to="/credits">
                         <FormattedMessage
                             defaultMessage="Credits"
@@ -121,7 +123,7 @@ const Footer = () => (
         </div>
         <div className={styles.legal}>
             <FormattedMessage
-                defaultMessage="Bilup is a mod of TurboWarp and Scratch. Not affiliated with Scratch or the Scratch Foundation."
+                defaultMessage="PineWarp is a mod of TurboWarp and Scratch. Not affiliated with Scratch or the Scratch Foundation."
                 description="Footer legal text"
                 id="mw.community.footer.legal"
             />

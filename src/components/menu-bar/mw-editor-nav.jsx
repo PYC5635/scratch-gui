@@ -94,7 +94,7 @@ const MwEditorNav = () => {
                 onClick={() => openCommunityWindow(
                     'mw-mystuff-window',
                     myStuffTitle,
-                    'https://editor.bilup.org/mystuff'
+                    'https://editor.pinewarp.org/mystuff'
                 )}
             />
             <NavItem
@@ -103,7 +103,7 @@ const MwEditorNav = () => {
                 onClick={() => openCommunityWindow(
                     'mw-notifications-window',
                     notificationsTitle,
-                    'https://editor.bilup.org/notifications'
+                    'https://editor.pinewarp.org/notifications'
                 )}
             />
         </React.Fragment>

@@ -323,7 +323,7 @@ describe('git ops', () => {
     test('read-only surface stays available and pure', () => {
         expect(typeof ops.getState).toBe('function');
         expect(typeof ops.subscribe).toBe('function');
-        expect(ops.exportRepositoryConfig({}).kind).toBe('bilup-git-config');
+        expect(ops.exportRepositoryConfig({}).kind).toBe('pinewarp-git-config');
     });
 
     // --- M1 additions ------------------------------------------------------

@@ -172,6 +172,18 @@
     white-space: nowrap;
 }
 
+.sandbox-badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
 .blocks-cell {
     display: flex;
     flex-direction: column;
@@ -206,9 +218,13 @@
     height: 0.95rem;
 }
 
+.delete-button {
+    color: $looks-secondary;
+}
+
 .delete-button:hover:not(:disabled) {
-    background: color-mix(in srgb, $error-primary 10%, transparent);
-    color: $error-primary;
+    background: color-mix(in srgb, $looks-secondary 10%, transparent);
+    color: $looks-secondary-dark;
 }
 
 .checkbox-option {
@@ -236,7 +252,7 @@
     border: 0;
     border-radius: 4px;
     background: transparent;
-    color: color-mix(in srgb, $text-primary 68%, transparent);
+    color: $looks-secondary;
     cursor: pointer;
     font: inherit;
     font-size: 0.72rem;
@@ -244,8 +260,8 @@
 }
 
 .delete-all-button:hover:not(:disabled) {
-    background: color-mix(in srgb, $error-primary 10%, transparent);
-    color: $error-primary;
+    background: color-mix(in srgb, $looks-secondary 10%, transparent);
+    color: $looks-secondary-dark;
 }
 
 .delete-all-button:disabled {
@@ -285,4 +301,68 @@
     .extension-row > :nth-child(2) {
         display: none;
     }
+}
+
+.confirm-modal-content {
+    color: $text-primary;
+}
+
+.confirm-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    box-sizing: border-box;
+    padding: 1.25rem 1.5rem;
+    background: $ui-modal-background;
+    color: $text-primary;
+    text-align: center;
+}
+
+.confirm-title {
+    font-size: 0.9rem;
+}
+
+.confirm-message {
+    color: color-mix(in srgb, $text-primary 75%, transparent);
+    font-size: 0.74rem;
+    line-height: 1.5;
+}
+
+.confirm-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.35rem;
+}
+
+.confirm-button {
+    appearance: none;
+    min-height: 2rem;
+    padding: 0 1rem;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.confirm-cancel-button {
+    background: color-mix(in srgb, $text-primary 12%, transparent);
+    color: $text-primary;
+}
+
+.confirm-cancel-button:hover {
+    background: color-mix(in srgb, $text-primary 20%, transparent);
+}
+
+.confirm-ok-button {
+    background: $looks-secondary;
+    color: $accent-foreground;
+}
+
+.confirm-ok-button:hover {
+    filter: brightness(1.1);
 }

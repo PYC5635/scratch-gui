@@ -76,7 +76,7 @@ const WarpThemePanel = ({onThemeChange}) => {
 
     const username = user && user.username;
 
-    // Resolve the BilupTheme account id defensively: the backend returns it at
+    // Resolve the PineWarpTheme account id defensively: the backend returns it at
     // the top level of /user, but also nests it inside user, so fall back if the
     // deployed backend omits one of the two shapes.
     const getUserId = useCallback(account => (
@@ -182,7 +182,7 @@ const WarpThemePanel = ({onThemeChange}) => {
         }
         onThemeChange(CustomTheme.import(data));
         if (mountedRef.current) {
-            setNotice(t('mw.community.biluptheme.applied', 'Applied "{name}".', {name: data.name}));
+            setNotice(t('mw.community.pinewarptheme.applied', 'Applied "{name}".', {name: data.name}));
         }
     });
 
@@ -192,11 +192,11 @@ const WarpThemePanel = ({onThemeChange}) => {
         const saved = customThemeManager.addFromExportData(data, {
             name: selected.name,
             description: selected.description || '',
-            author: selected.authorUsername || selected.author || 'BilupTheme'
+            author: selected.authorUsername || selected.author || 'PineWarpTheme'
         });
         if (mountedRef.current) {
             setSavedIds(prev => new Set(prev).add(selected.uuid));
-            setNotice(t('mw.community.biluptheme.addedToLibrary', '"{name}" added to your custom theme library.', {name: saved.name}));
+            setNotice(t('mw.community.pinewarptheme.addedToLibrary', '"{name}" added to your custom theme library.', {name: saved.name}));
         }
     });
 
@@ -213,7 +213,7 @@ const WarpThemePanel = ({onThemeChange}) => {
     });
 
     const deleteTheme = item => {
-        if (!window.confirm(t('mw.community.biluptheme.deleteConfirm', 'Delete "{name}"? This cannot be undone.', {name: item.name}))) return;
+        if (!window.confirm(t('mw.community.pinewarptheme.deleteConfirm', 'Delete "{name}"? This cannot be undone.', {name: item.name}))) return;
         run(async () => {
             await request(`/theme?uuid=${encodeURIComponent(item.uuid)}`, token, {method: 'DELETE'});
             if (mountedRef.current) setSelected(null);
@@ -229,7 +229,7 @@ const WarpThemePanel = ({onThemeChange}) => {
         if (mountedRef.current) {
             setReporting(null);
             setReportReason('');
-            setNotice(t('mw.community.biluptheme.reportSent', 'Report sent. Thanks for helping keep BilupTheme safe.'));
+            setNotice(t('mw.community.pinewarptheme.reportSent', 'Report sent. Thanks for helping keep PineWarpTheme safe.'));
         }
     });
 
@@ -254,14 +254,14 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 <User size={26} />
-                <h3>{t('mw.community.biluptheme.signInTitle', 'Sign in to BilupTheme')}</h3>
-                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your Bilup Accounts account for uploads, reports, and ownership.')}</p>
+                <h3>{t('mw.community.pinewarptheme.signInTitle', 'Sign in to PineWarpTheme')}</h3>
+                <p>{t('mw.community.pinewarptheme.signInBody', 'The theme marketplace uses your PineWarp Accounts account for uploads, reports, and ownership.')}</p>
                 <button
                     className={styles.primaryButton}
                     onClick={login}
                     type="button"
                 >
-                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with Bilup Accounts')}
+                    <LogIn size={15} /> {t('mw.community.pinewarptheme.signInWithRotur', 'Sign in with PineWarp Accounts')}
                 </button>
             </div>
         );
@@ -271,10 +271,10 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 <Shield size={26} />
-                <h3>{t('mw.community.biluptheme.permissionTitle', 'BilupTheme needs one more permission')}</h3>
+                <h3>{t('mw.community.pinewarptheme.permissionTitle', 'PineWarpTheme needs one more permission')}</h3>
                 <p>
-                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in Bilup Accounts Token Manager and enable')}
-                    {' '}<strong>validators:generate</strong>. {t('mw.community.biluptheme.permissionBody2', 'Then return here and retry.')}
+                    {t('mw.community.pinewarptheme.permissionBody1', 'Edit your current token in PineWarp Accounts Token Manager and enable')}
+                    {' '}<strong>validators:generate</strong>. {t('mw.community.pinewarptheme.permissionBody2', 'Then return here and retry.')}
                 </p>
                 <div className={styles.gateActions}>
                     <a
@@ -282,12 +282,12 @@ const WarpThemePanel = ({onThemeChange}) => {
                         href={TOKEN_MANAGER}
                         target="_blank"
                         rel="noreferrer"
-                    >{t('mw.community.biluptheme.openTokenManager', 'Open Token Manager')}</a>
+                    >{t('mw.community.pinewarptheme.openTokenManager', 'Open Token Manager')}</a>
                     <button
                         className={styles.secondaryButton}
                         onClick={() => setSessionAttempt(value => value + 1)}
                         type="button"
-                    >{t('mw.community.biluptheme.retry', 'Retry')}</button>
+                    >{t('mw.community.pinewarptheme.retry', 'Retry')}</button>
                 </div>
             </div>
         );
@@ -297,24 +297,24 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 {busy ? (
-                    <p>{t('mw.community.biluptheme.connecting', 'Connecting to BilupTheme…')}</p>
+                    <p>{t('mw.community.pinewarptheme.connecting', 'Connecting to PineWarpTheme…')}</p>
                 ) : (
                     <React.Fragment>
                         <X size={26} />
-                        <h3>{t('mw.community.biluptheme.couldNotConnect', 'Could not connect to BilupTheme')}</h3>
+                        <h3>{t('mw.community.pinewarptheme.couldNotConnect', 'Could not connect to PineWarpTheme')}</h3>
                         <p>{error}</p>
                         <button
                             className={styles.primaryButton}
                             onClick={() => setSessionAttempt(value => value + 1)}
                             type="button"
-                        >{t('mw.community.biluptheme.retry', 'Retry')}</button>
+                        >{t('mw.community.pinewarptheme.retry', 'Retry')}</button>
                     </React.Fragment>
                 )}
             </div>
         );
     }
 
-    const tabLabel = (key, fallback) => t(`mw.community.biluptheme.tab.${key}`, fallback);
+    const tabLabel = (key, fallback) => t(`mw.community.pinewarptheme.tab.${key}`, fallback);
     const tabs = (account.isAdmin ? [...TABS, {key: 'admin', label: 'Reports', icon: Shield}] : TABS)
         .map(item => ({...item, label: tabLabel(item.key, item.label)}));
 
@@ -331,19 +331,19 @@ const WarpThemePanel = ({onThemeChange}) => {
                     setNotice('');
                 }}
                 type="button"
-            ><ArrowLeft size={15} /> {t('mw.community.biluptheme.back', 'Back')}</button>
+            ><ArrowLeft size={15} /> {t('mw.community.pinewarptheme.back', 'Back')}</button>
             <div
                 className={styles.detailBanner}
                 style={gradientStyle(selected)}
             />
             <h3>{selected.name}</h3>
             <p className={styles.byline}>
-                {t('mw.community.biluptheme.by', 'by {author} · {platform}', {
+                {t('mw.community.pinewarptheme.by', 'by {author} · {platform}', {
                     author: selected.authorUsername || selected.author,
                     platform: selected.platform
                 })}
             </p>
-            <p>{selected.description || t('mw.community.biluptheme.noDescription', 'No description provided.')}</p>
+            <p>{selected.description || t('mw.community.pinewarptheme.noDescription', 'No description provided.')}</p>
             <div className={styles.detailStats}>
                 <span><Heart size={14} /> {selected.likes || 0}</span>
                 <span><Download size={14} /> {selected.downloads || 0}</span>
@@ -354,7 +354,7 @@ const WarpThemePanel = ({onThemeChange}) => {
                     disabled={busy}
                     onClick={applySelected}
                     type="button"
-                ><Palette size={14} /> {t('mw.community.biluptheme.applyTheme', 'Apply theme')}</button>
+                ><Palette size={14} /> {t('mw.community.pinewarptheme.applyTheme', 'Apply theme')}</button>
                 <button
                     className={styles.secondaryButton}
                     disabled={busy || savedIds.has(selected.uuid)}
@@ -362,29 +362,29 @@ const WarpThemePanel = ({onThemeChange}) => {
                     type="button"
                 >
                     {savedIds.has(selected.uuid) ? (
-                        <React.Fragment><Check size={14} /> {t('mw.community.biluptheme.inLibrary', 'In library')}</React.Fragment>
+                        <React.Fragment><Check size={14} /> {t('mw.community.pinewarptheme.inLibrary', 'In library')}</React.Fragment>
                     ) : (
-                        <React.Fragment><BookmarkPlus size={14} /> {t('mw.community.biluptheme.addToLibrary', 'Add to library')}</React.Fragment>
+                        <React.Fragment><BookmarkPlus size={14} /> {t('mw.community.pinewarptheme.addToLibrary', 'Add to library')}</React.Fragment>
                     )}
                 </button>
                 <button
                     className={styles.secondaryButton}
                     onClick={() => setReporting(selected)}
                     type="button"
-                ><Flag size={14} /> {t('mw.community.biluptheme.report', 'Report')}</button>
+                ><Flag size={14} /> {t('mw.community.pinewarptheme.report', 'Report')}</button>
                 {myUserId && selected.author === myUserId && (
                     <button
                         className={styles.secondaryButton}
                         onClick={() => setEditing({...selected})}
                         type="button"
-                    ><Edit3 size={14} /> {t('mw.community.biluptheme.edit', 'Edit')}</button>
+                    ><Edit3 size={14} /> {t('mw.community.pinewarptheme.edit', 'Edit')}</button>
                 )}
                 {((myUserId && selected.author === myUserId) || account.isAdmin) && (
                     <button
                         className={styles.dangerButton}
                         onClick={() => deleteTheme(selected)}
                         type="button"
-                    ><Trash2 size={14} /> {t('mw.community.biluptheme.delete', 'Delete')}</button>
+                    ><Trash2 size={14} /> {t('mw.community.pinewarptheme.delete', 'Delete')}</button>
                 )}
             </div>
 
@@ -396,13 +396,13 @@ const WarpThemePanel = ({onThemeChange}) => {
                         saveEdit();
                     }}
                 >
-                    <label>{t('mw.community.biluptheme.name', 'Name')}<input
+                    <label>{t('mw.community.pinewarptheme.name', 'Name')}<input
                         required
                         maxLength="100"
                         value={editing.name}
                         onChange={e => setEditing({...editing, name: e.target.value})}
                     /></label>
-                    <label>{t('mw.community.biluptheme.description', 'Description')}<textarea
+                    <label>{t('mw.community.pinewarptheme.description', 'Description')}<textarea
                         maxLength="500"
                         value={editing.description}
                         onChange={e => setEditing({...editing, description: e.target.value})}
@@ -412,12 +412,12 @@ const WarpThemePanel = ({onThemeChange}) => {
                             type="button"
                             className={styles.secondaryButton}
                             onClick={() => setEditing(null)}
-                        >{t('mw.community.biluptheme.cancel', 'Cancel')}</button>
+                        >{t('mw.community.pinewarptheme.cancel', 'Cancel')}</button>
                         <button
                             className={styles.primaryButton}
                             disabled={busy}
                             type="submit"
-                        ><Check size={14} /> {t('mw.community.biluptheme.save', 'Save')}</button>
+                        ><Check size={14} /> {t('mw.community.pinewarptheme.save', 'Save')}</button>
                     </div>
                 </form>
             )}
@@ -430,7 +430,7 @@ const WarpThemePanel = ({onThemeChange}) => {
                         submitReport();
                     }}
                 >
-                    <label>{t('mw.community.biluptheme.whatWrong', 'What is wrong with this theme?')}<textarea
+                    <label>{t('mw.community.pinewarptheme.whatWrong', 'What is wrong with this theme?')}<textarea
                         required
                         maxLength="500"
                         value={reportReason}
@@ -441,12 +441,12 @@ const WarpThemePanel = ({onThemeChange}) => {
                             type="button"
                             className={styles.secondaryButton}
                             onClick={() => setReporting(null)}
-                        >{t('mw.community.biluptheme.cancel', 'Cancel')}</button>
+                        >{t('mw.community.pinewarptheme.cancel', 'Cancel')}</button>
                         <button
                             className={styles.dangerButton}
                             disabled={busy || !reportReason.trim()}
                             type="submit"
-                        ><Flag size={14} /> {t('mw.community.biluptheme.sendReport', 'Send report')}</button>
+                        ><Flag size={14} /> {t('mw.community.pinewarptheme.sendReport', 'Send report')}</button>
                     </div>
                 </form>
             )}
@@ -459,34 +459,34 @@ const WarpThemePanel = ({onThemeChange}) => {
                 <div className={styles.searchBox}>
                     <Search size={15} />
                     <input
-                        aria-label={t('mw.community.biluptheme.searchThemes', 'Search themes')}
-                        placeholder={t('mw.community.biluptheme.searchThemes', 'Search themes or creators')}
+                        aria-label={t('mw.community.pinewarptheme.searchThemes', 'Search themes')}
+                        placeholder={t('mw.community.pinewarptheme.searchThemes', 'Search themes or creators')}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
                 <select
-                    aria-label={t('mw.community.biluptheme.sortThemes', 'Sort themes')}
+                    aria-label={t('mw.community.pinewarptheme.sortThemes', 'Sort themes')}
                     value={sort}
                     onChange={e => setSort(e.target.value)}
                 >
-                    <option value="newest">{t('mw.community.biluptheme.sortNewest', 'Newest')}</option>
-                    <option value="likes">{t('mw.community.biluptheme.sortLikes', 'Most liked')}</option>
-                    <option value="name">{t('mw.community.biluptheme.sortName', 'Name')}</option>
+                    <option value="newest">{t('mw.community.pinewarptheme.sortNewest', 'Newest')}</option>
+                    <option value="likes">{t('mw.community.pinewarptheme.sortLikes', 'Most liked')}</option>
+                    <option value="name">{t('mw.community.pinewarptheme.sortName', 'Name')}</option>
                 </select>
                 <select
-                    aria-label={t('mw.community.biluptheme.filterPlatform', 'Filter platform')}
+                    aria-label={t('mw.community.pinewarptheme.filterPlatform', 'Filter platform')}
                     value={platform}
                     onChange={e => setPlatform(e.target.value)}
                 >
-                    <option value="all">{t('mw.community.biluptheme.allPlatforms', 'All platforms')}</option>
-                    <option value="bilup">Bilup</option>
+                    <option value="all">{t('mw.community.pinewarptheme.allPlatforms', 'All platforms')}</option>
+                    <option value="pinewarp">PineWarp</option>
                 </select>
             </div>
             {visibleThemes.length === 0 ? (
                 <div className={styles.empty}>
                     <Search size={24} />
-                    <p>{t('mw.community.biluptheme.noThemes', 'No themes found.')}</p>
+                    <p>{t('mw.community.pinewarptheme.noThemes', 'No themes found.')}</p>
                 </div>
             ) : (
                 <div className={styles.grid}>
@@ -507,7 +507,7 @@ const WarpThemePanel = ({onThemeChange}) => {
             {reports.length === 0 ? (
                 <div className={styles.empty}>
                     <Shield size={24} />
-                    <p>{t('mw.community.biluptheme.noReports', 'No open reports.')}</p>
+                    <p>{t('mw.community.pinewarptheme.noReports', 'No open reports.')}</p>
                 </div>
             ) : reports.map(report => (
                 <article
@@ -517,19 +517,19 @@ const WarpThemePanel = ({onThemeChange}) => {
                     <div>
                         <strong>{report.themeName}</strong>
                         <p>{report.reason}</p>
-                        <small>{t('mw.community.biluptheme.reportedBy', 'Reported by {name}', {name: report.reporterName})}</small>
+                        <small>{t('mw.community.pinewarptheme.reportedBy', 'Reported by {name}', {name: report.reporterName})}</small>
                     </div>
                     <div className={styles.formActions}>
                         <button
                             className={styles.secondaryButton}
                             onClick={() => resolveReport(report, 'dismiss')}
                             type="button"
-                        ><Check size={14} /> {t('mw.community.biluptheme.dismiss', 'Dismiss')}</button>
+                        ><Check size={14} /> {t('mw.community.pinewarptheme.dismiss', 'Dismiss')}</button>
                         <button
                             className={styles.dangerButton}
                             onClick={() => resolveReport(report, 'delete-theme')}
                             type="button"
-                        ><Trash2 size={14} /> {t('mw.community.biluptheme.deleteTheme', 'Delete theme')}</button>
+                        ><Trash2 size={14} /> {t('mw.community.pinewarptheme.deleteTheme', 'Delete theme')}</button>
                     </div>
                 </article>
             ))}
@@ -569,7 +569,7 @@ const WarpThemePanel = ({onThemeChange}) => {
                             <button
                                 onClick={() => setError('')}
                                 type="button"
-                                aria-label={t('mw.community.biluptheme.dismissError', 'Dismiss error')}
+                                aria-label={t('mw.community.pinewarptheme.dismissError', 'Dismiss error')}
                             ><X size={14} /></button>
                         </div>
                     )}

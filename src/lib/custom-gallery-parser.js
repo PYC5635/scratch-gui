@@ -43,7 +43,7 @@ const CARD_SELECTORS = [
     '.card'
 ];
 
-const defaultIcon = 'https://extensions.bilup.org/images/unknown.svg';
+const defaultIcon = 'https://extensions.pinewarp.org/images/unknown.svg';
 
 // 资源发现时最多抓取多少个脚本/元数据资源
 const MAX_RESOURCE_FETCH = 20;

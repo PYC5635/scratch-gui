@@ -80,8 +80,8 @@ const messages = defineMessages({
         id: 'mw.git.nav.readme'
     },
     rotur: {
-        defaultMessage: 'PineEditor Git',
-        description: 'PineEditor Git sidebar item',
+        defaultMessage: 'PineWarp Git',
+        description: 'PineWarp Git sidebar item',
         id: 'mw.git.nav.rotur'
     }
 });
@@ -856,7 +856,7 @@ class GitModalComponent extends React.Component {
                     />
                     <p className={styles.muted}>
                         <FormattedMessage
-                            defaultMessage="Generate one at git.bilup.org → Settings → Applications → Generate new token. Required for API calls to PineEditor Git."
+                            defaultMessage="Generate one at git.pinewarp.org → Settings → Applications → Generate new token. Required for API calls to PineWarp Git."
                             description="Explains how to get a Forgejo PAT"
                             id="mw.git.remote.tokenHelp"
                         />
@@ -984,7 +984,7 @@ class GitModalComponent extends React.Component {
                         <span className={styles.cloneConfirm}>
                             <FormattedMessage
                                 // eslint-disable-next-line max-len
-                                defaultMessage="This permanently deletes the repository on PineEditor Git. Click delete again to confirm."
+                                defaultMessage="This permanently deletes the repository on PineWarp Git. Click delete again to confirm."
                                 description="Confirm deleting rotur repo"
                                 id="mw.git.rotur.deleteConfirm"
                             />
@@ -1021,7 +1021,7 @@ class GitModalComponent extends React.Component {
                     rel="noopener noreferrer"
                     target="_blank"
                     title={this.props.intl.formatMessage({
-                        defaultMessage: 'Open on git.bilup.org',
+                        defaultMessage: 'Open on git.pinewarp.org',
                         description: 'Open rotur repo in browser tooltip',
                         id: 'mw.git.rotur.openRepo'
                     })}
@@ -1054,8 +1054,8 @@ class GitModalComponent extends React.Component {
                     <p>
                         <FormattedMessage
                             // eslint-disable-next-line max-len
-                            defaultMessage="Sign in with PineEditor Accounts to create repos on git.bilup.org and push your project straight from PineEditor."
-                            description="Shown on the PineEditor Git tab when signed out"
+                            defaultMessage="Sign in with PineWarp Accounts to create repos on git.pinewarp.org and push your project straight from PineWarp."
+                            description="Shown on the PineWarp Git tab when signed out"
                             id="mw.git.rotur.signedOut"
                         />
                     </p>
@@ -1065,8 +1065,8 @@ class GitModalComponent extends React.Component {
                         onClick={this.props.onRoturLogin}
                     >
                         <FormattedMessage
-                            defaultMessage="Sign in with PineEditor Accounts"
-                            description="Sign in button on the PineEditor Git tab"
+                            defaultMessage="Sign in with PineWarp Accounts"
+                            description="Sign in button on the PineWarp Git tab"
                             id="mw.git.rotur.signIn"
                         />
                     </button>
@@ -1081,14 +1081,14 @@ class GitModalComponent extends React.Component {
                     <Globe className={styles.buttonIcon} />
                     <FormattedMessage
                         defaultMessage="Your repositories"
-                        description="PineEditor Git section heading"
+                        description="PineWarp Git section heading"
                         id="mw.git.rotur.heading"
                     />
                 </h2>
                 <p className={styles.muted}>
                     <FormattedMessage
                         defaultMessage="Signed in as {username}. Repos live on {link}."
-                        description="PineEditor Git signed-in note"
+                        description="PineWarp Git signed-in note"
                         id="mw.git.rotur.signedInAs"
                         values={{
                             username: roturUsername,
@@ -1097,7 +1097,7 @@ class GitModalComponent extends React.Component {
                                     href={GIT_HOST}
                                     rel="noopener noreferrer"
                                     target="_blank"
-                                >{'git.bilup.org'}</a>
+                                >{'git.pinewarp.org'}</a>
                             )
                         }}
                     />
@@ -1143,7 +1143,7 @@ class GitModalComponent extends React.Component {
                                 rel="noopener noreferrer"
                                 target="_blank"
                                 title={this.props.intl.formatMessage({
-                                    defaultMessage: 'Open on git.bilup.org',
+                                    defaultMessage: 'Open on git.pinewarp.org',
                                     description: 'Open rotur repo in browser tooltip',
                                     id: 'mw.git.rotur.openRepo'
                                 })}
@@ -1218,7 +1218,7 @@ class GitModalComponent extends React.Component {
                         <label className={styles.fieldLabel}>
                             <FormattedMessage
                                 defaultMessage="Repositories"
-                                description="PineEditor repo list label"
+                                description="PineWarp repo list label"
                                 id="mw.git.rotur.repoList"
                             />
                         </label>
@@ -1228,7 +1228,7 @@ class GitModalComponent extends React.Component {
                             onClick={this.props.onLoadRoturRepos}
                             title={this.props.intl.formatMessage({
                                 defaultMessage: 'Reload repositories',
-                                description: 'Reload PineEditor repos tooltip',
+                                description: 'Reload PineWarp repos tooltip',
                                 id: 'mw.git.rotur.reload'
                             })}
                         >
@@ -1239,7 +1239,7 @@ class GitModalComponent extends React.Component {
                         <p className={styles.muted}>
                             <FormattedMessage
                                 defaultMessage="Loading repositories…"
-                                description="PineEditor repos loading message"
+                                description="PineWarp repos loading message"
                                 id="mw.git.rotur.loading"
                             />
                         </p>
@@ -1261,7 +1261,7 @@ class GitModalComponent extends React.Component {
                         <FormattedMessage
                             // eslint-disable-next-line max-len
                             defaultMessage="Push sends your committed history. Pushing an uninitialized project creates the repo locally and makes an initial commit first."
-                            description="PineEditor push help text"
+                            description="PineWarp push help text"
                             id="mw.git.rotur.pushHelp"
                         />
                     </p>
@@ -1269,7 +1269,7 @@ class GitModalComponent extends React.Component {
                 <Box className={styles.field}>
                     <label className={styles.fieldLabel}>
                         <FormattedMessage
-                            defaultMessage="Clone any PineEditor Accounts repo"
+                            defaultMessage="Clone any PineWarp Accounts repo"
                             description="Clone other rotur repo label"
                             id="mw.git.rotur.cloneOther"
                         />

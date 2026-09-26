@@ -1,6 +1,9 @@
 // Enhanced service worker for improved caching and performance
-const CACHE_NAME = 'bilup-cache-v1';
-const RUNTIME_CACHE = 'bilup-runtime';
+// Bump this whenever a deploy changes the asset graph. The activate handler
+// deletes every cache whose name is not one of the two below, so a bump is what
+// evicts a previously poisoned cache from returning visitors.
+const CACHE_NAME = 'pineeditor-cache-v2';
+const RUNTIME_CACHE = 'pineeditor-runtime';
 
 // Assets to cache immediately
 const PRECACHE_URLS = [
@@ -109,7 +112,13 @@ self.addEventListener('fetch', event => {
     if (url.protocol === 'chrome-extension:') return;
 
     // Handle different types of requests with appropriate strategies
-    if (request.destination === 'script' || request.destination === 'style') {
+    if (request.destination === 'document' || request.mode === 'navigate') {
+        // Always prefer the network for HTML. A cache-first document pins the
+        // visitor to the previous deploy's HTML, which references the previous
+        // deploy's hashed chunks - so the old build keeps running forever.
+        // Network-first means the next load picks up a new deploy immediately.
+        event.respondWith(networkFirst(request));
+    } else if (request.destination === 'script' || request.destination === 'style') {
         // Cache first for JS/CSS files
         event.respondWith(cacheFirst(request));
     } else if (request.destination === 'image') {

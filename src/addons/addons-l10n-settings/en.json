@@ -471,5 +471,7 @@
   "zebra-striping/@settings-select-shade-darker": "Darker",
   "zebra-striping/@settings-select-shade-lighter": "Lighter",
   "project-size-display/@name": "Project Size Display",
-  "project-size-display/@description": "Displays project size, block count, and selected sprite/stage size at the bottom of the sprite selector."
+  "project-size-display/@description": "Displays project size, block count, and selected sprite/stage size at the bottom of the sprite selector.",
+  "resize-selected-item/@name": "Resize selected item",
+  "resize-selected-item/@description": "Adds a button to the paint editor to resize selected items with precise width and height values."
 }

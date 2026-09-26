@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import LanguagePackageManager from '../../../components/language-package/LanguagePackageManager';
-import WindowManager from '../../../window-system/window-manager.js';
+import WindowManager from '../../window-system/window-manager.js';
 
 export default async function ({ addon, global, console }) {
     const msg = addon.tab.l10n;

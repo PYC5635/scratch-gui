@@ -6,92 +6,92 @@ import classNames from 'classnames';
 import Modal from '../../containers/windowed-modal.jsx';
 import Box from '../box/box.jsx';
 
-import styles from './bilup-login-modal.css';
+import styles from './pinewarp-login-modal.css';
 
 const messages = defineMessages({
     title: {
-        defaultMessage: 'Login PineEditor Accounts',
-        id: 'bilup.loginModal.title',
-        description: 'Title of the PineEditor Accounts login modal'
+        defaultMessage: 'Login PineWarp Accounts',
+        id: 'pinewarp.loginModal.title',
+        description: 'Title of the PineWarp Accounts login modal'
     },
     heading: {
-        defaultMessage: 'Connect PineEditor to PineEditor Accounts',
-        id: 'bilup.loginModal.heading',
-        description: 'Heading of the PineEditor Accounts login modal'
+        defaultMessage: 'Connect PineWarp to PineWarp Accounts',
+        id: 'pinewarp.loginModal.heading',
+        description: 'Heading of the PineWarp Accounts login modal'
     },
     description: {
-        defaultMessage: 'Sign in to your PineEditor Accounts to access cloud sync, activity feeds, and more.',
-        id: 'bilup.loginModal.description',
-        description: 'Description text in the PineEditor Accounts login modal'
+        defaultMessage: 'Sign in to your PineWarp Accounts to access cloud sync, activity feeds, and more.',
+        id: 'pinewarp.loginModal.description',
+        description: 'Description text in the PineWarp Accounts login modal'
     },
     afterLoginLabel: {
-        defaultMessage: 'After logging in to BILUP ACCOUNTS, you can:',
-        id: 'bilup.loginModal.afterLoginLabel',
+        defaultMessage: 'After logging in to PINEWARP ACCOUNTS, you can:',
+        id: 'pinewarp.loginModal.afterLoginLabel',
         description: 'Label introducing the features available after login'
     },
     featureShareTitle: {
         defaultMessage: 'Share editing status',
-        id: 'bilup.loginModal.featureShareTitle',
+        id: 'pinewarp.loginModal.featureShareTitle',
         description: 'Title of the share editing status feature card'
     },
     featureShareDesc: {
-        defaultMessage: 'Show your PineEditor activity on your PineEditor Accounts profile.',
-        id: 'bilup.loginModal.featureShareDesc',
+        defaultMessage: 'Show your PineWarp activity on your PineWarp Accounts profile.',
+        id: 'pinewarp.loginModal.featureShareDesc',
         description: 'Description of the share editing status feature'
     },
     featureCloudTitle: {
         defaultMessage: 'Cloud themes and settings',
-        id: 'bilup.loginModal.featureCloudTitle',
+        id: 'pinewarp.loginModal.featureCloudTitle',
         description: 'Title of the cloud themes and settings feature card'
     },
     featureCloudDesc: {
         defaultMessage: 'Sync your themes and settings across devices after signing in.',
-        id: 'bilup.loginModal.featureCloudDesc',
+        id: 'pinewarp.loginModal.featureCloudDesc',
         description: 'Description of the cloud themes and settings feature'
     },
     featureGitTitle: {
-        defaultMessage: 'PineEditor Git in the Git window',
-        id: 'bilup.loginModal.featureGitTitle',
-        description: 'Title of the PineEditor Git feature card'
+        defaultMessage: 'PineWarp Git in the Git window',
+        id: 'pinewarp.loginModal.featureGitTitle',
+        description: 'Title of the PineWarp Git feature card'
     },
     featureGitDesc: {
-        defaultMessage: 'Create repositories, push projects, and clone others on git.bilup.org.',
-        id: 'bilup.loginModal.featureGitDesc',
-        description: 'Description of the PineEditor Git feature'
+        defaultMessage: 'Create repositories, push projects, and clone others on git.pinewarp.org.',
+        id: 'pinewarp.loginModal.featureGitDesc',
+        description: 'Description of the PineWarp Git feature'
     },
     comingSoonLabel: {
         defaultMessage: 'Coming soon',
-        id: 'bilup.loginModal.comingSoonLabel',
+        id: 'pinewarp.loginModal.comingSoonLabel',
         description: 'Label for the coming soon section'
     },
     featureFriendsTitle: {
         defaultMessage: 'Friends and collaboration invites',
-        id: 'bilup.loginModal.featureFriendsTitle',
+        id: 'pinewarp.loginModal.featureFriendsTitle',
         description: 'Title of the friends and collaboration feature card'
     },
     featureFriendsDesc: {
-        defaultMessage: 'See online friends on PineEditor and send them collaboration invites.',
-        id: 'bilup.loginModal.featureFriendsDesc',
+        defaultMessage: 'See online friends on PineWarp and send them collaboration invites.',
+        id: 'pinewarp.loginModal.featureFriendsDesc',
         description: 'Description of the friends and collaboration feature'
     },
     laterButton: {
         defaultMessage: 'Not now',
-        id: 'bilup.loginModal.laterButton',
+        id: 'pinewarp.loginModal.laterButton',
         description: 'Button to dismiss the login modal without logging in'
     },
     continueButton: {
-        defaultMessage: 'Continue to PineEditor Accounts',
-        id: 'bilup.loginModal.continueButton',
-        description: 'Button to proceed to login on PineEditor Accounts'
+        defaultMessage: 'Continue to PineWarp Accounts',
+        id: 'pinewarp.loginModal.continueButton',
+        description: 'Button to proceed to login on PineWarp Accounts'
     },
     footerNote: {
-        defaultMessage: 'Sign in securely at accounts.bilup.org. Your account supports online status, cloud sync, and PineEditor Git.',
-        id: 'bilup.loginModal.footerNote',
-        description: 'Footer note about PineEditor Accounts login'
+        defaultMessage: 'Sign in securely at accounts.pinewarp.org. Your account supports online status, cloud sync, and PineWarp Git.',
+        id: 'pinewarp.loginModal.footerNote',
+        description: 'Footer note about PineWarp Accounts login'
     }
 });
 
-const BilupLoginModalComponent = props => {
+const PineWarpLoginModalComponent = props => {
     const {
         intl,
         visible,
@@ -99,7 +99,7 @@ const BilupLoginModalComponent = props => {
         onContinue
     } = props;
 
-    // PineEditor 登录功能尚未开放：点击后仅显示"开发中……"提示，不做任何跳转
+    // PineWarp 登录功能尚未开放：点击后仅显示"开发中……"提示，不做任何跳转
     const [comingSoon, setComingSoon] = useState(false);
 
     const handleContinue = () => {
@@ -116,7 +116,7 @@ const BilupLoginModalComponent = props => {
             className={styles.modalContent}
             onRequestClose={onCancel}
             contentLabel={intl.formatMessage(messages.title)}
-            id="bilupLoginModal"
+            id="pinewarpLoginModal"
             resizable={false}
             maximizable={false}
             width={520}
@@ -268,21 +268,21 @@ const BilupLoginModalComponent = props => {
     );
 };
 
-BilupLoginModalComponent.propTypes = {
+PineWarpLoginModalComponent.propTypes = {
     intl: intlShape,
     visible: PropTypes.bool,
     onCancel: PropTypes.func,
     onContinue: PropTypes.func
 };
 
-BilupLoginModalComponent.defaultProps = {
+PineWarpLoginModalComponent.defaultProps = {
     visible: false,
     onCancel: () => {},
     onContinue: null
 };
 
-const BilupLoginModal = injectIntl(BilupLoginModalComponent);
+const PineWarpLoginModal = injectIntl(PineWarpLoginModalComponent);
 
-// 兼容两种使用方式：<BilupLoginModal visible={...} /> 或 <BilupLoginModal.WrappedComponent ... />
-export default BilupLoginModal;
-export {BilupLoginModalComponent};
+// 兼容两种使用方式：<PineWarpLoginModal visible={...} /> 或 <PineWarpLoginModal.WrappedComponent ... />
+export default PineWarpLoginModal;
+export {PineWarpLoginModalComponent};

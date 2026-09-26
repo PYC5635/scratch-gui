@@ -15,7 +15,7 @@ const ACHIEVEMENT_DEFINITIONS = [
         id: 'competitor-research',
         category: '彩蛋成就',
         name: '了解友商',
-        description: '询问 AI 什么是 rw、bilup、02e、ae 等'
+        description: '询问 AI 什么是 rw、pinewarp、02e、ae 等'
     },
     {
         id: 'sixty-fps',
@@ -442,7 +442,7 @@ const ACHIEVEMENT_DEFINITIONS = [
 const ACHIEVEMENT_METADATA = {
     'ai-conversation': ['系统交互', '进阶', 'AI？', '与AI Agent或AI Chat对话'],
     'sponsor': ['趣味彩蛋', '彩蛋', '赞助商', '赞助rw'],
-    'competitor-research': ['系统交互', '彩蛋', '了解友商', '询问AI什么是rw/bilup/02e/ae/...'],
+    'competitor-research': ['系统交互', '彩蛋', '了解友商', '询问AI什么是rw/pinewarp/02e/ae/...'],
     'sixty-fps': ['技术操作', '彩蛋', '提高效率！', '开启60帧'],
     'high-framerate': ['技术操作', '彩蛋', '效率过高...', '开启自定义帧率且帧率上限大于200'],
     'larger-stage': ['技术操作', '进阶', '扩大舞台', '改变舞台的大小（大于480x360）'],
@@ -592,7 +592,7 @@ export const unlockAchievement = id => {
 
 const isCompetitorQuestion = message => {
     const normalized = message.toLowerCase();
-    const mentionsCompetitor = /\b(rw|bilup|02e|ae)\b|remixwarp|bil(?:up|me)|a[ei]编辑器/.test(normalized);
+    const mentionsCompetitor = /\b(rw|pinewarp|02e|ae)\b|remixwarp|bil(?:up|me)|a[ei]编辑器/.test(normalized);
     const asksAboutIt = /什么是|是什么|介绍|了解|谁是|what is|tell me about|about/.test(normalized);
     return mentionsCompetitor && asksAboutIt;
 };

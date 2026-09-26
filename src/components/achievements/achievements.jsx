@@ -23,7 +23,7 @@ const ACHIEVEMENT_CATEGORIES = [
 
 const messages = defineMessages({
     welcomeTitle: {
-        defaultMessage: 'Welcome to PineEditor',
+        defaultMessage: 'Welcome to PineWarp',
         description: 'Welcome title on first launch',
         id: 'achievements.welcomeTitle'
     },

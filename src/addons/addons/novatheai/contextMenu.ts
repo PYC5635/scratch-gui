@@ -12,9 +12,9 @@ export const registerContextMenu = (vm: any) => {
 
           const targetId = target.id;
           const allBlocks = vm.editingTarget.blocks._blocks;
-          console.log("[Bilup Nova Jump][contextMenu] raw target", target);
-          console.log("[Bilup Nova Jump][contextMenu] target.id used as blockId", targetId);
-          console.log("[Bilup Nova Jump][contextMenu] vm.editingTarget.id", vm.editingTarget.id);
+          console.log("[PineWarp Nova Jump][contextMenu] raw target", target);
+          console.log("[PineWarp Nova Jump][contextMenu] target.id used as blockId", targetId);
+          console.log("[PineWarp Nova Jump][contextMenu] vm.editingTarget.id", vm.editingTarget.id);
           if (!allBlocks) return;
 
           const blocksArray = Object.values(allBlocks).map((b: any) => ({
@@ -24,7 +24,7 @@ export const registerContextMenu = (vm: any) => {
 
           const ucfText = scratchToUCF(blocksArray);
           if (ucfText) {
-            console.log("[Bilup Nova Jump][contextMenu] dispatching attachment", {
+            console.log("[PineWarp Nova Jump][contextMenu] dispatching attachment", {
               targetId: vm.editingTarget.id,
               blockId: targetId,
               ucfPreview: ucfText.slice(0, 150),

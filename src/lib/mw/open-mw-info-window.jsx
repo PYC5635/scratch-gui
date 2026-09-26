@@ -52,11 +52,11 @@ const openRemixWarpInfoWindow = () => {
     ReactDOM.render(element, container);
 
     // Determine the title based on current locale
-    let title = 'PineEditor Info';
+    let title = 'PineWarp Info';
     if (intlProps && intlProps.locale) {
         const locale = intlProps.locale.toLowerCase();
         if (locale.startsWith('zh')) {
-            title = 'PineEditor 说明';
+            title = 'PineWarp 说明';
         }
     }
 

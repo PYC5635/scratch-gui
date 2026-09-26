@@ -43,12 +43,12 @@ const messages = defineMessages({
 
 const Packager = () => (
     <a
-        href="https://packager.bilup.org"
+        href="https://packager.pinewarp.org"
         target="_blank"
         rel="noopener noreferrer"
     >
         {/* Should not be translated */}
-        {'Bilup Packager'}
+        {'PineWarp Packager'}
     </a>
 );
 
@@ -167,7 +167,7 @@ const PromptComponent = props => (
                             /* eslint-disable-next-line max-len */
                             defaultMessage="Although you can create cloud variables, they won't work unless this project is uploaded to Scratch or converted using a tool like the {packager}."
                             // eslint-disable-next-line max-len
-                            description="Reminder that cloud variables may not work when the editor is open. {packager} is replaced with a link to open the Bilup Packager, always English."
+                            description="Reminder that cloud variables may not work when the editor is open. {packager} is replaced with a link to open the PineWarp Packager, always English."
                             values={{
                                 packager: <Packager />
                             }}

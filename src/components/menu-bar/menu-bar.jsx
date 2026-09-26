@@ -158,7 +158,7 @@ import '!!style-loader!css-loader!./block-count.css';
 
 import ChevronDown from './ChevronDown.jsx';
 
-import BilupLogo from './bilup-logo.jsx';
+import PineWarpLogo from './pinewarp-logo.jsx';
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
 import prehistoricLogo from './prehistoric-logo.svg';
@@ -191,15 +191,15 @@ const twMessages = defineMessages({
         defaultMessage: '{sprite}: {error}',
         description: 'Error message in error menu'
     },
-    bilupHome: {
-        id: 'tw.menuBar.bilupHome',
-        defaultMessage: 'Bilup home',
+    pinewarpHome: {
+        id: 'tw.menuBar.pinewarpHome',
+        defaultMessage: 'PineWarp home',
         description: 'Title for the home link in the menu bar'
     },
-    bilupLogoAlt: {
-        id: 'tw.menuBar.bilupLogoAlt',
-        defaultMessage: 'Bilup',
-        description: 'Alt text for the Bilup logo'
+    pinewarpLogoAlt: {
+        id: 'tw.menuBar.pinewarpLogoAlt',
+        defaultMessage: 'PineWarp',
+        description: 'Alt text for the PineWarp logo'
     },
     moreMenu: {
         id: 'tw.menuBar.moreMenu',
@@ -433,10 +433,10 @@ class MenuBar extends React.Component {
         });
 
         // Prevent the legacy addon from also injecting a bookmarks menu.
-        window.__bilupNativeWorkspaceBookmarks = true;
+        window.__pinewarpNativeWorkspaceBookmarks = true;
 
         // Expose showPrompt for addons
-        window.__bilupPrompt = this.showPrompt.bind(this);
+        window.__pinewarpPrompt = this.showPrompt.bind(this);
 
         this.loadWorkspaceBookmarksFromProject();
         if (this.props.vm && this.props.vm.runtime) {
@@ -1620,12 +1620,12 @@ class MenuBar extends React.Component {
                     <a
                         href="/"
                         className={classNames(styles.menuBarItem, styles.hoverable, styles.homeLink)}
-                        title={this.props.intl.formatMessage(twMessages.bilupHome)}
+                        title={this.props.intl.formatMessage(twMessages.pinewarpHome)}
                         data-mw-item="__home"
                     >
-                        <BilupLogo
+                        <PineWarpLogo
                             className={styles.homeLogo}
-                            alt={this.props.intl.formatMessage(twMessages.bilupLogoAlt)}
+                            alt={this.props.intl.formatMessage(twMessages.pinewarpLogoAlt)}
                         />
                     </a>
                     {this.state.menuCollapsed && (
@@ -1768,14 +1768,14 @@ class MenuBar extends React.Component {
                                                     <Globe />
                                                     {mistwarpAction === 'remix' ? (
                                                         <FormattedMessage
-                                                            defaultMessage="Remix to Bilup"
-                                                            description="File menu item to remix a Bilup project"
+                                                            defaultMessage="Remix to PineWarp"
+                                                            description="File menu item to remix a PineWarp project"
                                                             id="mw.menuBar.remix"
                                                         />
                                                     ) : (
                                                         <FormattedMessage
-                                                            defaultMessage="Save to Bilup"
-                                                            description="File menu item to save the project to Bilup"
+                                                            defaultMessage="Save to PineWarp"
+                                                            description="File menu item to save the project to PineWarp"
                                                             id="mw.menuBar.share"
                                                         />
                                                     )}
@@ -1786,7 +1786,7 @@ class MenuBar extends React.Component {
                                                     <ExternalLink />
                                                     <FormattedMessage
                                                         defaultMessage="See project page"
-                                                        description="File menu item opening the Bilup project page"
+                                                        description="File menu item opening the PineWarp project page"
                                                         id="mw.menuBar.projectPage"
                                                     />
                                                 </MenuItem>
@@ -2262,12 +2262,12 @@ class MenuBar extends React.Component {
                                         />
                                     </MenuItem>
                                 </MenuSection>
-                                {window.__bilupDebuggerToggle || window.__bilupVariableManagerToggle ? (
+                                {window.__pinewarpDebuggerToggle || window.__pinewarpVariableManagerToggle ? (
                                     <MenuSection>
-                                        {window.__bilupDebuggerToggle && (
+                                        {window.__pinewarpDebuggerToggle && (
                                             <MenuItem
                                                 onClick={() => {
-                                                    window.__bilupDebuggerToggle();
+                                                    window.__pinewarpDebuggerToggle();
                                                     this.props.onRequestCloseTools();
                                                 }}
                                             >
@@ -2279,10 +2279,10 @@ class MenuBar extends React.Component {
                                                 />
                                             </MenuItem>
                                         )}
-                                        {window.__bilupVariableManagerToggle && (
+                                        {window.__pinewarpVariableManagerToggle && (
                                             <MenuItem
                                                 onClick={() => {
-                                                    window.__bilupVariableManagerToggle();
+                                                    window.__pinewarpVariableManagerToggle();
                                                     this.props.onRequestCloseTools();
                                                 }}
                                             >
@@ -2296,12 +2296,12 @@ class MenuBar extends React.Component {
                                         )}
                                     </MenuSection>
                                 ) : null}
-                                {window.__bilupTodoToggle || window.__bilupSPAToggle ? (
+                                {window.__pinewarpTodoToggle || window.__pinewarpSPAToggle ? (
                                     <MenuSection>
-                                        {window.__bilupSPAToggle && (
+                                        {window.__pinewarpSPAToggle && (
                                             <MenuItem
                                                 onClick={() => {
-                                                    window.__bilupSPAToggle();
+                                                    window.__pinewarpSPAToggle();
                                                     this.props.onRequestCloseTools();
                                                 }}
                                             >
@@ -2313,10 +2313,10 @@ class MenuBar extends React.Component {
                                                 />
                                             </MenuItem>
                                         )}
-                                        {window.__bilupTodoToggle && (
+                                        {window.__pinewarpTodoToggle && (
                                             <MenuItem
                                                 onClick={() => {
-                                                    window.__bilupTodoToggle();
+                                                    window.__pinewarpTodoToggle();
                                                     this.props.onRequestCloseTools();
                                                 }}
                                             >

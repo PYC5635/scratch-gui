@@ -355,7 +355,7 @@ const Project = () => {
         // eslint-disable-next-line no-alert
         const ok = window.confirm(t('mw.community.project.unsandboxedConfirm',
             'This project uses custom extensions.\n\n' +
-            'Running it without the sandbox gives it full access to your Bilup account. ' +
+            'Running it without the sandbox gives it full access to your PineWarp account. ' +
             'It could read your login session, act as you, or change your data. ' +
             'Only continue if you trust the person who made this project.'
         ));
@@ -430,8 +430,8 @@ const Project = () => {
         projectImage: (project && project.thumbUrl) || ''
     }), [user, project, id]);
 
-    // Bilup Accounts bridge for the embedded player. The project iframe cannot hold the
-    // token or render trusted UI, so its Bilup Accounts blocks post requests up here; this
+    // PineWarp Accounts bridge for the embedded player. The project iframe cannot hold the
+    // token or render trusted UI, so its PineWarp Accounts blocks post requests up here; this
     // page holds the token (via lib/rotur/client) and renders consent/confirm UI
     // that the sandboxed project cannot read or approve on its own.
     useEffect(() => {
@@ -560,7 +560,7 @@ const Project = () => {
                         onDeny: () => {
                             setRoturModal(null);
                             reply({id: data.id, ok: false, error: t('mw.community.project.roturCancelled',
-                                'You cancelled this Bilup Accounts action')});
+                                'You cancelled this PineWarp Accounts action')});
                         }
                     });
                 } else {

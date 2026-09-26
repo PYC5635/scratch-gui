@@ -6,7 +6,7 @@ import {File, FileAudio, FileCode, FileImage, FileText} from 'lucide-react';
 import {formatBytes} from '../../lib/utils/bytes';
 import styles from './assets-modal.css';
 
-const DRAG_TYPE = 'application/x-bilup-asset';
+const DRAG_TYPE = 'application/x-pinewarp-asset';
 
 const ICONS_BY_FORMAT = {
     png: FileImage,

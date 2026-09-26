@@ -45,10 +45,10 @@ const messages = defineMessages({
         description: 'Filter option for all platforms',
         id: 'bl.bilme.allPlatforms'
     },
-    PineEditor: {
-        defaultMessage: 'PineEditor',
-        description: 'Platform filter for PineEditor',
-        id: 'bl.bilme.PineEditor'
+    PineWarp: {
+        defaultMessage: 'PineWarp',
+        description: 'Platform filter for PineWarp',
+        id: 'bl.bilme.PineWarp'
     },
     allColors: {
         defaultMessage: 'All Colors',
@@ -154,7 +154,7 @@ const COLORS = [
 
 const PLATFORMS = [
     {id: 'all', label: 'All Platforms'},
-    {id: 'PineEditor', label: 'PineEditor'},
+    {id: 'PineWarp', label: 'PineWarp'},
 ];
 
 // Helper functions for color analysis
@@ -276,7 +276,7 @@ const [popupPosition, setPopupPosition] = useState({top: 0, left: 0, visible: fa
             setLoading(true);
             setError(null);
             try {
-                const response = await fetch('https://theme.bilup.org/api/themes');
+                const response = await fetch('https://theme.pinewarp.org/api/themes');
                 if (!response.ok) throw new Error('Failed to fetch themes');
                 const data = await response.json();
                 setThemes(data.themes || []);
@@ -332,18 +332,18 @@ const [popupPosition, setPopupPosition] = useState({top: 0, left: 0, visible: fa
     }, [themes, searchQuery, platformFilter, colorFilter, sortBy]);
 
     const handleCreateTheme = () => {
-        window.open('https://theme.bilup.org', '_blank');
+        window.open('https://theme.pinewarp.org', '_blank');
     };
 
     const handleOpenInBilme = theme => {
         const slug = theme.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        window.open(`https://theme.bilup.org/themes/${theme.author}/${slug}`, '_blank');
+        window.open(`https://theme.pinewarp.org/themes/${theme.author}/${slug}`, '_blank');
     };
 
     const handleDownloadTheme = async theme => {
         try {
             const response = await fetch(
-                `https://theme.bilup.org/api/theme/export?uuid=${theme.uuid}&platform=bilup`
+                `https://theme.pinewarp.org/api/theme/export?uuid=${theme.uuid}&platform=pinewarp`
             );
             
             if (!response.ok) {
@@ -422,7 +422,7 @@ const [popupPosition, setPopupPosition] = useState({top: 0, left: 0, visible: fa
             if (props.onThemeApply) {
                 
                 const response = await fetch(
-                    `https://theme.bilup.org/api/theme/export?uuid=${theme.uuid}&platform=bilup`
+                    `https://theme.pinewarp.org/api/theme/export?uuid=${theme.uuid}&platform=pinewarp`
                 );
                 
                 if (!response.ok) {
@@ -610,7 +610,7 @@ const [popupPosition, setPopupPosition] = useState({top: 0, left: 0, visible: fa
                                     value={p.id}
                                 >
                                     {p.id === 'all' ? props.intl.formatMessage(messages.allPlatforms) :
-                                        props.intl.formatMessage(messages.PineEditor)}
+                                        props.intl.formatMessage(messages.PineWarp)}
                                 </option>
                             ))}
                         </select>

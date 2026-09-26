@@ -14,11 +14,11 @@ const InvalidEmbed = () => (
         <p>
             {'See '}
             <a
-                href="https://docs.bilup.org/advanced/embedding"
+                href="https://docs.pinewarp.org/advanced/embedding"
                 target="_blank"
                 rel="noreferrer"
             >
-                {'docs.bilup.org/advanced/embedding'}
+                {'docs.pinewarp.org/advanced/embedding'}
             </a>
             {/* eslint-disable-next-line max-len */}
             {' for more information.'}

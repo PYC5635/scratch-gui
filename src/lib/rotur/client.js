@@ -1,4 +1,5 @@
-import {Rotur, resolvePermissions} from 'accounts-sdk';
+import {Rotur, resolvePermissions} from 'rotur-sdk';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {
     getRoturSettings,
     formatActivityTitle,
@@ -13,18 +14,23 @@ const REQUIRED_PERMISSIONS = [
         'following.unfollow',
         'validators.generate',
         'me.transfer',
-        'me.claimDaily'
+        'me.claimDaily',
+        'notifications.list'
     ]),
     'credits:view'
 ];
 const PRESENCE_PERMISSION = 'account:profile';
 const LOGIN_PERMISSIONS = [...REQUIRED_PERMISSIONS, PRESENCE_PERMISSION];
-const ACTIVITY_ID = 'Bilup';
-const APP_URL = 'https://warp.mistium.com';
-const APP_IMAGE = 'https://raw.githubusercontent.com/Bilup/desktop/master/art/icon.png';
+const ACTIVITY_ID = 'PineWarp';
+const APP_URL = 'https://com.pinewarp.org/';
+const APP_IMAGE = 'https://raw.githubusercontent.com/PineWarp/desktop/master/art/icon.png';
 
 /** @type {Rotur|null} */
 let client = null;
+const notificationListeners = new Set();
+const notificationRemovalListeners = new Set();
+let notificationSocketListener = null;
+let notificationRemovalSocketListener = null;
 
 const getClient = () => {
     if (!client) {
@@ -35,7 +41,7 @@ const getClient = () => {
 
 const loadStoredToken = () => {
     try {
-        return localStorage.getItem(TOKEN_KEY);
+        return getStorageItem(TOKEN_KEY);
     } catch (_) {
         return null;
     }
@@ -59,7 +65,7 @@ const storeToken = token => {
  * @returns {string} Avatar URL
  */
 const getAvatarUrl = username => (
-    `https://avatars.accounts.bilup.org/${encodeURIComponent(String(username).toLowerCase())}`
+    `https://avatars.accounts.pinewarp.org/${encodeURIComponent(String(username).toLowerCase())}`
 );
 
 /**
@@ -106,7 +112,7 @@ const fetchCurrentUser = async () => {
         sawNetworkError = true;
     }
     if (sawNetworkError) {
-        const error = new Error('Could not reach Bilup Accounts');
+        const error = new Error('Could not reach PineWarp Accounts');
         error.transient = true;
         throw error;
     }
@@ -209,10 +215,10 @@ const buildAuthUrl = (returnTo = (typeof window === 'undefined' ? '' : window.lo
         return_to: returnTo,
         requires: LOGIN_PERMISSIONS.join(',')
     });
-    return `https://accounts.bilup.org/auth?${params.toString()}`;
+    return `https://accounts.pinewarp.org/auth?${params.toString()}`;
 };
 
-/** Open the Bilup Accounts login flow (popup, with iframe fallback for Electron). */
+/** Open the PineWarp Accounts login flow (popup, with iframe fallback for Electron). */
 const login = async () => {
     const rotur = getClient();
     await rotur.login({
@@ -223,7 +229,7 @@ const login = async () => {
     storeToken(rotur.token);
     const user = await fetchCurrentUser();
     if (!user) {
-        throw new Error('Logged in but could not load Bilup Accounts profile');
+        throw new Error('Logged in but could not load PineWarp Accounts profile');
     }
     writeRestoreCache(rotur.token, user);
     return user;
@@ -248,6 +254,13 @@ const clearActivity = () => {
 const logout = () => {
     clearActivity();
     const rotur = getClient();
+    if (notificationSocketListener) {
+        if (rotur.socket && typeof rotur.socket.off === 'function') {
+            rotur.socket.off('notification', notificationSocketListener);
+        }
+        notificationSocketListener = null;
+    }
+    notificationListeners.clear();
     rotur.logout();
     storeToken(null);
     writeRestoreCache(null, null);
@@ -271,8 +284,127 @@ const ensureSocket = async () => {
     }
 };
 
+// Notifications are delivered canonically: type/id/timestamp/read/actor at the
+// top level, platform-specific fields inside platform_data. Lift the payload so
+// mistwarp types (love, comment, ...) and platform extras are visible to UI.
+const normalizeNotification = notification => {
+    if (!notification || typeof notification !== 'object') {
+        return notification;
+    }
+    const pd = notification.platform_data;
+    if (!pd || typeof pd !== 'object') {
+        return notification;
+    }
+    const out = {...notification};
+    for (const [k, v] of Object.entries(pd)) {
+        if (k === 'type' || k === 'id' || k === 'timestamp' || k === 'created' || k === 'read') {
+            continue;
+        }
+        out[k] = v;
+    }
+    if (out.platform === 'mistwarp' && typeof pd.type === 'string' && pd.type) {
+        out.type = pd.type;
+    }
+    return out;
+};
+
+const notifyNotificationListeners = notification => {
+    if (!notification || notification.read === true) {
+        return;
+    }
+    const normalized = normalizeNotification(notification);
+    notificationListeners.forEach(listener => {
+        try {
+            listener(normalized);
+        } catch (_) {
+            // ignore
+        }
+    });
+};
+
+const notifyRemovalListeners = payload => {
+    if (!payload || typeof payload.id !== 'string') {
+        return;
+    }
+    notificationRemovalListeners.forEach(listener => {
+        try {
+            listener(payload);
+        } catch (_) {
+            // ignore
+        }
+    });
+};
+
+const detachNotificationSocketListener = () => {
+    if (!notificationSocketListener) {
+        return;
+    }
+    const rotur = getClient();
+    if (rotur.socket && typeof rotur.socket.off === 'function') {
+        rotur.socket.off('notification', notificationSocketListener);
+        rotur.socket.off('notification_removed', notificationRemovalSocketListener);
+    }
+    notificationSocketListener = null;
+    notificationRemovalSocketListener = null;
+};
+
+const ensureNotificationSocketListener = () => {
+    const rotur = getClient();
+    if (
+        !rotur.loggedIn ||
+        !rotur.socket ||
+        (!notificationListeners.size && !notificationRemovalListeners.size) ||
+        notificationSocketListener
+    ) {
+        return;
+    }
+    if (typeof rotur.socket.on !== 'function') {
+        return;
+    }
+    notificationSocketListener = payload => notifyNotificationListeners(payload);
+    notificationRemovalSocketListener = payload => notifyRemovalListeners(payload);
+    rotur.socket.on('notification', notificationSocketListener);
+    rotur.socket.on('notification_removed', notificationRemovalSocketListener);
+};
+
+const subscribeNotifications = listener => {
+    if (typeof listener !== 'function') {
+        return () => {};
+    }
+    notificationListeners.add(listener);
+    if (getClient().loggedIn) {
+        ensureSocket()
+            .then(ensureNotificationSocketListener)
+            .catch(() => {});
+    }
+    return () => {
+        notificationListeners.delete(listener);
+        if (!notificationListeners.size && !notificationRemovalListeners.size) {
+            detachNotificationSocketListener();
+        }
+    };
+};
+
+const subscribeNotificationRemovals = listener => {
+    if (typeof listener !== 'function') {
+        return () => {};
+    }
+    notificationRemovalListeners.add(listener);
+    if (getClient().loggedIn) {
+        ensureSocket()
+            .then(ensureNotificationSocketListener)
+            .catch(() => {});
+    }
+    return () => {
+        notificationRemovalListeners.delete(listener);
+        if (!notificationListeners.size && !notificationRemovalListeners.size) {
+            detachNotificationSocketListener();
+        }
+    };
+};
+
 /**
- * Publish Bilup editing presence.
+ * Publish PineWarp editing presence.
  * Title/status are fixed strings; edit duration uses start_time only.
  * @param {object|string} projectTitleOrCtx - Project title or activity context.
  * @param {object} [extra] - Extra activity fields.
@@ -344,9 +476,37 @@ const syncActivity = async (projectTitleOrCtx, extra = {}) => {
 const isLoggedIn = () => getClient().loggedIn;
 const getRotur = () => getClient();
 
+// Notifications live on Rotur; the backend only posts them there. Fetch them
+// with the user's own token so each account sees its own notifications.
+const fetchNotifications = async afterDays => {
+    const rotur = getClient();
+    if (!rotur.loggedIn) {
+        return [];
+    }
+    try {
+        const list = await rotur.notifications.list(afterDays);
+        return Array.isArray(list) ? list.map(normalizeNotification) : [];
+    } catch (_) {
+        return [];
+    }
+};
+
+const markNotificationsRead = async () => {
+    const rotur = getClient();
+    if (!rotur.loggedIn) {
+        return false;
+    }
+    try {
+        await rotur.notifications.markRead();
+        return true;
+    } catch (_) {
+        return false;
+    }
+};
+
 // Ensure the current session token can exercise every scope in `scopes`. If the
 // token is already sufficient (or is a full-access main token) this is a no-op;
-// otherwise it re-runs the Bilup Accounts login popup requesting the union of the existing
+// otherwise it re-runs the PineWarp Accounts login popup requesting the union of the existing
 // login scopes plus the requested ones, broadening the same session in place. No
 // separate per-project sub-token is minted.
 const ensureScopes = async scopes => {
@@ -393,7 +553,7 @@ const isPaymentPermissionError = error => {
         message.includes('token');
 };
 
-// Read the current Bilup Accounts credit balance, or null if the token can't see it.
+// Read the current PineWarp Accounts credit balance, or null if the token can't see it.
 const getBalance = async () => {
     const rotur = getClient();
     if (!rotur.loggedIn) {
@@ -443,7 +603,7 @@ const getAccountSummary = async () => {
     }
 };
 
-// Transfer credits to another Bilup Accounts user. Throws an Error; if the failure is a
+// Transfer credits to another PineWarp Accounts user. Throws an Error; if the failure is a
 // missing-permission on the current (sub-)token, the error carries needsReauth.
 const payUser = async (to, amount, note) => {
     const rotur = getClient();
@@ -496,6 +656,8 @@ export {
     restoreSession,
     login,
     logout,
+    subscribeNotifications,
+    subscribeNotificationRemovals,
     syncActivity,
     clearActivity,
     isLoggedIn,
@@ -506,5 +668,7 @@ export {
     getAccountSummary,
     payUser,
     claimDaily,
-    ensureScopes
+    ensureScopes,
+    fetchNotifications,
+    markNotificationsRead
 };

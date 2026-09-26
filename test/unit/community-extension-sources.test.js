@@ -41,7 +41,7 @@ test('project extension source URLs carry only the project key and URL fingerpri
         id: 'project-1',
         projectJsonUrl: 'https://storage.example/project.json?k=secret&other=value'
     }, 'https://example.com/trusted.js')).toBe(
-        'https://api.bilup.org/api/projects/project-1/extensions/' +
+        'https://api.pinewarp.org/api/projects/project-1/extensions/' +
         'a641c5c6969ea28a3a3053f0a5d6c76a5a1f7017b5c8298d61ba9399fb0cad6f/source?k=secret'
     );
 });

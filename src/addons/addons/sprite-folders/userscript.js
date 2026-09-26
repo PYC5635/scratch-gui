@@ -104,7 +104,7 @@ export default async ({ addon, console, msg }) => {
     }
 
     async function createNewFolder() {
-        const folderName = await window.__bilupPrompt(msg('folder-name-prompt'), msg('folder-name-prompt'));
+        const folderName = await window.__pinewarpPrompt(msg('folder-name-prompt'), msg('folder-name-prompt'));
         if (!folderName) return;
 
         // Check if folder already exists
@@ -124,7 +124,7 @@ export default async ({ addon, console, msg }) => {
     }
 
     async function renameFolder(oldFolderName) {
-        const newFolderName = await window.__bilupPrompt(msg('rename-folder-prompt', { name: oldFolderName }), msg('rename-folder-prompt', { name: oldFolderName }) , oldFolderName);
+        const newFolderName = await window.__pinewarpPrompt(msg('rename-folder-prompt', { name: oldFolderName }), msg('rename-folder-prompt', { name: oldFolderName }) , oldFolderName);
         if (!newFolderName || newFolderName === oldFolderName) return;
 
         const hasSprites = vm.runtime.targets.some(t => {
@@ -206,7 +206,7 @@ export default async ({ addon, console, msg }) => {
                 }
 
                 // TW: Fallback to asset URL using storage.assetHost
-                const assetHost = vm?.runtime?.storage?.getAssetHost?.() || 'https://assets.r2.bilup.org';
+                const assetHost = vm?.runtime?.storage?.getAssetHost?.() || 'https://assets.r2.pinewarp.org';
                 if (costume.asset.assetId) {
                     const url = `${assetHost}/${costume.asset.assetId}.${costume.dataFormat || 'png'}`;
                     return url;
@@ -588,7 +588,7 @@ export default async ({ addon, console, msg }) => {
         renameBtn.textContent = msg('rename');
         renameBtn.addEventListener('click', async () => {
             menu.remove();
-            const newName = await window.__bilupPrompt(msg('rename-sprite-prompt'), sprite.name || sprite.sprite?.name);
+            const newName = await window.__pinewarpPrompt(msg('rename-sprite-prompt'), sprite.name || sprite.sprite?.name);
             if (newName && newName !== (sprite.name || sprite.sprite?.name)) {
                 vm.renameSprite(sprite.id, newName);
             }

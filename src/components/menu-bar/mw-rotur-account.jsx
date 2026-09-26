@@ -28,7 +28,7 @@ const messages = defineMessages({
     profile: {id: 'mw.rotur.accountMenu.profile', defaultMessage: 'Profile'},
     leaderboard: {id: 'mw.rotur.accountMenu.leaderboard', defaultMessage: 'Leaderboard'},
     settings: {id: 'mw.rotur.accountMenu.settings', defaultMessage: 'Settings'},
-    infoButton: {id: 'mw.rotur.accountMenu.infoButton', defaultMessage: 'About PineEditor'},
+    infoButton: {id: 'mw.rotur.accountMenu.infoButton', defaultMessage: 'About PineWarp'},
     switchAccount: {id: 'mw.rotur.accountMenu.switchAccount', defaultMessage: 'Switch account'},
     signOut: {id: 'mw.rotur.accountMenu.signOut', defaultMessage: 'Sign out'}
 });
@@ -87,7 +87,7 @@ const RoturAccount = props => {
                 open={props.menuOpen}
                 place={props.isRtl ? 'right' : 'left'}
             >
-                <MenuItemContainer onClick={() => window.open(`https://com.bilup.org/users/${encodeURIComponent(props.username)}`, '_blank')}>
+                <MenuItemContainer onClick={() => window.open(`https://com.pinewarp.org/users/${encodeURIComponent(props.username)}`, '_blank')}>
                     <User />
                     <FormattedMessage {...messages.profile} />
                 </MenuItemContainer>
@@ -98,7 +98,7 @@ const RoturAccount = props => {
                     </MenuItemContainer>
                 )}
                 <MenuItemContainer
-                    onClick={() => window.open('https://com.bilup.org/settings', '_blank', 'noopener,noreferrer')}
+                    onClick={() => window.open('https://com.pinewarp.org/settings', '_blank', 'noopener,noreferrer')}
                 >
                     <Settings />
                     <FormattedMessage {...messages.settings} />

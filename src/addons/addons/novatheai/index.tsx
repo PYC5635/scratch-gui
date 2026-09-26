@@ -50,7 +50,7 @@ type AgentProps = PluginContext & {
 };
 
 const Agent: React.FC<AgentProps> = ({ vm, workspace, editorThemeMode = "light", windowWidth = 800, windowHeight = 600, msg }) => {
-  console.log(`[Bilup Nova] Rendering\n vm:`, vm)
+  console.log(`[PineWarp Nova] Rendering\n vm:`, vm)
   const [isAgentMenuOpen, setIsAgentMenuOpen] = React.useState(false);
   const [isComposerExpanded, setIsComposerExpanded] = React.useState(false);
   const [themeMode, setThemeMode] = React.useState<ThemeMode>(editorThemeMode);
@@ -138,7 +138,7 @@ const Agent: React.FC<AgentProps> = ({ vm, workspace, editorThemeMode = "light",
             await vm.loadProject(projectData);
           }
         } catch (error) {
-          console.error("[Bilup Nova] Failed to restore snapshot", error);
+          console.error("[PineWarp Nova] Failed to restore snapshot", error);
         }
       }
     },
@@ -218,7 +218,7 @@ const Agent: React.FC<AgentProps> = ({ vm, workspace, editorThemeMode = "light",
           },
         };
         attachment.name = getAttachmentDisplayName(attachment, vm);
-        console.log("[Bilup Nova Jump][index] attachment added to chat", attachment);
+        console.log("[PineWarp Nova Jump][index] attachment added to chat", attachment);
         setAttachments((prev) => [...prev, attachment]);
       }
     };
@@ -265,7 +265,7 @@ const Agent: React.FC<AgentProps> = ({ vm, workspace, editorThemeMode = "light",
                 {useDrawerHistory ? "☰" : isLeftPanelOpen ? "←" : "☰"}
               </button>
               <div className={shell.workspaceTitle}>
-                <span>Bilup Nova</span>
+                <span>PineWarp Nova</span>
                 <small>{msg("scratch-code-live-blocks")}</small>
               </div>
             </div>

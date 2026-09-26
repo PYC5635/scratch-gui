@@ -89,12 +89,12 @@ export const scratchToolSchemas = [
     function: {
       name: "searchExtensions",
       description:
-        "Search built-in and known remote Scratch/TurboWarp/Mist/SharkPool/Bilup extensions by ID, name, keyword, source, or URL stem. Use before installing extension blocks that are not already loaded.",
+        "Search built-in and known remote Scratch/TurboWarp/Mist/SharkPool/PineWarp extensions by ID, name, keyword, source, or URL stem. Use before installing extension blocks that are not already loaded.",
       parameters: {
         type: "object",
         properties: {
           query: { type: "string", description: "Extension name, ID, keyword, or URL stem, such as pen, music, files, JSON, or text." },
-          source: { type: "string", description: "Optional source filter: scratch, tw, mist, sharkpool, bilup, ae, special, external, or all." },
+          source: { type: "string", description: "Optional source filter: scratch, tw, mist, sharkpool, pinewarp, ae, special, external, or all." },
           scratchCompatibleOnly: { type: "boolean", description: "Only return extensions marked Scratch-compatible. Defaults to false." },
           includeBuiltin: { type: "boolean", description: "Include built-in Scratch/special extensions. Defaults to true." },
           includeRemote: { type: "boolean", description: "Include known remote extension galleries. Defaults to true." },
@@ -116,7 +116,7 @@ export const scratchToolSchemas = [
           extensionId: { type: "string", description: "Known extension ID or name, such as pen, music, or an ID returned by searchExtensions." },
           extensionURL: { type: "string", description: "Known gallery extension URL, or direct URL only when allowExternalUrl is true." },
           query: { type: "string", description: "Search query used only when extensionId/extensionURL are not enough to resolve exactly one extension." },
-          source: { type: "string", description: "Optional source filter: scratch, tw, mist, sharkpool, bilup, ae, special, external, or all." },
+          source: { type: "string", description: "Optional source filter: scratch, tw, mist, sharkpool, pinewarp, ae, special, external, or all." },
           mode: { type: "string", description: "Install mode: auto, builtin, url, or text. Text fetches JS and loads a data URL. Defaults to auto." },
           allowExternalUrl: { type: "boolean", description: "Required to install arbitrary direct extensionURL values outside known registries." },
           forceRefresh: { type: "boolean", description: "Refresh remote extension registries before resolving." },

@@ -16,13 +16,13 @@ import styles from './save-status.css';
 const messages = defineMessages({
     remix: {
         id: 'mw.share.windowTitleRemix',
-        defaultMessage: 'Remix to Bilup',
-        description: 'Tooltip label for saving a remixed project to Bilup'
+        defaultMessage: 'Remix to PineWarp',
+        description: 'Tooltip label for saving a remixed project to PineWarp'
     },
     save: {
         id: 'mw.share.windowTitleSave',
-        defaultMessage: 'Save to Bilup',
-        description: 'Tooltip label for saving a project to Bilup'
+        defaultMessage: 'Save to PineWarp',
+        description: 'Tooltip label for saving a project to PineWarp'
     }
 });
 

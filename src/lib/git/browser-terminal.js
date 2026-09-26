@@ -11,6 +11,7 @@ import {
     writeWorktreeFile
 } from './browser-git';
 import {formatStatusRows} from './status-format';
+import {setShellUser, currentUser} from './shell-user';
 
 const bytesEqual = (a, b) => {
     if (!a || !b || a.length !== b.length) return false;
@@ -209,15 +210,6 @@ const osName = () => {
     if (/Linux/.test(agent)) return 'Linux';
     return 'unknown';
 };
-
-// The rotur handle wins over whatever username the VM was given for the cloud/username block.
-let shellUser = {local: null, rotur: null};
-
-const setShellUser = patch => {
-    shellUser = {...shellUser, ...patch};
-};
-
-const currentUser = () => shellUser.rotur || shellUser.local || 'player';
 
 const gitHelp = `Supported git commands:
   status, add, rm, commit, log, branch, checkout, diff --name-only,

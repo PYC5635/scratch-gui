@@ -26,7 +26,7 @@ const AgentHost = ({addonApi, windowWidth, windowHeight}) => {
             }
             setWorkspace(addon.tab.traps.getWorkspace() || ScratchBlocks.getMainWorkspace?.() || null);
         }).catch(error => {
-            console.error('[PineEditor Nova] Failed to initialize Blockly hooks', error);
+            console.error('[PineWarp Nova] Failed to initialize Blockly hooks', error);
         });
         return () => {
             disposed = true;
@@ -58,7 +58,7 @@ const initWindowManager = async () => {
         WindowManager = windowManagerModule.default;
         return WindowManager;
     } catch (e) {
-        console.warn('[PineEditor Nova] Could not load window manager:', e);
+        console.warn('[PineWarp Nova] Could not load window manager:', e);
         return null;
     }
 };
@@ -71,7 +71,7 @@ const createAgentWindow = async (addonApi) => {
 
     const WM = await initWindowManager();
     if (!WM) {
-        console.error('[PineEditor Nova] Window manager not available');
+        console.error('[PineWarp Nova] Window manager not available');
         return;
     }
 
@@ -89,7 +89,7 @@ const createAgentWindow = async (addonApi) => {
 
     agentWindow = WM.createWindow({
         id: 'nova-agent',
-        title: 'PineEditor Nova',
+        title: 'PineWarp Nova',
         width: 800,
         height: 600,
         minWidth: 400,
@@ -128,7 +128,7 @@ const createAgentWindow = async (addonApi) => {
 export default async ({addon, msg}) => {
     const vm = addon.tab.traps.vm;
     if (!vm) {
-        console.warn('[PineEditor Nova] VM is not ready, skipping mount');
+        console.warn('[PineWarp Nova] VM is not ready, skipping mount');
         return;
     }
 
@@ -160,7 +160,7 @@ export default async ({addon, msg}) => {
 
             agentButton.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot-message-square-icon lucide-bot-message-square"><path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/></svg>
-                <span>PineEditor Nova</span>
+                <span>PineWarp Nova</span>
             `;
 
             agentButton.addEventListener('click', async () => {

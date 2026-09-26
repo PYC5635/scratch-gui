@@ -75,7 +75,7 @@ const mapDispatchToProps = dispatch => ({
             dispatch(closeBilmeModal());
             
             const response = await fetch(
-                `https://theme.bilup.org/api/theme/export?uuid=${theme.uuid}&platform=bilup`
+                `https://theme.pinewarp.org/api/theme/export?uuid=${theme.uuid}&platform=pinewarp`
             );
             
             if (!response.ok) {

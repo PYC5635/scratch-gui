@@ -1,9 +1,9 @@
 {
-    "name": "Bilup Sample",
-    "description": "A sample local plugin demonstrating the bilup-addons pipeline. Shows a message in the stage header and logs it to console.",
+    "name": "PineWarp Sample",
+    "description": "A sample local plugin demonstrating the pinewarp-addons pipeline. Shows a message in the stage header and logs it to console.",
     "credits": [
         {
-            "name": "Bilup"
+            "name": "PineWarp"
         }
     ],
     "userscripts": [
@@ -18,7 +18,7 @@
         {
             "id": "message",
             "type": "string",
-            "default": "Hello from Bilup Sample!",
+            "default": "Hello from PineWarp Sample!",
             "name": "Message"
         }
     ],

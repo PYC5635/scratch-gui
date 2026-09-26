@@ -1,4 +1,4 @@
-export const manifest = {
+const manifest = {
     name: 'language-package/name',
     description: 'language-package/description',
     icon: 'lucide-globe',
@@ -14,3 +14,4 @@ export const manifest = {
     ],
     info: []
 };
+export default manifest;

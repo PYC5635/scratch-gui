@@ -1,6 +1,6 @@
 import {getRotur, fetchCurrentUser} from './client.js';
 
-const GIT_HOST = 'https://git.bilup.org';
+const GIT_HOST = 'https://git.pinewarp.org';
 const API_BASE = `${GIT_HOST}/api/v1`;
 const PAGE_SIZE = 50;
 const MAX_PAGES = 10;
@@ -11,7 +11,7 @@ const requireAuth = async () => {
     const rotur = getRotur();
     if (!rotur.loggedIn || !rotur.token) {
         cachedIdentity = null;
-        throw new Error('Sign in to Bilup Accounts to use Bilup Git');
+        throw new Error('Sign in to PineWarp Accounts to use PineWarp Git');
     }
     const token = rotur.token;
     if (cachedIdentity && cachedIdentity.token === token) {
@@ -19,7 +19,7 @@ const requireAuth = async () => {
     }
     const user = await fetchCurrentUser();
     if (!user) {
-        throw new Error('Sign in to Bilup Accounts to use Bilup Git');
+        throw new Error('Sign in to PineWarp Accounts to use PineWarp Git');
     }
     // eslint-disable-next-line require-atomic-updates
     cachedIdentity = {token, username: user.username};
@@ -42,7 +42,7 @@ const apiFetch = async (path, {method = 'GET', body} = {}) => {
     }
     const response = await fetch(`${API_BASE}${path}`, init);
     if (!response.ok) {
-        let message = `Bilup Git request failed (${response.status})`;
+        let message = `PineWarp Git request failed (${response.status})`;
         try {
             const data = await response.json();
             if (data && data.message) {

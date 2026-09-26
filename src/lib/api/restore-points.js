@@ -1,6 +1,5 @@
 import {base64ToArrayBuffer} from '../utils/base64';
 import {getItem as getStorageItem} from '../utils/safe-storage.js';
-import JSZip from '@turbowarp/jszip';
 
 const TYPE_AUTOMATIC = 0;
 const TYPE_MANUAL = 1;
@@ -577,6 +576,9 @@ const exportRestorePoint = async id => {
     const projectJSON = await getProjectJSON();
     const assets = await getAssets(Object.keys(metadata.assets));
 
+    // JSZip is only needed when a restore point is actually exported, so keep it
+    // out of the initial bundle.
+    const {default: JSZip} = await import('@turbowarp/jszip');
     const zip = new JSZip();
     zip.file('project.json', projectJSON);
     for (const asset of assets) {

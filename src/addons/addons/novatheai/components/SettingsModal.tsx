@@ -302,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <aside className={settings.settingsNav}>
           <div className={settings.settingsTitle}>
             <h3>设置</h3>
-            <p>Bilup Nova 配置中心</p>
+            <p>PineWarp Nova 配置中心</p>
           </div>
           <nav className={settings.navList} aria-label="设置分类">
             {[

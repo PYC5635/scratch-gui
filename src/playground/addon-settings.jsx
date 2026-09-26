@@ -21,7 +21,7 @@ import render from './app-target';
 
 const onExportSettings = settings => {
     const blob = new Blob([JSON.stringify(settings)]);
-    downloadBlob('bilup-addon-settings.json', blob);
+    downloadBlob('pinewarp-addon-settings.json', blob);
 };
 
 render((

@@ -19,7 +19,16 @@ const openFractchTerminalWindow = ({vm}) => {
 
     terminalWindow = WindowManager.createWindow({
         id: 'mw-fractch-terminal-window',
-        title: 'Terminal',
+        title: (() => {
+            try {
+                const messages = window.ReduxStore.getState().locales.messages;
+                const value = messages['mw.menuBar.terminal'];
+                if (typeof value === 'string') return value;
+            } catch (e) {
+                // ignore
+            }
+            return 'Terminal';
+        })(),
         width: 640,
         height: 430,
         minWidth: 360,

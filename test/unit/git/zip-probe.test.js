@@ -11,7 +11,7 @@ if (typeof global.TextEncoder !== 'function') {
     global.TextEncoder = NodeTextEncoder;
 }
 
-const PREFIX = '.bilup-git/';
+const PREFIX = '.pinewarp-git/';
 
 // `null` content creates the directory entry itself.
 const buildZip = (entries, options = {}) => {
@@ -30,7 +30,7 @@ describe('zip-probe', () => {
         const bytes = await buildZip([
             ['project.json', '{}'],
             ['asset.svg', '<svg/>'],
-            ['.bilup-git/HEAD', 'ref: refs/heads/main\n']
+            ['.pinewarp-git/HEAD', 'ref: refs/heads/main\n']
         ]);
         expect(zipHasEntryUnder(bytes, PREFIX)).toBe(true);
     });
@@ -48,7 +48,7 @@ describe('zip-probe', () => {
     // saved with an empty folder would be treated as carrying history.
     test('ignores the directory entry on its own', async () => {
         const bytes = await buildZip([
-            ['.bilup-git/', null],
+            ['.pinewarp-git/', null],
             ['project.json', '{}']
         ]);
         expect(zipHasEntryUnder(bytes, PREFIX)).toBe(false);
@@ -60,15 +60,15 @@ describe('zip-probe', () => {
         const bytes = await buildZip(
             [
                 ['project.json', '{}'],
-                ['.bilup-git/objects/ab/cdef', 'x']
+                ['.pinewarp-git/objects/ab/cdef', 'x']
             ],
-            {comment: 'bilup archive comment '.repeat(64)}
+            {comment: 'pinewarp archive comment '.repeat(64)}
         );
         expect(zipHasEntryUnder(bytes, PREFIX)).toBe(true);
     });
 
     test('accepts an ArrayBuffer', async () => {
-        const bytes = await buildZip([['project.json', '{}'], ['.bilup-git/HEAD', 'x']]);
+        const bytes = await buildZip([['project.json', '{}'], ['.pinewarp-git/HEAD', 'x']]);
         const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
         expect(zipHasEntryUnder(arrayBuffer, PREFIX)).toBe(true);
     });
@@ -77,7 +77,7 @@ describe('zip-probe', () => {
     // the DataView from offset 0 would silently parse the wrong bytes. Buffer
     // pooling makes the offset large and unpredictable, which is the point.
     test('honours a non-zero byteOffset on a typed array view', async () => {
-        const bytes = await buildZip([['project.json', '{}'], ['.bilup-git/HEAD', 'x']]);
+        const bytes = await buildZip([['project.json', '{}'], ['.pinewarp-git/HEAD', 'x']]);
         const padded = Buffer.concat([Buffer.alloc(7, 0xff), bytes]);
         const view = new Uint8Array(padded.buffer, padded.byteOffset + 7, bytes.byteLength);
         expect(view.byteOffset).not.toBe(0);
@@ -97,7 +97,7 @@ describe('zip-probe', () => {
     });
 
     test('declines on a truncated archive', async () => {
-        const bytes = await buildZip([['project.json', '{}'], ['.bilup-git/HEAD', 'x']]);
+        const bytes = await buildZip([['project.json', '{}'], ['.pinewarp-git/HEAD', 'x']]);
         const truncated = bytes.slice(0, Math.floor(bytes.length / 2));
         expect(zipHasEntryUnder(truncated, PREFIX)).toBe(null);
     });

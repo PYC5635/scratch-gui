@@ -1,5 +1,5 @@
 /**
- * PineEditor Scratch - WeChat Mini Program WebView Bridge
+ * PineWarp Scratch - WeChat Mini Program WebView Bridge
  * 
  * 此文件用于与微信小程序通信
  */

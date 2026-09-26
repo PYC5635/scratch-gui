@@ -17,10 +17,10 @@ const manifest = {
   "dynamicDisable": true,
   "userstyles": [
     {
-      "url": "bilup.css",
+      "url": "pinewarp.css",
       "if": {
         "settings": {
-          "tab_style": "bilup"
+          "tab_style": "pinewarp"
         }
       }
     },
@@ -65,8 +65,8 @@ const manifest = {
       "type": "select",
       "potentialValues": [
         {
-            "name": "Bilup",
-            "id": "bilup"
+            "name": "PineWarp",
+            "id": "pinewarp"
         },
         {
             "name": "TurboWarp",
@@ -77,7 +77,7 @@ const manifest = {
             "id": "scratchbox"
         }
       ],
-      "default": "Bilup"
+      "default": "PineWarp"
     },
     {
       "dynamic": true,

@@ -224,7 +224,7 @@ class UsernameModal extends React.Component {
             return;
         }
 
-        const bilupTheme = (() => {
+        const pinewarpTheme = (() => {
             if (theme instanceof CustomTheme) {
                 return {
                     version: 1,
@@ -248,7 +248,7 @@ class UsernameModal extends React.Component {
         })();
 
         this.props.vm.storeProjectOptions({
-            bilupTheme
+            pinewarpTheme
         });
     }
 

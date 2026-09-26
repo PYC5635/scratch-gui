@@ -11,9 +11,9 @@ import {getRoturSettings, setRoturSetting} from '../lib/rotur/settings.js';
 import {isLoggedIn} from '../lib/rotur/client.js';
 import {getState as getRoturIdentityState} from '../lib/rotur/identity.js';
 
-// Attaches a Bilup Accounts "host" onto vm.runtime so builtin Bilup Accounts extensions can act as
+// Attaches a PineWarp Accounts "host" onto vm.runtime so builtin PineWarp Accounts extensions can act as
 // the logged-in user without ever seeing the token. The token stays inside the
-// GUI's Bilup Accounts client (lib/rotur/client.js); this host only exposes identity,
+// GUI's PineWarp Accounts client (lib/rotur/client.js); this host only exposes identity,
 // per-project consent, and gated calls. Mirrors tw-security-manager's modal-lock.
 class RoturExtensionHost extends React.Component {
     constructor (props) {
@@ -36,7 +36,7 @@ class RoturExtensionHost extends React.Component {
             projectName: () => this.props.projectTitle || '',
             projectImage: () => {
                 const id = this.getProjectId();
-                return id ? `https://api.bilup.org/thumbnails/${encodeURIComponent(id)}.png` : '';
+                return id ? `https://api.pinewarp.org/thumbnails/${encodeURIComponent(id)}.png` : '';
             },
             grantedScopes: () => grantedScopesFor({name: this.props.vm.runtime.projectName || ''})
         };
@@ -153,9 +153,13 @@ class RoturExtensionHost extends React.Component {
 
     async ensureConsent (scopes, meta) {
         if (!this.currentUser().loggedIn) {
-            throw new Error('Log in to Bilup Accounts to let this project connect');
+            throw new Error('Log in to PineWarp Accounts to let this project connect');
         }
         if (hasFullGrant(meta, scopes)) {
+            return true;
+        }
+        if (meta && meta.authenticatedOnly) {
+            await commitGrant(meta, scopes);
             return true;
         }
         if (this.props.vm.runtime._mwProjectTrusted === true) {
@@ -186,10 +190,11 @@ class RoturExtensionHost extends React.Component {
             const {showModal} = await this.acquireModalLock();
             const confirmed = await showModal('confirm', {
                 label: opts.label || method,
+                confirmation: opts.confirmation || null,
                 username: this.currentUser().username
             });
             if (!confirmed) {
-                throw new Error('You cancelled this Bilup Accounts action');
+                throw new Error('You cancelled this PineWarp Accounts action');
             }
         }
         return callRotur(method, args);

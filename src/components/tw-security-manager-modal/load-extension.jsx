@@ -19,7 +19,7 @@ const LoadExtensionModal = props => (
                 <div className={styles.unsandboxedWarning}>
                     <FormattedMessage
                         // eslint-disable-next-line max-len
-                        defaultMessage="JavaScript patching runs with full access to Bilup. It could steal your login session, take over your account, read or change projects and settings, or run other malicious code. Only continue if you trust this project's author."
+                        defaultMessage="JavaScript patching runs with full access to PineWarp. It could steal your login session, take over your account, read or change projects and settings, or run other malicious code. Only continue if you trust this project's author."
                         description="Warning before a project enables JavaScript patching"
                         id="mw.loadExtension.patchingWarning"
                     />
@@ -36,7 +36,7 @@ const LoadExtensionModal = props => (
                 <div className={styles.unsandboxedWarning}>
                     <FormattedMessage
                         // eslint-disable-next-line max-len
-                        defaultMessage="It runs with full access to Bilup. It could steal your login session, take over your account, read or change projects and settings, or run other malicious code. Only continue if you trust this project's author."
+                        defaultMessage="It runs with full access to PineWarp. It could steal your login session, take over your account, read or change projects and settings, or run other malicious code. Only continue if you trust this project's author."
                         description="Warning before a project loads an extension that runs JavaScript"
                         id="mw.loadExtension.jsExecutionWarning"
                     />

@@ -10,7 +10,7 @@ const setBlocklyEventGroup = (grouped: boolean) => {
   try {
     events.setGroup(grouped);
   } catch (error) {
-    console.warn("[Bilup Nova] Failed to set Blockly event group", error);
+    console.warn("[PineWarp Nova] Failed to set Blockly event group", error);
   }
 };
 
@@ -498,7 +498,7 @@ const refreshWorkspaceAfterRuntimeWrite = async (vm: PluginContext["vm"], target
   try {
     vm.emitWorkspaceUpdate?.();
   } catch (error) {
-    console.warn("[Bilup Nova] Runtime blocks were written but workspace refresh failed", error);
+    console.warn("[PineWarp Nova] Runtime blocks were written but workspace refresh failed", error);
     return error instanceof Error ? error.message : String(error);
   }
   vm.emitTargetsUpdate?.(false);

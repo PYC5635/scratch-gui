@@ -1,9 +1,10 @@
+import {getItem as getStorageItem} from './utils/safe-storage.js';
 const STORAGE_KEY = 'mw:vanilla-palette';
 const VANILLA_PALETTE_CHANGED = 'mw:vanilla-palette-changed';
 
 const getVanillaPalette = () => {
     try {
-        return localStorage.getItem(STORAGE_KEY) === 'true';
+        return getStorageItem(STORAGE_KEY) === 'true';
     } catch (err) {
         return false;
     }

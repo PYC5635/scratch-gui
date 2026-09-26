@@ -10,7 +10,7 @@ defaultVM.setCompatibilityMode(true);
 defaultVM.runtime.cloudOptions.limit = MAXIMUM_CLOUD_VARIABLES;
 defaultVM.attachStorage(storage);
 
-// WORKAROUND (Bilup): scratch-vm's setLocale() only re-applies translations
+// WORKAROUND (PineWarp): scratch-vm's setLocale() only re-applies translations
 // when the requested locale differs from format-message's *current* locale.
 // format-message auto-detects the browser/system locale at load time, so on a
 // Chinese-locale browser the default is already 'zh-cn'. The GUI then calls

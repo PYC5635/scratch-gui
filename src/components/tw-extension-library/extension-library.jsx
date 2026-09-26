@@ -316,7 +316,7 @@ class TWExtensionLibrary extends React.Component {
         const sourceOf = item => item.source ||
             (item.tags.includes('rotur') ? 'rotur' : item.tags.includes('mistium') ? 'mistium' :
                 item.tags.includes('tw') ? 'tw' : item.tags.includes('sharkpool') ? 'sharkpool' :
-                item.tags.includes('ae') ? 'ae' : item.tags.includes('bilup') ? 'bilup' : 'scratch');
+                item.tags.includes('ae') ? 'ae' : item.tags.includes('pinewarp') ? 'pinewarp' : 'scratch');
         const sources = this.props.sources || [];
         const sections = sources.map(([source, sourceTitle]) => ({
             title: sourceTitle,

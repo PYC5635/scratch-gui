@@ -488,7 +488,7 @@
   "tab-styles/@settings-name-tab_style": "选项卡样式",
   "tab-styles/@settings-select-tab_style-turbowarp": "TurboWarp",
   "tab-styles/@settings-select-tab_style-scratchbox": "ScratchBox",
-  "tab-styles/@settings-select-tab_style-bilup": "PineEditor",
+  "tab-styles/@settings-select-tab_style-pinewarp": "PineWarp",
   "tab-styles/@settings-name-looks": "外观",
   "tab-styles/@settings-select-looks-default": "默认",
   "tab-styles/@settings-select-looks-text-only": "仅文字",
@@ -512,11 +512,11 @@
   "simple-project-analyzer/@description": "使用简单的算法在编辑器中分析您的作品!",
   "background/@name": "背景",
   "background/@description": "让你的编辑器焕然一新。",
-  "background/@info-reducePerformance": "这可能会造成一些性能问题，而且会覆盖 PineEditor 原有的壁纸设置。",
+  "background/@info-reducePerformance": "这可能会造成一些性能问题，而且会覆盖 PineWarp 原有的壁纸设置。",
   "todo/@name": "待办",
   "todo/@description": "记录作品的待办!",
-  "novatheai/@name": "PineEditor Nova",
-  "novatheai/@description": "一个为 PineEditor 设计的 AI 助手，基于 Gandi IDE AI 助手插件。",
+  "novatheai/@name": "PineWarp Nova",
+  "novatheai/@description": "一个为 PineWarp 设计的 AI 助手，基于 Gandi IDE AI 助手插件。",
   "project-size-display/@name": "项目大小显示",
   "project-size-display/@description": "在角色栏底部显示作品大小、代码数量和选中角色/舞台的大小。"
 }

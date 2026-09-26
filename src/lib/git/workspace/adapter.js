@@ -103,9 +103,9 @@ export const embedRepo = blob => {
 // Directory `embedRepoIntoSb3Blob` (browser-git.js, which has its own
 // GIT_EMBED_DIR) writes an embedded repository under. Duplicated because that
 // module does not export the constant.
-const EMBEDDED_REPO_PREFIX = '.bilup-git/';
+const EMBEDDED_REPO_PREFIX = '.pinewarp-git/';
 
-// Peek inside an sb3 for `.bilup-git/` entries without touching the repo.
+// Peek inside an sb3 for `.pinewarp-git/` entries without touching the repo.
 //
 // This runs before the import on every "open from computer", so it answers from
 // the ZIP central directory (see ../zip-probe.js) rather than letting JSZip

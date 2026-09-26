@@ -85,7 +85,7 @@ const CustomExtensionModal = props => (
                         value={props.url}
                         onChange={props.onChangeURL}
                         onKeyDown={props.onKeyDown}
-                        placeholder="https://extensions.bilup.org/..."
+                        placeholder="https://extensions.pinewarp.org/..."
                         autoFocus
                     />
                 </React.Fragment>
@@ -152,7 +152,7 @@ const CustomExtensionModal = props => (
                                 description="Warning that appears when disabling extension security sandbox"
                                 id="tw.customExtensionModal.unsandboxedWarning2"
                                 values={{
-                                    APP_NAME: 'Bilup'
+                                    APP_NAME: 'PineWarp'
                                 }}
                             />
                         </p>

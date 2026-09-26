@@ -318,7 +318,7 @@ const normalizeVirtualCodeForCompare = (value: string) =>
 
 const getLineCount = (content: string) => (content ? content.split("\n").length : 1);
 
-const buildScratchAgentDoc = () => `# Bilup Nova Virtual Files
+const buildScratchAgentDoc = () => `# PineWarp Nova Virtual Files
 
 You edit Scratch by patching virtual JavaScript files.
 
@@ -4556,7 +4556,7 @@ export class AITools {
 
   async searchExtensions(options: {
     query?: string;
-    source?: "scratch" | "tw" | "mistium" | "sharkpool" | "bilup" | "ae" | "special" | "external" | "all";
+    source?: "scratch" | "tw" | "mistium" | "sharkpool" | "pinewarp" | "ae" | "special" | "external" | "all";
     scratchCompatibleOnly?: boolean;
     includeBuiltin?: boolean;
     includeRemote?: boolean;
@@ -4586,7 +4586,7 @@ export class AITools {
     extensionId?: string;
     extensionURL?: string;
     query?: string;
-    source?: "scratch" | "tw" | "mistium" | "sharkpool" | "bilup" | "ae" | "special" | "external" | "all";
+    source?: "scratch" | "tw" | "mistium" | "sharkpool" | "pinewarp" | "ae" | "special" | "external" | "all";
     mode?: "auto" | "builtin" | "url" | "text";
     allowExternalUrl?: boolean;
     forceRefresh?: boolean;
@@ -4634,7 +4634,7 @@ export class AITools {
     try {
       await extensionManager.refreshBlocks?.();
     } catch (error) {
-      console.warn("[Bilup Nova] Failed to refresh extension blocks", error);
+      console.warn("[PineWarp Nova] Failed to refresh extension blocks", error);
     }
     this.vm.emitWorkspaceUpdate?.();
 

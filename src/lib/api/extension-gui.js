@@ -74,7 +74,7 @@ const implementGuiAPI = Scratch => {
         // Expose the window manager on the VM for addons/integration.
         wm: WindowManager,
 
-        // Expose Bilup's browser git integration on the VM.
+        // Expose PineWarp's browser git integration on the VM.
         git: createBrowserGitAccessor()
     };
 };

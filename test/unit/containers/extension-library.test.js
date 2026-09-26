@@ -20,7 +20,7 @@ describe('extension library de-duplication', () => {
             {
                 extensionId: 'bar',
                 name: 'Bar',
-                tags: ['bilup']
+                tags: ['pinewarp']
             }
         ];
         const deduped = dedupeFetchedExtensions(extensions);
@@ -33,7 +33,7 @@ describe('extension library de-duplication', () => {
         expect(deduped.find(ext => ext.extensionId === 'bar')).toMatchObject({
             extensionId: 'bar',
             name: 'Bar',
-            tags: ['bilup']
+            tags: ['pinewarp']
         });
     });
 });

@@ -1,4 +1,4 @@
-const defaultsDeep = require('lodash.defaultsdeep');
+﻿const defaultsDeep = require('lodash.defaultsdeep');
 const path = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
@@ -60,7 +60,7 @@ const base = {
     resolve: {
         symlinks: false,
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
-        // scratch-* are file: symlinks into D:\PineEditor\_sdeps. With
+        // scratch-* are file: symlinks into D:\PineWarp\_sdeps. With
         // symlinks:false webpack resolves them at their REAL path (_sdeps),
         // where their deps (@bilup/..., @turbowarp/...) are NOT installed in
         // the adjacent node_modules. Fall back to _sdeps/node_modules so those
@@ -86,8 +86,8 @@ const base = {
             'minimatch': require.resolve('minimatch'),
             '@remixwarp/scratch-l10n': path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n'),
             // scratch-* deps that live only in the _sdeps store
-            '@bilup/scratch-svg-renderer': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@bilup', 'scratch-svg-renderer'),
-            '@bilup/scratch-render-fonts': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@bilup', 'scratch-render-fonts'),
+            '@bilup/scratch-svg-renderer': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@pinewarp', 'scratch-svg-renderer'),
+            '@bilup/scratch-render-fonts': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@pinewarp', 'scratch-render-fonts'),
             '@turbowarp/sb3fix': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'sb3fix'),
             '@turbowarp/json': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'json'),
             '@turbowarp/paper': path.resolve(__dirname, '..', '_sdeps', 'node_modules', '@turbowarp', 'paper'),
@@ -230,11 +230,17 @@ const base = {
             }]
         },
         {
+            // src/generated/microbit-hex-url.cjs pulls in the micro:bit firmware image, which
+            // the static/ copy step also ships verbatim at microbit/scratch-microbit-1.2.0.hex.
+            // Naming the emitted file to match that exact path collapses the two identical
+            // 1.13 MB blobs into one instead of shipping both.
             test: /\.hex$/,
             use: [{
                 loader: 'url-loader',
                 options: {
-                    limit: 16 * 1024
+                    limit: 16 * 1024,
+                    name: 'microbit/[name].[ext]',
+                    esModule: false
                 }
             }]
         },
@@ -250,14 +256,15 @@ const base = {
             test: /\.json$/,
             type: 'json'
         }, {
-            // Fonts: inline as data URLs if small enough (<200KB) to avoid CORS/SPA fallback issues
-            // in dev server. Woff2 fonts are typically 10-100KB each, so inlining all 7 fonts
-            // adds less than 0.5MB to the bundle but guarantees they load reliably.
-            // If any font exceeds this limit, file-loader outputs it to static/assets/ as a fallback.
+            // Fonts are fetched at runtime by src/lib/tw-scratch-render-fonts, which accepts
+            // either a data: URL or a real file URL. Shipping them as files keeps ~410 KB of
+            // woff2 out of the JS bundle (base64 inflates by ~33%), lets them download in
+            // parallel with the app code, and gives each one its own long-lived hashed cache
+            // entry. Anything under 1 KB (nothing, currently) still inlines as a data URL.
             test: /\.(ttf|eot|woff2?)$/,
             loader: 'url-loader',
             options: {
-                limit: 200 * 1024,
+                limit: 1024,
                 name: 'static/assets/[name].[hash:8].[ext]',
                 esModule: false
             }
@@ -295,19 +302,23 @@ if (!process.env.CI) {
     base.plugins.push(new webpack.ProgressPlugin());
 }
 
+// See webpack.import-expression.js: without this the bundled acorn's
+// ImportExpression nodes are ignored by webpack 4 and every import() silently
+// loses its async chunk.
+base.plugins.push(new (require('./webpack.import-expression'))());
+
 // The repo builds either in the local dev environment (with the _sdeps store,
-// which holds the @bilup forks and scratch-vm's nested installed deps) or from
+// which holds the @pinewarp forks and scratch-vm's nested installed deps) or from
 // pure npm-installed packages (GitHub Actions CI). The _sdeps-only bits below
 // are only valid when that directory exists, so gate them on fs availability.
 const _sdepsStore = path.resolve(__dirname, '..', '_sdeps', 'node_modules');
 const hasSdepsStore = fs.existsSync(_sdepsStore);
 if (!hasSdepsStore) {
     const alias = base.resolve.alias;
-    // Directly imported by src but only shipped via the _sdeps @bilup forks;
+    // Directly imported by src but only shipped via the _sdeps @pinewarp forks;
     // in CI they resolve to the npm-installed equivalents already in deps.
     alias['@bilup/scratch-l10n'] = path.resolve(__dirname, 'node_modules/@remixwarp/scratch-l10n');
     alias['@bilup/scratch-svg-renderer'] = path.resolve(__dirname, 'node_modules/@turbowarp/scratch-svg-renderer');
-    alias['@bilup/scratch-storage'] = path.resolve(__dirname, 'node_modules/@turbowarp/scratch-storage');
     // scratch-vm's transitive deps resolve normally from its own nested
     // node_modules once the _sdeps redirects are removed.
     delete alias['@bilup/scratch-render-fonts'];
@@ -354,17 +365,70 @@ module.exports = [
             ])
         },
         optimization: {
+            // Content-hashed module/chunk ids so an unrelated edit doesn't invalidate the
+            // long-term cache of every other chunk.
+            moduleIds: 'hashed',
+            chunkIds: 'size',
             splitChunks: {
                 chunks: 'all',
                 minChunks: 2,
-                minSize: 50000,
-                maxInitialRequests: 5,
+                minSize: 40000,
+                maxInitialRequests: 20,
+                maxAsyncRequests: 20,
                 cacheGroups: {
+                    // Editor-only heavyweights. Giving them their own groups keeps them out
+                    // of the chunks that player/embed/fullscreen load, and out of the path
+                    // that runs before the paint editor or git panel is actually opened.
+                    paint: {
+                        test: /(scratch-paint|@turbowarp[\\/]paper|opentype\.js)[\\/]/,
+                        name: 'paint',
+                        chunks: 'all',
+                        priority: 30,
+                        enforce: true
+                    },
+                    gitTools: {
+                        test: /(isomorphic-git|just-bash|lightning-fs)[\\/]/,
+                        name: 'git-tools',
+                        chunks: 'all',
+                        priority: 30,
+                        enforce: true
+                    },
+                    monaco: {
+                        test: /[\\/]monaco-editor[\\/]/,
+                        name: 'monaco',
+                        chunks: 'all',
+                        priority: 30,
+                        enforce: true
+                    },
+                    // VM engine plus project storage/compression. Every runtime entry needs
+                    // these, so they stay in one shared, cacheable chunk.
+                    scratchVm: {
+                        test: /(scratch-vm|@pinewarp[\\/]scratch-storage|scratch-parser|scratch-sb1-converter|jszip|@turbowarp[\\/]jszip|pako|ajv)[\\/]/,
+                        name: 'scratch-vm',
+                        chunks: 'all',
+                        priority: 25,
+                        enforce: true
+                    },
+                    scratchRender: {
+                        test: /(scratch-render|twgl\.js|scratch-svg-renderer|@pinewarp[\\/]scratch-svg-renderer)[\\/]/,
+                        name: 'scratch-render',
+                        chunks: 'all',
+                        priority: 25,
+                        enforce: true
+                    },
+                    react: {
+                        test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|react-intl|react-redux|redux|react-tabs|react-responsive|react-draggable|react-modal|immutable|classnames)[\\/]/,
+                        name: 'react',
+                        chunks: 'all',
+                        priority: 25,
+                        enforce: true
+                    },
                     vendors: {
                         test: /[\\/]node_modules[\\/]/,
                         name: 'vendors',
-                        chunks: 'initial',
-                        priority: -10
+                        chunks: 'all',
+                        priority: -10,
+                        reuseExistingChunk: true
                     },
                     common: {
                         name: 'common',
@@ -379,14 +443,37 @@ module.exports = [
             minimize: process.env.NODE_ENV === 'production',
             minimizer: process.env.NODE_ENV === 'production' ? [
                 new (require('terser-webpack-plugin').default || require('terser-webpack-plugin'))({
+                    parallel: true,
                     terserOptions: {
+                        ecma: 2018,
                         compress: {
-                            drop_console: true,
+                            passes: 2,
+                            // NOTE: do not enable drop_console here. @turbowarp/nanolog builds
+                            // its API as `log.error = console.error.bind(...)`, so drop_console
+                            // rewrites those bindings to `undefined` and every `log.error(...)`
+                            // call in the GUI, scratch-vm and scratch-render throws
+                            // "log.error is not a function" at runtime.
+                            drop_console: false,
                             drop_debugger: true,
                             dead_code: true,
                             unused: true,
                             if_return: true,
-                            join_vars: true
+                            join_vars: true,
+                            collapse_vars: true,
+                            reduce_vars: true,
+                            hoist_funs: true,
+                            sequences: true,
+                            conditionals: true,
+                            comparisons: true,
+                            evaluate: true,
+                            booleans: true,
+                            switches: true,
+                            side_effects: true,
+                            negate_iife: true,
+                            toplevel: true
+                        },
+                        mangle: {
+                            safari10: true
                         },
                         output: {
                             comments: false,
@@ -456,7 +543,14 @@ module.exports = [
                 patterns: [
                     {
                         from: 'static',
-                        to: ''
+                        to: '',
+                        // static/rw.html is a 20 MB QQ chat-log export that was left behind
+                        // in the source tree. Nothing under src/ links to it any more (the
+                        // old footer link was removed), so copying it only bloats the deploy
+                        // by 20 MB. The source file itself is left untouched on disk.
+                        globOptions: {
+                            ignore: ['**/rw.html']
+                        }
                     }
                 ]
             }),

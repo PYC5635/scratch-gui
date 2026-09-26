@@ -138,9 +138,9 @@ const hashString = str => {
     return (hash >>> 0).toString(16);
 };
 
-const computePromptKey = bilupTheme => {
+const computePromptKey = pinewarpTheme => {
     try {
-        return hashString(JSON.stringify(bilupTheme));
+        return hashString(JSON.stringify(pinewarpTheme));
     } catch (e) {
         return null;
     }
@@ -261,19 +261,19 @@ const vmListenerHOC = function (WrappedComponent) {
             if (!runtime || typeof runtime.getStoredProjectOptions !== 'function') return;
 
             const stored = runtime.getStoredProjectOptions();
-            if (!stored || !stored.bilupTheme) return;
+            if (!stored || !stored.pinewarpTheme) return;
 
             // On the community project page the project runs embedded, so the
             // theme just applies (no prompt) unless the page suppressed it.
             if (this.props.isEmbedded) {
                 if (projectThemeSuppressed()) return;
                 try {
-                    const theme = buildProjectTheme(stored.bilupTheme);
+                    const theme = buildProjectTheme(stored.pinewarpTheme);
                     if (theme) {
                         this.props.onSetTheme(theme);
                         try {
                             window.parent.postMessage(
-                                {type: 'mw:project-theme-applied', theme: stored.bilupTheme},
+                                {type: 'mw:project-theme-applied', theme: stored.pinewarpTheme},
                                 '*'
                             );
                         } catch (e) {
@@ -286,13 +286,13 @@ const vmListenerHOC = function (WrappedComponent) {
                 return;
             }
 
-            const promptKey = computePromptKey(stored.bilupTheme);
+            const promptKey = computePromptKey(stored.pinewarpTheme);
             if (!promptKey) return;
 
             const ignored = readIgnoreMap();
             if (ignored[promptKey]) return;
 
-            this.props.onOpenProjectThemePrompt(stored.bilupTheme, promptKey);
+            this.props.onOpenProjectThemePrompt(stored.pinewarpTheme, promptKey);
         }
         handleCloudDataUpdate (hasCloudVariables) {
             if (this.props.hasCloudVariables !== hasCloudVariables) {
@@ -539,8 +539,8 @@ const vmListenerHOC = function (WrappedComponent) {
         onStageSizeChanged: (width, height) => dispatch(setCustomStageSize(width, height)),
         onCompileError: errors => dispatch(addCompileError(errors)),
         onClearCompileErrors: () => dispatch(clearCompileErrors()),
-        onOpenProjectThemePrompt: (bilupTheme, promptKey) => dispatch(
-            openProjectThemePrompt(bilupTheme, promptKey)
+        onOpenProjectThemePrompt: (pinewarpTheme, promptKey) => dispatch(
+            openProjectThemePrompt(pinewarpTheme, promptKey)
         ),
         onSetTheme: theme => dispatch(setTheme(theme)),
         onShowExtensionAlert: data => {

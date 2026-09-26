@@ -934,7 +934,7 @@ ${JSON.stringify(content)}
 
     let todoWindow = null;
     
-    window.__bilupTodoToggle = () => {
+    window.__pinewarpTodoToggle = () => {
         if (todoWindow && todoWindow.isVisible) {
             todoWindow.hide();
         } else if (todoWindow) {

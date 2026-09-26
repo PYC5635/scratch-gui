@@ -729,7 +729,7 @@ export const createSettingsWindow = async (props: SettingsWindowProps) => {
 
   settingsWindow = WindowManager.createWindow({
     id: "nova-settings",
-    title: props.msg ? props.msg("settings-title") : "Bilup Nova Settings",
+    title: props.msg ? props.msg("settings-title") : "PineWarp Nova Settings",
     width: 780,
     height: 600,
     minWidth: 600,

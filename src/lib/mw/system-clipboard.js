@@ -46,8 +46,8 @@ const encodeBase64Utf8 = value => {
 };
 
 const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
-    if (!ScratchBlocks || ScratchBlocks.__bilupSystemBlocksClipboardInstalled) return;
-    ScratchBlocks.__bilupSystemBlocksClipboardInstalled = true;
+    if (!ScratchBlocks || ScratchBlocks.__pinewarpSystemBlocksClipboardInstalled) return;
+    ScratchBlocks.__pinewarpSystemBlocksClipboardInstalled = true;
 
     let readAccessDenied = false;
     let writeAccessDenied = false;
@@ -116,11 +116,11 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
             if (meta) {
                 const encoded = encodeBase64Utf8(JSON.stringify(meta));
                 if (encoded) {
-                    return `<!--bilup-extensions-base64:${encoded}-->${xmlText}`;
+                    return `<!--pinewarp-extensions-base64:${encoded}-->${xmlText}`;
                 }
             }
 
-            return `<!--bilup-->${xmlText}`;
+            return `<!--pinewarp-->${xmlText}`;
         } catch (e) {
             return null;
         }
@@ -174,7 +174,7 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
         const trimmed = text.trim();
         if (!trimmed) return null;
 
-        if (!trimmed.startsWith('<!--bilup')) return null;
+        if (!trimmed.startsWith('<!--pinewarp')) return null;
 
         try {
             const xmlDom = ScratchBlocks.Xml.textToDom(`<xml>${trimmed}</xml>`);
@@ -182,7 +182,7 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
             for (let child = xmlDom.firstChild; child; child = child.nextSibling) {
                 if (child.nodeType === 8) {
                     const value = child.nodeValue || '';
-                    const prefix = 'bilup-extensions-base64:';
+                    const prefix = 'pinewarp-extensions-base64:';
                     const idx = value.indexOf(prefix);
                     if (idx !== -1) {
                         const encoded = value.slice(idx + prefix.length).trim();
@@ -245,11 +245,11 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
     const originalOnKeyDown = ScratchBlocks.onKeyDown_;
 
     ScratchBlocks.duplicate_ = function (...args) {
-        ScratchBlocks.__bilupSkipSystemBlocksClipboardWrite = true;
+        ScratchBlocks.__pinewarpSkipSystemBlocksClipboardWrite = true;
         try {
             return originalDuplicate.apply(this, args);
         } finally {
-            ScratchBlocks.__bilupSkipSystemBlocksClipboardWrite = false;
+            ScratchBlocks.__pinewarpSkipSystemBlocksClipboardWrite = false;
         }
     };
 
@@ -258,7 +258,7 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
 
         if (
             systemClipboardActive ||
-            ScratchBlocks.__bilupSkipSystemBlocksClipboardWrite ||
+            ScratchBlocks.__pinewarpSkipSystemBlocksClipboardWrite ||
             !canWriteText() ||
             writeAccessDenied
         ) {
@@ -266,7 +266,7 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
         }
 
         const meta = getExtensionMetaForXml(ScratchBlocks.clipboardXml_);
-        ScratchBlocks.__bilupSystemClipboardExtensionMeta = meta;
+        ScratchBlocks.__pinewarpSystemClipboardExtensionMeta = meta;
         const text = serializeClipboardXmlToText(ScratchBlocks.clipboardXml_, meta);
 
         if (text) {
@@ -313,11 +313,11 @@ const installSystemClipboardForBlocks = (ScratchBlocks, vm) => {
 
                 ScratchBlocks.clipboardXml_ = xml;
                 ScratchBlocks.clipboardSource_ = ScratchBlocks.mainWorkspace;
-                ScratchBlocks.__bilupSystemClipboardExtensionMeta =
+                ScratchBlocks.__pinewarpSystemClipboardExtensionMeta =
                 meta || guessExtensionMetaForXml(xml);
 
                 await ensureExtensionsLoaded(
-                    ScratchBlocks.__bilupSystemClipboardExtensionMeta
+                    ScratchBlocks.__pinewarpSystemClipboardExtensionMeta
                 );
 
                 pasteFromCurrentClipboardXml();

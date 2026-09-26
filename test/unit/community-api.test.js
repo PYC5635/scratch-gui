@@ -18,7 +18,7 @@ test('a rejected /me request clears the saved session', async () => {
     expect(localStorage.getItem('mw:mistwarp-session')).toBeNull();
 });
 
-test('a rejected Bilup Accounts validator is marked for token invalidation', async () => {
+test('a rejected PineWarp Accounts validator is marked for token invalidation', async () => {
     window.fetch = jest.fn(() => Promise.resolve({
         json: () => Promise.resolve({error: 'missing validators:generate permission'})
     }));
@@ -28,7 +28,7 @@ test('a rejected Bilup Accounts validator is marked for token invalidation', asy
     });
 });
 
-test('Bilup project identity controls share, remix, and update actions', () => {
+test('PineWarp project identity controls share, remix, and update actions', () => {
     expect(getMistWarpAction(null, false)).toBe('share');
     expect(getMistWarpAction({isOwner: false, shared: true}, false)).toBeNull();
     expect(getMistWarpAction({isOwner: false, shared: true}, true)).toBe('remix');
@@ -49,10 +49,10 @@ test('editor project loads use the permission checked endpoint', async () => {
     }));
 
     await expect(getEditorProject('project-1')).resolves.toMatchObject({project: {id: 'project-1'}});
-    expect(window.fetch.mock.calls[0][0]).toBe('https://api.bilup.org/api/projects/project-1/editor');
+    expect(window.fetch.mock.calls[0][0]).toBe('https://api.pinewarp.org/api/projects/project-1/editor');
 });
 
-test('Bilup project identity keeps ownership and sharing state', () => {
+test('PineWarp project identity keeps ownership and sharing state', () => {
     rememberPlatformProject({id: 'project-1', isOwner: false, shared: true});
     expect(getRememberedPlatformProjectState()).toEqual({
         id: 'project-1',
@@ -61,7 +61,7 @@ test('Bilup project identity keeps ownership and sharing state', () => {
     });
 });
 
-test('Bilup project identity keeps disabled remix permission', () => {
+test('PineWarp project identity keeps disabled remix permission', () => {
     rememberPlatformProject({id: 'project-1', isOwner: false, shared: true, canRemix: false});
     expect(getRememberedPlatformProjectState().canRemix).toBe(false);
 });

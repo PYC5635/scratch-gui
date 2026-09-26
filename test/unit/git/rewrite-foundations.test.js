@@ -248,7 +248,7 @@ describe('git registry', () => {
             remotes: [{name: 'origin', url: 'https://user:tok3n@github.com/a/b.git'}]
         });
         const exported = registry.exportConfig({projectId: 'p1'});
-        expect(exported.kind).toBe('bilup-git-config');
+        expect(exported.kind).toBe('pinewarp-git-config');
         expect(JSON.stringify(exported)).not.toContain('tok3n');
         expect(exported.projects).toHaveLength(1);
     });

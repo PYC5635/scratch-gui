@@ -1,31 +1,34 @@
+import {getItem as getStorageItem} from './utils/safe-storage.js';
 const ZONES = [
     {
         id: 'left',
         items: [
-            '__errors', 'file', 'edit', 'mode', 'view', 'tools', 'bookmarks',
-            '__divider', 'project-title', '__view-counter', 'community', 'block-count'
+            '__errors', 'file', 'edit', 'mode', 'tools', 'bookmarks', 'settings',
+            '__divider', 'project-title', '__view-counter', 'media-recorder', 'block-count',
+            'share', 'remix'
         ],
         extras: []
     },
     {
         id: 'right',
-        items: ['save-status', 'addons', 'settings', 'about'],
+        items: ['save-status', 'about', 'collab-presence', 'rotur-account'],
         extras: []
     }
 ];
 
-const ALWAYS_SHOW = ['save-status'];
+const ALWAYS_SHOW = ['save-status', 'rotur-account', 'collab-presence', 'settings'];
 
 const ALL_ITEMS = ZONES.reduce((acc, zone) => acc.concat(zone.items, zone.extras), []);
 
-const ORDER_KEY = 'mw:menu-bar-order';
+// Bump when default zone membership/order changes so old custom orders reset
+const ORDER_KEY = 'mw:menu-bar-order-v8';
 const HIDDEN_KEY = 'mw:menu-bar-hidden';
 const CHANGE_EVENT = 'mw-menu-bar-layout-changed';
 const STYLE_ID = 'mw-menu-bar-layout';
 
 const readJSON = (key, fallback) => {
     try {
-        const raw = localStorage.getItem(key);
+        const raw = getStorageItem(key);
         if (raw) return JSON.parse(raw);
     } catch (err) {
         // ignore
@@ -39,6 +42,30 @@ const writeJSON = (key, value) => {
     } catch (err) {
         // ignore
     }
+    try {
+        require('./rotur/cloud-sync.js').notifyLocalChange();
+    } catch (_) {
+        // cloud sync optional
+    }
+};
+
+const normalizeLayout = layout => {
+    if (!layout || typeof layout !== 'object') return null;
+    const orders = {};
+    for (const zone of ZONES) {
+        const order = layout.orders && Array.isArray(layout.orders[zone.id]) ? layout.orders[zone.id] : [];
+        orders[zone.id] = [...new Set(order.filter(id => zone.items.includes(id)))];
+    }
+    const hidden = Array.isArray(layout.hidden) ?
+        [...new Set(layout.hidden.filter(id => ALL_ITEMS.includes(id) && !ALWAYS_SHOW.includes(id)))] : [];
+    return {orders, hidden};
+};
+
+const getMenuBarLayout = () => {
+    const orders = readJSON(ORDER_KEY, {});
+    const hidden = readJSON(HIDDEN_KEY, []);
+    if (Object.keys(orders).length === 0 && hidden.length === 0) return null;
+    return normalizeLayout({orders, hidden});
 };
 
 const zoneById = zoneId => ZONES.find(z => z.id === zoneId);
@@ -58,7 +85,8 @@ const getStoredOrder = zoneId => {
     return stored;
 };
 
-const getHidden = () => readJSON(HIDDEN_KEY, []).filter(id => ALL_ITEMS.includes(id));
+const getHidden = () => readJSON(HIDDEN_KEY, [])
+    .filter(id => ALL_ITEMS.includes(id) && !ALWAYS_SHOW.includes(id));
 
 const isHidden = id => getHidden().includes(id);
 
@@ -116,6 +144,23 @@ const applyLayout = () => {
     style.textContent = parts.join('');
 };
 
+const applyMenuBarLayout = layout => {
+    const normalized = normalizeLayout(layout);
+    try {
+        if (normalized) {
+            localStorage.setItem(ORDER_KEY, JSON.stringify(normalized.orders));
+            localStorage.setItem(HIDDEN_KEY, JSON.stringify(normalized.hidden));
+        } else {
+            localStorage.removeItem(ORDER_KEY);
+            localStorage.removeItem(HIDDEN_KEY);
+        }
+    } catch (err) {
+        // ignore
+    }
+    applyLayout();
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+};
+
 const setZoneOrder = (zoneId, order) => {
     const all = readJSON(ORDER_KEY, {});
     all[zoneId] = order;
@@ -143,9 +188,10 @@ const initMenuBarLayout = () => {
 export {
     ZONES,
     ALL_ITEMS,
+    ALWAYS_SHOW,
+    CHANGE_EVENT,
     ORDER_KEY,
     HIDDEN_KEY,
-    CHANGE_EVENT,
     getStoredOrder,
     setZoneOrder,
     getZoneDisplayOrder,
@@ -154,6 +200,8 @@ export {
     isHidden,
     setHidden,
     getPresentOrderedIds,
+    getMenuBarLayout,
+    applyMenuBarLayout,
     applyLayout,
     initMenuBarLayout
 };

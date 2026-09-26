@@ -1,5 +1,5 @@
 /* 示例本地插件：在舞台头部显示一条消息，并输出到控制台。
- * 说明：这是 bilup-addons 本地插件源管线的演示插件。
+ * 说明：这是 pinewarp-addons 本地插件源管线的演示插件。
  */
 
 export default async function ({addon, console}) {
@@ -11,7 +11,7 @@ export default async function ({addon, console}) {
     element.textContent = message;
     element.style.marginLeft = '10px';
     element.style.opacity = '0.8';
-    element.id = 'bilup-sample-label';
+    element.id = 'pinewarp-sample-label';
 
     addon.tab.appendToSharedSpace({
         space: 'stageHeader',
@@ -19,5 +19,5 @@ export default async function ({addon, console}) {
         order: 1
     });
 
-    console.log(`[Bilup Sample] ${message}`);
+    console.log(`[PineWarp Sample] ${message}`);
 }

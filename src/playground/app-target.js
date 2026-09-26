@@ -14,7 +14,7 @@ import {setAppElement} from 'react-modal';
         // 不拦截已知会被 React 错误边界处理的渲染错误
         if (detail && detail.preventBubbling) return;
         // eslint-disable-next-line no-console
-        console.error(`[Bilup] Unhandled ${type}`, detail && detail.error ? detail.error : detail);
+        console.error(`[PineWarp] Unhandled ${type}`, detail && detail.error ? detail.error : detail);
     };
 
     window.addEventListener('error', event => {
@@ -49,9 +49,9 @@ const render = children => {
     // Schedule splash end after render completes
     requestAnimationFrame(() => {
         // Log time when React app renders (splash screen ends)
-        if (window.BILUP_LOAD_START_TIME) {
+        if (window.PINEWARP_LOAD_START_TIME) {
             if (window.performance && window.performance.mark) {
-                window.performance.mark('bilup-app-render');
+                window.performance.mark('pinewarp-app-render');
             }
         }
 

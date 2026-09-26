@@ -1,7 +1,7 @@
 /* global HTMLRewriter */
 
-const API_BASE = 'https://api.bilup.org/api';
-const AVATARS = 'https://avatars.accounts.bilup.org';
+const API_BASE = 'https://api.pinewarp.org/api';
+const AVATARS = 'https://avatars.accounts.pinewarp.org';
 const FETCH_TIMEOUT_MS = 3000;
 
 class AttrSetter {
@@ -46,9 +46,9 @@ const projectMeta = async id => {
     if (!data || !data.project || data.project.shared !== true) return null;
     const project = data.project;
     return {
-        title: `${project.title} by ${project.owner} - Bilup`,
+        title: `${project.title} by ${project.owner} - PineWarp`,
         description: flatten(project.instructions || project.description) ||
-            `Play ${project.title} on Bilup.`,
+            `Play ${project.title} on PineWarp.`,
         image: project.thumbUrl || null,
         card: project.thumbUrl ? 'summary_large_image' : 'summary'
     };
@@ -59,9 +59,9 @@ const userMeta = async name => {
     if (!data || data.exists !== true) return null;
     const username = data.username || name;
     return {
-        title: `${username} - Bilup`,
+        title: `${username} - PineWarp`,
         description: flatten(data.bio) ||
-            `${username} has shared ${(data.projects || []).length} projects on Bilup.`,
+            `${username} has shared ${(data.projects || []).length} projects on PineWarp.`,
         image: `${AVATARS}/${encodeURIComponent(username.toLowerCase())}`,
         card: 'summary'
     };

@@ -1,4 +1,5 @@
 import {loadSession, request} from '../community/api.js';
+import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {ORDER_KEY as MENU_BAR_ORDER_KEY, HIDDEN_KEY as MENU_BAR_HIDDEN_KEY} from '../mw-menu-bar-layout.js';
 import {
     CHANGE_EVENT as MENU_BAR_SETTINGS_CHANGE_EVENT,
@@ -42,7 +43,7 @@ const markDirty = dirty => {
 
 const isDirty = () => {
     try {
-        return localStorage.getItem(DIRTY_KEY) === '1';
+        return getStorageItem(DIRTY_KEY) === '1';
     } catch (_) {
         return false;
     }
@@ -50,7 +51,7 @@ const isDirty = () => {
 
 const getUsernameOverride = () => {
     try {
-        return localStorage.getItem(USERNAME_OVERRIDE_KEY) || null;
+        return getStorageItem(USERNAME_OVERRIDE_KEY) || null;
     } catch (_) {
         return null;
     }
@@ -58,7 +59,7 @@ const getUsernameOverride = () => {
 
 const readLocalJson = (key, fallback) => {
     try {
-        const raw = localStorage.getItem(key);
+        const raw = getStorageItem(key);
         if (raw === null || typeof raw === 'undefined') return fallback;
         return JSON.parse(raw);
     } catch (_) {
@@ -263,7 +264,7 @@ const setUsernameOverride = value => {
     notifyLocalChange();
 };
 
-// Keep cloud in sync when Bilup Accounts presence settings change (avoids circular require)
+// Keep cloud in sync when PineWarp Accounts presence settings change (avoids circular require)
 subscribeRoturSettings(() => {
     notifyLocalChange();
 });

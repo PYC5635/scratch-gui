@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import {getItem as getStorageItem} from '../lib/utils/safe-storage.js';
 import React from 'react';
 import {connect} from 'react-redux';
 import bindAll from 'lodash.bindall';
@@ -13,7 +14,7 @@ const IGNORE_STORAGE_KEY = 'mw:ignore-project-theme-prompts';
 
 const loadIgnoreMap = () => {
     try {
-        const raw = localStorage.getItem(IGNORE_STORAGE_KEY);
+        const raw = getStorageItem(IGNORE_STORAGE_KEY);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         return parsed && typeof parsed === 'object' ? parsed : {};
@@ -55,7 +56,7 @@ class MWProjectThemeModal extends React.Component {
         this.persistDontAskAgainIfNeeded();
 
         try {
-            const payload = this.props.mistwarpTheme;
+            const payload = this.props.pinewarpTheme;
             if (payload && payload.kind === 'custom' && payload.data) {
                 const theme = CustomTheme.import(payload.data);
                 this.props.onSetTheme(theme);
@@ -67,7 +68,9 @@ class MWProjectThemeModal extends React.Component {
                     d.blocks,
                     d.menuBarAlign,
                     d.wallpaper,
-                    d.fonts
+                    d.fonts,
+                    null,
+                    d.appearance || {}
                 );
                 this.props.onSetTheme(theme);
             }
@@ -93,7 +96,7 @@ class MWProjectThemeModal extends React.Component {
 
 MWProjectThemeModal.propTypes = {
     visible: PropTypes.bool,
-    mistwarpTheme: PropTypes.any,
+    pinewarpTheme: PropTypes.any,
     promptKey: PropTypes.string,
     dontAskAgain: PropTypes.bool,
     onDontAskAgainChange: PropTypes.func,
@@ -103,7 +106,7 @@ MWProjectThemeModal.propTypes = {
 
 const mapStateToProps = state => ({
     visible: state.scratchGui.mwProjectTheme.visible,
-    mistwarpTheme: state.scratchGui.mwProjectTheme.mistwarpTheme,
+    pinewarpTheme: state.scratchGui.mwProjectTheme.pinewarpTheme,
     promptKey: state.scratchGui.mwProjectTheme.promptKey,
     dontAskAgain: state.scratchGui.mwProjectTheme.dontAskAgain
 });

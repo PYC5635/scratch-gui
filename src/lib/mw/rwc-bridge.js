@@ -148,7 +148,7 @@ async function exportCurrentConfig() {
         const localStorageSettings = {};
         const appKeyPrefixes = [
             'tw:', 'mw:', 'rw:', 'remixwarp_', 'astras_', 'sa-',
-            'ADDONS_', 'AESettings', '02agent_', 'novatheai_', 'bilup_', 'nova_'
+            'ADDONS_', 'AESettings', '02agent_', 'novatheai_', 'pinewarp_', 'nova_'
         ];
 
         for (let i = 0; i < localStorage.length; i++) {

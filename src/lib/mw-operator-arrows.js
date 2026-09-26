@@ -1,10 +1,11 @@
 import VMScratchBlocks from './tw-lazy-scratch-blocks';
+import {getItem as getStorageItem} from './utils/safe-storage.js';
 
 const STORAGE_KEY = 'mw:hide-operator-arrows';
 
 const getHideOperatorArrows = () => {
     try {
-        return localStorage.getItem(STORAGE_KEY) === 'true';
+        return getStorageItem(STORAGE_KEY) === 'true';
     } catch (err) {
         return false;
     }
