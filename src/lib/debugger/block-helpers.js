@@ -31,7 +31,7 @@ const createBlockHelpers = (vm, msg) => {
             let name = target.getName();
             let original = target;
             if (!target.isOriginal) {
-                name = `clone of ${name}`;
+                name = msg('debugger/clone-of', 'Clone of {sprite}').replace('{sprite}', target.getName());
                 original = target.sprite.clones[0];
             }
             return {

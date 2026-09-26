@@ -24,15 +24,15 @@ class TWDebugger extends React.Component {
         this.controller = initDebugger(this.props.vm);
         setupThreadGlow(this.controller);
         this.controller.events.addEventListener('show', this.handleShowRequest);
-        window.__mistwarpDebuggerToggle = this.handleToggle;
+        window.__bilupDebuggerToggle = this.handleToggle;
     }
 
     componentWillUnmount () {
         if (this.controller) {
             this.controller.events.removeEventListener('show', this.handleShowRequest);
         }
-        if (window.__mistwarpDebuggerToggle === this.handleToggle) {
-            window.__mistwarpDebuggerToggle = null;
+        if (window.__bilupDebuggerToggle === this.handleToggle) {
+            window.__bilupDebuggerToggle = null;
         }
     }
 

@@ -53,7 +53,6 @@ const ProjectThemeModal = props => (
 
             <div className={styles.buttons}>
                 <button
-                    type="button"
                     className={styles.secondaryButton}
                     onClick={props.onCancel}
                 >
@@ -64,7 +63,6 @@ const ProjectThemeModal = props => (
                     />
                 </button>
                 <button
-                    type="button"
                     className={styles.primaryButton}
                     onClick={props.onApply}
                 >

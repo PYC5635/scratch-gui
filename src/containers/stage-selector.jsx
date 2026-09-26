@@ -1,4 +1,5 @@
 import bindAll from 'lodash.bindall';
+import omit from 'lodash.omit';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {intlShape, injectIntl} from 'react-intl';
@@ -21,7 +22,6 @@ import StageSelectorComponent from '../components/stage-selector/stage-selector.
 import {getBackdropLibrary} from '../lib/libraries/tw-async-libraries';
 import {handleFileUpload, costumeUpload} from '../lib/file-uploader.js';
 import {placeInViewport} from '../lib/backpack/code-payload.js';
-import log from '../lib/utils/log';
 
 const dragTypes = [
     DragConstants.COSTUME,
@@ -61,7 +61,6 @@ class StageSelector extends React.Component {
         document.removeEventListener('touchend', this.handleTouchEnd);
     }
     handleTouchEnd (e) {
-        if (!this.ref) return;
         const {x, y} = getEventXY(e);
         const {top, left, bottom, right} = this.ref.getBoundingClientRect();
         if (x >= left && x <= right && y >= top && y <= bottom) {
@@ -77,7 +76,7 @@ class StageSelector extends React.Component {
             bitmapResolution: item.bitmapResolution,
             skinId: null
         };
-        return this.handleNewBackdrop(vmBackdrop, shouldActivateTab);
+        this.handleNewBackdrop(vmBackdrop, shouldActivateTab);
     }
     handleClick () {
         this.props.onSelect(this.props.id);
@@ -94,50 +93,32 @@ class StageSelector extends React.Component {
     }
     async handleSurpriseBackdrop (e) {
         e.stopPropagation(); // Prevent click from falling through to selecting stage.
-        try {
-            const backdropLibraryContent = await getBackdropLibrary();
-            // @todo should this not add a backdrop you already have?
-            const item = backdropLibraryContent[Math.floor(Math.random() * backdropLibraryContent.length)];
-            if (!item) throw new Error('No backdrops are available');
-            await this.addBackdropFromLibraryItem(item, false);
-        } catch (error) {
-            this.props.onShowImportError(error);
-        }
+        const backdropLibraryContent = await getBackdropLibrary();
+        // @todo should this not add a backdrop you already have?
+        const item = backdropLibraryContent[Math.floor(Math.random() * backdropLibraryContent.length)];
+        this.addBackdropFromLibraryItem(item, false);
     }
     handleEmptyBackdrop (e) {
         e.stopPropagation(); // Prevent click from falling through to stage selector, select it manually below
         this.props.vm.setEditingTarget(this.props.id);
-        this.handleNewBackdrop(emptyCostume(this.props.intl.formatMessage(sharedMessages.backdrop, {index: 1})))
-            .catch(this.props.onShowImportError);
+        this.handleNewBackdrop(emptyCostume(this.props.intl.formatMessage(sharedMessages.backdrop, {index: 1})));
     }
     handleBackdropUpload (e) {
         const vm = this.props.vm;
-        const completedFiles = new Set();
-        const finishFile = (fileIndex, fileCount) => {
-            completedFiles.add(fileIndex);
-            if (completedFiles.size === fileCount) {
-                this.props.onCloseImporting();
-            }
-        };
-        const failFile = (error, fileIndex, fileCount) => {
-            this.props.onShowImportError(error);
-            finishFile(fileIndex, fileCount);
-        };
-        this.props.vm.setEditingTarget(this.props.id);
-        this.props.onActivateTab(COSTUMES_TAB_INDEX);
         this.props.onShowImporting();
-        const fileCount = handleFileUpload(e.target, (buffer, fileType, fileName, fileIndex, totalFiles) => {
+        handleFileUpload(e.target, (buffer, fileType, fileName, fileIndex, fileCount) => {
             costumeUpload(buffer, fileType, vm, vmCostumes => {
+                this.props.vm.setEditingTarget(this.props.id);
                 vmCostumes.forEach((costume, i) => {
                     costume.name = `${fileName}${i ? i + 1 : ''}`;
                 });
-                this.handleNewBackdrop(vmCostumes, false).then(() => {
-                    finishFile(fileIndex, totalFiles);
-                })
-                    .catch(error => failFile(error, fileIndex, totalFiles));
-            }, error => failFile(error, fileIndex, totalFiles));
-        }, failFile);
-        if (fileCount === 0) this.props.onCloseImporting();
+                this.handleNewBackdrop(vmCostumes).then(() => {
+                    if (fileIndex === fileCount - 1) {
+                        this.props.onCloseImporting();
+                    }
+                });
+            }, this.props.onCloseImporting);
+        }, this.props.onCloseImporting);
     }
     handleFileUploadClick (e) {
         e.stopPropagation(); // Prevent click from selecting the stage, that is handled manually in backdrop upload
@@ -151,34 +132,31 @@ class StageSelector extends React.Component {
     handleMouseLeave () {
         this.props.dispatchSetHoveredSprite(null);
     }
-    async handleDrop (dragInfo) {
-        try {
-            if (dragInfo.dragType === DragConstants.COSTUME) {
-                await this.props.vm.shareCostumeToTarget(dragInfo.index, this.props.id);
-            } else if (dragInfo.dragType === DragConstants.SOUND) {
-                await this.props.vm.shareSoundToTarget(dragInfo.index, this.props.id);
-            } else if (dragInfo.dragType === DragConstants.BACKPACK_COSTUME) {
-                await this.props.vm.addCostume(dragInfo.payload.body, {
-                    name: dragInfo.payload.name
-                }, this.props.id);
-            } else if (dragInfo.dragType === DragConstants.BACKPACK_SOUND) {
-                await this.props.vm.addSound({
-                    md5: dragInfo.payload.body,
-                    name: dragInfo.payload.name
-                }, this.props.id);
-            } else if (dragInfo.dragType === DragConstants.BACKPACK_CODE) {
-                const payload = await fetchCode(dragInfo.payload.bodyUrl);
-                const centered = placeInViewport(
-                    payload,
-                    this.props.getWorkspaceMetrics().targets[this.props.id],
-                    this.props.isRtl
-                );
-                await this.props.vm.shareBlocksToTarget(centered, this.props.id);
-                this.props.vm.refreshWorkspace();
-            }
-        } catch (error) {
-            log.error(error);
-            this.props.onShowImportError();
+    handleDrop (dragInfo) {
+        if (dragInfo.dragType === DragConstants.COSTUME) {
+            this.props.vm.shareCostumeToTarget(dragInfo.index, this.props.id);
+        } else if (dragInfo.dragType === DragConstants.SOUND) {
+            this.props.vm.shareSoundToTarget(dragInfo.index, this.props.id);
+        } else if (dragInfo.dragType === DragConstants.BACKPACK_COSTUME) {
+            this.props.vm.addCostume(dragInfo.payload.body, {
+                name: dragInfo.payload.name
+            }, this.props.id);
+        } else if (dragInfo.dragType === DragConstants.BACKPACK_SOUND) {
+            this.props.vm.addSound({
+                md5: dragInfo.payload.body,
+                name: dragInfo.payload.name
+            }, this.props.id);
+        } else if (dragInfo.dragType === DragConstants.BACKPACK_CODE) {
+            fetchCode(dragInfo.payload.bodyUrl)
+                .then(payload => {
+                    const centered = placeInViewport(
+                        payload,
+                        this.props.getWorkspaceMetrics().targets[this.props.id],
+                        this.props.isRtl
+                    );
+                    this.props.vm.shareBlocksToTarget(centered, this.props.id);
+                    this.props.vm.refreshWorkspace();
+                });
         }
     }
     setFileInput (input) {
@@ -188,13 +166,11 @@ class StageSelector extends React.Component {
         this.ref = ref;
     }
     render () {
-        const {
-            asset, dispatchSetHoveredSprite, id, intl,
-            onActivateTab, onSelect, onShowImporting, onCloseImporting,
-            onShowImportError,
-            isRtl, getWorkspaceMetrics,
-            ...componentProps
-        } = this.props;
+        const componentProps = omit(this.props, [
+            'asset', 'dispatchSetHoveredSprite', 'id', 'intl',
+            'onActivateTab', 'onSelect', 'onShowImporting', 'onCloseImporting',
+            'isRtl', 'getWorkspaceMetrics'
+        ]);
         return (
             <DroppableThrottledStage
                 componentRef={this.setRef}
@@ -218,7 +194,6 @@ StageSelector.propTypes = {
     intl: intlShape.isRequired,
     isRtl: PropTypes.bool,
     onCloseImporting: PropTypes.func,
-    onShowImportError: PropTypes.func,
     onSelect: PropTypes.func,
     onShowImporting: PropTypes.func,
     getWorkspaceMetrics: PropTypes.func
@@ -245,8 +220,7 @@ const mapDispatchToProps = dispatch => ({
         dispatch(setHoveredSprite(spriteId));
     },
     onCloseImporting: () => dispatch(closeAlertWithId('importingAsset')),
-    onShowImporting: () => dispatch(showStandardAlert('importingAsset')),
-    onShowImportError: () => dispatch(showStandardAlert('assetImportError'))
+    onShowImporting: () => dispatch(showStandardAlert('importingAsset'))
 });
 
 // Custom mergeProps to provide on-demand access to workspace metrics
@@ -267,5 +241,3 @@ export default injectIntl(connect(
     mapDispatchToProps,
     mergeProps
 )(StageSelector));
-
-export {StageSelector};

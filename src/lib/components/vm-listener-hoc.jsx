@@ -50,6 +50,38 @@ const debounce = (fn, delay) => {
     };
 };
 
+// Throttle utility: runs immediately on the first call, then guarantees at
+// least one execution every `delay` ms even when calls arrive continuously at
+// a higher rate (leading + trailing). Unlike the leading+trailing debounce
+// above, a sustained stream of calls can never starve execution, so it is the
+// right tool for per-frame sources such as MONITORS_UPDATE.
+const throttle = (fn, delay) => {
+    let lastRun = 0;
+    let timer = null;
+    let lastArgs = null;
+    return (...args) => {
+        lastArgs = args;
+        const now = typeof performance !== 'undefined' && typeof performance.now === 'function' ?
+            performance.now() : Date.now();
+        const remaining = delay - (now - lastRun);
+        if (remaining <= 0) {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            lastRun = now;
+            fn(...args);
+        } else if (!timer) {
+            timer = setTimeout(() => {
+                timer = null;
+                lastRun = typeof performance !== 'undefined' && typeof performance.now === 'function' ?
+                    performance.now() : Date.now();
+                fn(...lastArgs);
+            }, remaining);
+        }
+    };
+};
+
 // The unsandboxed extension GUI API pulls in the whole git toolchain
 // (browser-git). It is only needed when an unsandboxed extension runs, so load
 // it lazily instead of blocking the first editor load with it.
@@ -461,13 +493,16 @@ const vmListenerHOC = function (WrappedComponent) {
                 }
                 return debouncedTargetsUpdate;
             })(),
-        // Monitors update every frame when the VM is running. For large
+        // Monitors update every frame while the VM is running. For large
         // projects with many monitors this can easily overwhelm the React
-        // render cycle on low-end devices. Debounce to at most one dispatch
-        // per 50 ms so the UI stays responsive.
+        // render cycle on low-end devices. Throttle to at most one dispatch
+        // per 50 ms so the UI stays responsive. (Throttle, not debounce: a
+        // leading+trailing debounce would let a continuous per-frame stream
+        // reset its timer forever and never dispatch until the stream stops,
+        // so on-screen variable/list values would not refresh during a run.)
         onMonitorsUpdate: (() => {
             if (!debouncedMonitorsUpdate) {
-                debouncedMonitorsUpdate = debounce(monitorList => {
+                debouncedMonitorsUpdate = throttle(monitorList => {
                     dispatch(updateMonitors(monitorList));
                 }, 50);
             }

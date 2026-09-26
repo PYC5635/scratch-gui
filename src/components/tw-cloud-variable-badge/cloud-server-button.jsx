@@ -19,9 +19,7 @@ class CloudServerButton extends React.Component {
     render () {
         return (
             <button
-                type="button"
                 className={classNames(styles.server, {[styles.selected]: this.props.selected})}
-                aria-pressed={this.props.selected}
                 onClick={this.handleClick}
                 title={this.props.cloudHost}
             >

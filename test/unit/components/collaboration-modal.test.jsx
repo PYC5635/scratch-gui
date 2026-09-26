@@ -460,7 +460,7 @@ describe('CollaborationModal', () => {
         expect(wrapper.text()).toContain('Cancel Request');
     });
 
-test('calls onCancelJoinRequest when cancel request is clicked', () => {
+    test('calls onCancelJoinRequest when cancel request is clicked', () => {
         const onCancelJoinRequestMock = jest.fn();
         const wrapper = shallow(
             <CollaborationModal {...defaultProps} onCancelJoinRequest={onCancelJoinRequestMock} />

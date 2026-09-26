@@ -1,42 +1,22 @@
-﻿// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`IconButtonComponent matches snapshot 1`] = `
-<button
+<div
   className="custom-class-name"
-  onClick={[MockFunction]}
-  type="button"
+  onClick={[Function]}
+  role="button"
 >
   <img
+    className={undefined}
     draggable={false}
     src="imgSrc"
-    theme={
-      Theme {
-        "accent": "red",
-        "appearance": {},
-        "blocks": "three",
-        "fonts": {
-          "google": [],
-          "history": [],
-          "system": [],
-        },
-        "gui": "light",
-        "id": 4,
-        "menuBarAlign": "center",
-        "name": undefined,
-        "wallpaper": {
-          "darkness": 0,
-          "gridVisible": true,
-          "history": [],
-          "opacity": 0.3,
-          "url": "",
-        },
-      }
-    }
   />
-  <div>
+  <div
+    className={undefined}
+  >
     <div>
       Text
     </div>
   </div>
-</button>
+</div>
 `;

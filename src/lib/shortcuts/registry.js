@@ -211,7 +211,7 @@ export const getDefaultShortcuts = () => [
         key: 'Ctrl+Shift+D',
         defaultKey: 'Ctrl+Shift+D',
         category: SHORTCUT_CATEGORIES.SPRITE_MANAGEMENT,
-        actionType: 'callback',
+        actionType: 'vm',
         action: 'duplicateSprite',
         params: [],
         label: 'Duplicate Sprite'
@@ -231,7 +231,7 @@ export const getDefaultShortcuts = () => [
         key: 'Ctrl+Shift+X',
         defaultKey: 'Ctrl+Shift+X',
         category: SHORTCUT_CATEGORIES.SPRITE_MANAGEMENT,
-        actionType: 'callback',
+        actionType: 'vm',
         action: 'deleteSprite',
         params: [],
         label: 'Delete Sprite'
@@ -251,8 +251,8 @@ export const getDefaultShortcuts = () => [
         key: 'Ctrl+Z',
         defaultKey: 'Ctrl+Z',
         category: SHORTCUT_CATEGORIES.EDIT,
-        actionType: 'callback',
-        action: 'undo',
+        actionType: 'vm',
+        action: 'postUndo',
         params: [],
         label: 'Undo'
     },

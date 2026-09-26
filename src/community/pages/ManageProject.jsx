@@ -1,10 +1,8 @@
-/* eslint-disable max-len */
-import React, {useEffect, useRef, useState, useCallback} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {useParams, Link} from 'react-router-dom';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
 import {
-    ArrowLeft, ExternalLink, Eye, Coins, Users, Heart, Check, BarChart3, SlidersHorizontal, Bookmark,
-    Bug, Link2, UserCog, Plus, Trash2, MessageCircle
+    ArrowLeft, ExternalLink, Eye, Coins, Users, Heart, Check, BarChart3, SlidersHorizontal, Bookmark
 } from 'lucide-react';
 import api, {projectUrl} from '../api';
 import {useUser} from '../UserContext.jsx';
@@ -14,34 +12,13 @@ import ProjectInfoPanel from '../components/ProjectInfoPanel.jsx';
 import ProjectThumbnail from '../components/ProjectThumbnail.jsx';
 import StatChart, {historyRows} from '../components/StatChart.jsx';
 import Sidebar from '../components/Sidebar.jsx';
-import Button from '../components/ui/Button.jsx';
-import IconButton from '../components/ui/IconButton.jsx';
-import {SwitchRow} from '../components/ui/Switch.jsx';
-import useLatest from '../use-latest.js';
 import styles from './ManageProject.module.css';
 
 const roundCredits = value => Math.round((Number(value) || 0) * 100) / 100;
-const normalizeCollaborators = team => team
-    .filter(member => member.username.trim())
-    .map(member => ({...member, username: member.username.trim()}));
-const ROLE_DESCRIPTIONS = {
-    maintainer: 'Can edit, publish, and merge changes.',
-    contributor: 'Can work through pull requests.',
-    tester: 'Can open and test private drafts.'
-};
-const ROLE_DESCRIPTION_KEYS = {
-    maintainer: 'mw.community.manageProject.role.maintainer',
-    contributor: 'mw.community.manageProject.role.contributor',
-    tester: 'mw.community.manageProject.role.tester'
-};
 
 const SECTIONS = [
     {key: 'overview', labelKey: 'mw.community.manageProject.section.overview', labelDefault: 'Overview', icon: BarChart3},
     {key: 'buyers', labelKey: 'mw.community.manageProject.section.buyers', labelDefault: 'Buyers', icon: Users},
-    {key: 'diagnostics', labelKey: 'mw.community.manageProject.section.diagnostics', labelDefault: 'Diagnostics', icon: Bug},
-    {key: 'feedback', labelKey: 'mw.community.manageProject.section.feedback', labelDefault: 'Feedback', icon: MessageCircle},
-    {key: 'preview', labelKey: 'mw.community.manageProject.section.preview', labelDefault: 'Preview links', icon: Link2},
-    {key: 'team', labelKey: 'mw.community.manageProject.section.team', labelDefault: 'Team', icon: UserCog},
     {key: 'settings', labelKey: 'mw.community.manageProject.section.settings', labelDefault: 'Settings', icon: SlidersHorizontal}
 ];
 
@@ -52,74 +29,30 @@ const ManageProject = () => {
         (messageId, defaultMessage, values) => intl.formatMessage({id: messageId, defaultMessage}, values),
         [intl]
     );
-    const {user, loading, login} = useUser();
-    const viewerName = (user && user.username) || '';
-    const loadContext = `${id}\u0000${viewerName}`;
+    const {user, loading} = useUser();
     const [project, setProject] = useState(null);
-    const [projectLoadContext, setProjectLoadContext] = useState('');
     const [error, setError] = useState(null);
-    const [errorLoadContext, setErrorLoadContext] = useState('');
     const [saving, setSaving] = useState(false);
     const [status, setStatus] = useState(null);
     const [section, setSection] = useState('overview');
     const [form, setForm] = useState(null);
-    const [diagnostics, setDiagnostics] = useState(null);
-    const [diagnosticsError, setDiagnosticsError] = useState('');
-    const [feedback, setFeedback] = useState(null);
-    const [feedbackError, setFeedbackError] = useState('');
-    const [feedbackBusy, setFeedbackBusy] = useState('');
-    const [preview, setPreview] = useState(null);
-    const [previewBusy, setPreviewBusy] = useState(false);
-    const [team, setTeam] = useState([]);
-    const [teamSaving, setTeamSaving] = useState(false);
-    const [teamStatus, setTeamStatus] = useState('');
-    const actionLocks = useRef(new Set());
-    const currentLoadContext = useRef(loadContext);
-    currentLoadContext.current = loadContext;
-    const beginLoad = useLatest();
-    const beginDiagnostics = useLatest();
-    const beginFeedback = useLatest();
-    const beginPreview = useLatest();
 
     const load = useCallback(() => {
-        const fresh = beginLoad();
-        return api.getProject(id)
-            .then(fresh(data => {
-                if (!data || !data.project) throw new Error('Project response was incomplete.');
+        api.getProject(id)
+            .then(data => {
                 setProject(data.project);
-                setProjectLoadContext(loadContext);
                 setError(null);
-                setErrorLoadContext('');
-            }))
-            .catch(fresh(e => {
-                setErrorLoadContext(loadContext);
-                setError(e && e.status === 404 ?
-                    t('mw.community.manageProject.notFound', 'Project not found.') :
-                    t('mw.community.manageProject.loadFailed', 'Could not load this project.'));
-            }));
-    }, [id, t, beginLoad, loadContext]);
+            })
+            .catch(e => setError(e && e.status === 404 ?
+                t('mw.community.manageProject.notFound', 'Project not found.') :
+                t('mw.community.manageProject.loadFailed', 'Could not load this project.')));
+    }, [id, t]);
 
     useEffect(() => {
-        beginDiagnostics();
-        beginFeedback();
-        beginPreview();
         setProject(null);
         setError(null);
-        setSection('overview');
-        setDiagnostics(null);
-        setDiagnosticsError('');
-        setFeedback(null);
-        setFeedbackError('');
-        setFeedbackBusy('');
-        setPreview(null);
-        setPreviewBusy(false);
-        setSaving(false);
-        setTeamSaving(false);
-        setStatus(null);
-        setTeamStatus('');
-        if (loading || !viewerName) return;
         load();
-    }, [beginDiagnostics, beginFeedback, beginPreview, id, load, loading, viewerName]);
+    }, [id, load]);
 
     useEffect(() => {
         if (!project) return;
@@ -131,51 +64,12 @@ const ManageProject = () => {
             seeInside: project.seeInside !== false,
             visibility: project.visibility || (project.shared ? 'public' : 'private')
         });
-        setTeam(project.collaborators || []);
     }, [project]);
-
-    const loadDiagnostics = useCallback(() => {
-        const fresh = beginDiagnostics();
-        setDiagnostics(null);
-        setDiagnosticsError('');
-        api.diagnostics(id)
-            .then(fresh(setDiagnostics))
-            .catch(fresh(() => setDiagnosticsError(t('mw.community.manageProject.couldNotLoadDiagnostics', 'Could not load diagnostics.'))));
-    }, [beginDiagnostics, id]);
-
-    const loadFeedback = useCallback(() => {
-        const fresh = beginFeedback();
-        setFeedback(null);
-        setFeedbackError('');
-        api.feedback(id)
-            .then(fresh(data => setFeedback(data.feedback || [])))
-            .catch(fresh(() => setFeedbackError(t('mw.community.manageProject.couldNotLoadFeedback', 'Could not load feedback.'))));
-    }, [beginFeedback, id]);
-
-    useEffect(() => {
-        if (section === 'diagnostics' && diagnostics === null && !diagnosticsError) loadDiagnostics();
-        if (section === 'feedback' && feedback === null && !feedbackError) loadFeedback();
-    }, [section, diagnostics, diagnosticsError, feedback, feedbackError, loadDiagnostics, loadFeedback]);
 
     const set = (key, value) => setForm(current => ({...current, [key]: value}));
 
-    const beginAction = name => {
-        const key = `${loadContext}\u0000${name}`;
-        if (actionLocks.current.has(key)) return null;
-        actionLocks.current.add(key);
-        return key;
-    };
-
-    const releaseAction = key => actionLocks.current.delete(key);
-
     const save = async () => {
-        const actionKey = beginAction('save');
-        if (!actionKey) return;
-        if (!form.title.trim()) {
-            setStatus('Project titles cannot be empty.');
-            releaseAction(actionKey);
-            return;
-        }
+        if (saving) return;
         setSaving(true);
         setStatus(null);
         try {
@@ -189,78 +83,12 @@ const ManageProject = () => {
             if (form.visibility !== (project.visibility || (project.shared ? 'public' : 'private'))) {
                 await api.setVisibility(id, form.visibility);
             }
-            if (currentLoadContext.current === loadContext) {
-                setStatus(t('mw.community.manageProject.saved', 'Saved.'));
-                load();
-            }
+            setStatus(t('mw.community.manageProject.saved', 'Saved.'));
+            load();
         } catch (e) {
-            if (currentLoadContext.current === loadContext) {
-                setStatus(e.message || t('mw.community.manageProject.saveFailed', 'Could not save changes.'));
-            }
+            setStatus(e.message || t('mw.community.manageProject.saveFailed', 'Could not save changes.'));
         } finally {
-            releaseAction(actionKey);
-            if (currentLoadContext.current === loadContext) setSaving(false);
-        }
-    };
-
-    const saveTeam = async () => {
-        const actionKey = beginAction('team');
-        if (!actionKey) return;
-        const collaborators = normalizeCollaborators(team);
-        setTeamSaving(true);
-        setTeamStatus('');
-        try {
-            await api.updateProject(id, {collaborators});
-            if (currentLoadContext.current === loadContext) {
-                setTeamStatus('Team saved.');
-                load();
-            }
-        } catch (e) {
-            if (currentLoadContext.current === loadContext) {
-                setTeamStatus(e.message || t('mw.community.manageProject.couldNotSaveTeam', 'Could not save the team.'));
-            }
-        } finally {
-            releaseAction(actionKey);
-            if (currentLoadContext.current === loadContext) setTeamSaving(false);
-        }
-    };
-
-    const createPreview = async () => {
-        const actionKey = beginAction('preview');
-        if (!actionKey) return;
-        const fresh = beginPreview();
-        setPreviewBusy(true);
-        setStatus(null);
-        try {
-            const result = await api.createPreview(id, 24);
-            fresh(setPreview)(`${location.origin}${projectUrl(id)}?k=${encodeURIComponent(result.key)}`);
-        } catch (e) {
-            fresh(setStatus)(e.message || 'Could not create a preview link.');
-        } finally {
-            releaseAction(actionKey);
-            fresh(setPreviewBusy)(false);
-        }
-    };
-
-    const updateFeedbackStatus = async (item, nextStatus) => {
-        const actionKey = beginAction('feedback');
-        if (!actionKey) return;
-        setFeedbackBusy(item._id);
-        setFeedbackError('');
-        try {
-            await api.updateFeedback(id, item._id, nextStatus);
-            if (currentLoadContext.current === loadContext) {
-                setFeedback(current => current.map(entry => (
-                    entry._id === item._id ? {...entry, status: nextStatus} : entry
-                )));
-            }
-        } catch (e) {
-            if (currentLoadContext.current === loadContext) {
-                setFeedbackError(e.message || t('mw.community.manageProject.couldNotUpdateFeedback', 'Could not update this feedback.'));
-            }
-        } finally {
-            releaseAction(actionKey);
-            if (currentLoadContext.current === loadContext) setFeedbackBusy('');
+            setSaving(false);
         }
     };
 
@@ -268,29 +96,12 @@ const ManageProject = () => {
         return <main className={styles.page}><p className={styles.statusMsg}>{t('mw.community.manageProject.loading', 'Loading…')}</p></main>;
     }
     if (!user) {
-        return (
-            <main className={styles.page}>
-                <p className={styles.statusMsg}>{t('mw.community.manageProject.signInManage', 'Sign in to manage your projects.')} <button type="button" onClick={login}>{t('mw.community.manageProject.signIn', 'Sign in')}</button></p>
-            </main>
-        );
+        return <main className={styles.page}><p className={styles.statusMsg}>{t('mw.community.manageProject.logIn', 'Log in to manage your projects.')}</p></main>;
     }
-    if (error && errorLoadContext === loadContext) {
-        return (
-            <main className={styles.page}>
-                <p className={styles.statusMsg}>
-                    {error}{' '}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setError(null);
-                            load();
-                        }}
-                    >Try again</button>
-                </p>
-            </main>
-        );
+    if (error) {
+        return <main className={styles.page}><p className={styles.statusMsg}>{error}</p></main>;
     }
-    if (!project || !form || projectLoadContext !== loadContext) {
+    if (!project || !form) {
         return <main className={styles.page}><p className={styles.statusMsg}>{t('mw.community.manageProject.loading', 'Loading…')}</p></main>;
     }
     if (!project.isOwner) {
@@ -304,11 +115,7 @@ const ManageProject = () => {
     const views = (project.views || 0).toLocaleString();
     const hearts = (project.loveCount || 0).toLocaleString();
     const sections = SECTIONS
-        .filter(item => {
-            if (item.key === 'buyers') return paywalled;
-            if (item.key === 'team') return project.myRole === 'owner';
-            return true;
-        })
+        .filter(item => item.key !== 'buyers' || paywalled)
         .map(item => ({
             ...item,
             label: t(item.labelKey, item.labelDefault)
@@ -319,7 +126,7 @@ const ManageProject = () => {
         <main className={styles.page}>
             <div className={styles.head}>
                 <Link
-                    to="/mystuff?section=projects"
+                    to="/mystuff"
                     className={styles.back}
                 >
                     <ArrowLeft size={15} />
@@ -341,10 +148,7 @@ const ManageProject = () => {
                         badge: item.key === 'buyers' && buyers.length ? buyers.length : null
                     }))}
                     active={activeSection}
-                    onChange={nextSection => {
-                        setSection(nextSection);
-                        setStatus(null);
-                    }}
+                    onChange={setSection}
                     ariaLabel={t('mw.community.manageProject.ariaLabel', 'Project sections')}
                 />
 
@@ -399,23 +203,6 @@ const ManageProject = () => {
                                 accent="#4C97FF"
                                 emptyText={t('mw.community.manageProject.noViews', 'No views in the last two weeks.')}
                             />
-                            <div className={styles.card}>
-                                <h2 className={styles.cardTitle}>{t('mw.community.manageProject.publishChecklist', 'Publish checklist')}</h2>
-                                <ul className={styles.checklist}>
-                                    {[
-                                        [t('mw.community.manageProject.check.projectUploaded', 'Project uploaded'), project.hasContent],
-                                        [t('mw.community.manageProject.check.clearTitle', 'Clear title'), project.title && !/^untitled$/i.test(project.title)],
-                                        [t('mw.community.manageProject.check.instructionsAdded', 'Instructions added'), Boolean(project.instructions)],
-                                        [t('mw.community.manageProject.check.descriptionAdded', 'Description or notes added'), Boolean(project.description || project.notes)],
-                                        [t('mw.community.manageProject.check.tagsAdded', 'Tags added'), Boolean(project.tags && project.tags.length)],
-                                        [t('mw.community.manageProject.check.thumbnailReady', 'Thumbnail ready'), Boolean(project.thumbUrl)]
-                                    ].map(([label, done]) => (
-                                        <li key={label} className={done ? styles.checkDone : styles.checkTodo}>
-                                            <Check size={15} /> {label}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
                             {paywalled ? (
                                 <StatChart
                                     title={t('mw.community.manageProject.revenueChart', 'Revenue over the last 2 weeks')}
@@ -482,7 +269,6 @@ const ManageProject = () => {
                                     <label className={styles.field}>
                                         <span>{t('mw.community.manageProject.title', 'Title')}</span>
                                         <input
-                                            disabled={saving}
                                             value={form.title}
                                             maxLength={100}
                                             onChange={e => set('title', e.target.value)}
@@ -492,7 +278,6 @@ const ManageProject = () => {
                                         <div className={styles.field}>
                                             <span>{t('mw.community.manageProject.visibility', 'Visibility')}</span>
                                             <VisibilityMenu
-                                                disabled={saving}
                                                 value={form.visibility}
                                                 onChange={v => set('visibility', v)}
                                             />
@@ -500,7 +285,6 @@ const ManageProject = () => {
                                         <label className={`${styles.field} ${styles.priceField}`}>
                                             <span>{t('mw.community.manageProject.price', 'Price in credits (0 is free)')}</span>
                                             <input
-                                                disabled={saving}
                                                 type="number"
                                                 min="0"
                                                 step="1"
@@ -509,40 +293,42 @@ const ManageProject = () => {
                                             />
                                         </label>
                                     </div>
-                                    <div className={styles.switches}>
-                                        <SwitchRow
+                                    <label className={styles.checkboxField}>
+                                        <input
+                                            type="checkbox"
                                             checked={form.remixable}
-                                            disabled={saving}
-                                            label={t('mw.community.manageProject.allowRemix', 'Allow others to remix this project')}
-                                            onChange={value => set('remixable', value)}
+                                            onChange={e => set('remixable', e.target.checked)}
                                         />
-                                        <SwitchRow
+                                        <span>{t('mw.community.manageProject.allowRemix', 'Allow others to remix this project')}</span>
+                                    </label>
+                                    <label className={styles.checkboxField}>
+                                        <input
+                                            type="checkbox"
                                             checked={form.seeInside}
-                                            disabled={saving}
-                                            label={t('mw.community.manageProject.allowSeeInside', 'Allow others to see inside this project')}
-                                            onChange={value => set('seeInside', value)}
+                                            onChange={e => set('seeInside', e.target.checked)}
                                         />
-                                        <SwitchRow
+                                        <span>{t('mw.community.manageProject.allowSeeInside', 'Allow others to see inside this project')}</span>
+                                    </label>
+                                    <label className={styles.checkboxField}>
+                                        <input
+                                            type="checkbox"
                                             checked={form.commentsOff}
-                                            disabled={saving}
-                                            label={t('mw.community.manageProject.turnOffComments', 'Turn off comments')}
-                                            onChange={value => set('commentsOff', value)}
+                                            onChange={e => set('commentsOff', e.target.checked)}
                                         />
-                                    </div>
+                                        <span>{t('mw.community.manageProject.turnOffComments', 'Turn off comments')}</span>
+                                    </label>
                                     <div className={styles.formActions}>
                                         {status ? <span className={styles.formStatus}>{status}</span> : null}
-                                        <Button
-                                            variant="primary"
+                                        <button
                                             className={styles.save}
-                                            busy={saving}
-                                            busyLabel={t('mw.community.manageProject.saving', 'Saving…')}
                                             onClick={save}
+                                            disabled={saving}
                                         >
                                             <Check size={16} />
                                             {saving ?
                                                 t('mw.community.manageProject.saving', 'Saving…') :
                                                 t('mw.community.manageProject.saveChanges', 'Save changes')}
-                                        </Button>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -553,159 +339,10 @@ const ManageProject = () => {
                             />
                         </div>
                     ) : null}
-                    {activeSection === 'diagnostics' ? (
-                        <div className={styles.stack}>
-                            <div className={styles.card}>
-                                <h2 className={styles.cardTitle}>{t('mw.community.manageProject.playerDiagnostics', 'Player diagnostics')}</h2>
-                                <p className={styles.empty}>{t('mw.community.manageProject.diagnosticsLead', 'Anonymous runtime events from the most recent 500 sessions.')}</p>
-                                {diagnostics ? (
-                                    <div className={styles.statGrid}>
-                                        <div className={styles.stat}><span className={styles.statNumber}>{diagnostics.counts.load || 0}</span><span className={styles.statLabel}>{t('mw.community.manageProject.diagLoads', 'Loads')}</span></div>
-                                        <div className={styles.stat}><span className={styles.statNumber}>{diagnostics.counts.start || 0}</span><span className={styles.statLabel}>{t('mw.community.manageProject.diagGreenFlags', 'Green flags')}</span></div>
-                                        <div className={styles.stat}><span className={styles.statNumber}>{diagnostics.counts.crash || 0}</span><span className={styles.statLabel}>{t('mw.community.manageProject.diagErrors', 'Errors')}</span></div>
-                                        <div className={styles.stat}><span className={styles.statNumber}>{Math.round(diagnostics.averageLoadMs || 0)} ms</span><span className={styles.statLabel}>{t('mw.community.manageProject.diagAverageLoad', 'Average load')}</span></div>
-                                    </div>
-                                ) : diagnosticsError ? (
-                                    <p className={styles.empty}>{diagnosticsError}{' '}<button type="button" onClick={loadDiagnostics}>{t('mw.community.manageProject.tryAgain', 'Try again')}</button></p>
-                                ) : <p className={styles.empty}>{t('mw.community.manageProject.loadingDiagnostics', 'Loading diagnostics…')}</p>}
-                            </div>
-                            {diagnostics && diagnostics.recent.some(item => item.error) ? (
-                                <div className={styles.card}>
-                                    <h2 className={styles.cardTitle}>{t('mw.community.manageProject.recentErrors', 'Recent errors')}</h2>
-                                    <ul className={styles.buyers}>
-                                        {diagnostics.recent.filter(item => item.error).slice(0, 20).map(item => <li key={item._id} className={styles.buyerRow}><span>{item.error}</span><span className={styles.buyerDate}>{new Date(item.created).toLocaleString()}</span></li>)}
-                                    </ul>
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : null}
-                    {activeSection === 'feedback' ? (
-                        <div className={styles.card}>
-                            <h2 className={styles.cardTitle}>{t('mw.community.manageProject.trackedFeedback', 'Tracked feedback')}</h2>
-                            {!feedback && !feedbackError ? <p className={styles.empty}>{t('mw.community.manageProject.loadingFeedback', 'Loading feedback…')}</p> : null}
-                            {feedbackError ? <p className={styles.empty}>{feedbackError}{' '}<button type="button" onClick={loadFeedback}>{t('mw.community.manageProject.tryAgain', 'Try again')}</button></p> : null}
-                            {feedback && !feedback.length ? <p className={styles.empty}>{t('mw.community.manageProject.noFeedback', 'No feedback yet.')}</p> : null}
-                            {feedback && feedback.length ? (
-                                <ul className={styles.buyers}>
-                                    {feedback.map(item => (
-                                        <li key={item._id} className={styles.buyerRow}>
-                                            <div><strong>{item.type}</strong><p>{item.message}</p></div>
-                                            <span className={styles.buyerMeta}>
-                                                {item.author}
-                                                <span className={styles.buyerDate}>{new Date(item.created).toLocaleDateString()}</span>
-                                                <select
-                                                    value={item.status || 'open'}
-                                                    disabled={Boolean(feedbackBusy)}
-                                                    onChange={event => updateFeedbackStatus(item, event.target.value)}
-                                                >
-                                                    <option value="open">{t('mw.community.manageProject.fbOpen', 'Open')}</option>
-                                                    <option value="working">{t('mw.community.manageProject.fbWorking', 'Working')}</option>
-                                                    <option value="done">{t('mw.community.manageProject.fbDone', 'Done')}</option>
-                                                    <option value="dismissed">{t('mw.community.manageProject.fbDismissed', 'Dismissed')}</option>
-                                                </select>
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : null}
-                        </div>
-                    ) : null}
-                    {activeSection === 'preview' ? (
-                        <div className={styles.card}>
-                            <h2 className={styles.cardTitle}>{t('mw.community.manageProject.draftPreview', 'Draft preview')}</h2>
-                            <p className={styles.empty}>{t('mw.community.manageProject.previewLead', 'Create a private link that expires after 24 hours. Anyone with the link can play the current draft.')}</p>
-                            <Button
-                                variant="primary"
-                                className={styles.save}
-                                busy={previewBusy}
-                                busyLabel={t('mw.community.manageProject.creating', 'Creating…')}
-                                onClick={createPreview}
-                            ><Link2 size={16} /> {t('mw.community.manageProject.createPreviewLink', 'Create preview link')}</Button>
-                            {preview ? <div className={styles.form}><input value={preview} readOnly onFocus={event => event.target.select()} /><span className={styles.formStatus}>{t('mw.community.manageProject.previewExpires', 'Expires in 24 hours.')}</span></div> : null}
-                            {status ? <p className={styles.empty}>{status}</p> : null}
-                        </div>
-                    ) : null}
-                    {activeSection === 'team' ? (
-                        <div className={`${styles.card} ${styles.teamCard}`}>
-                            <div className={styles.teamHead}>
-                                <div><h2 className={styles.cardTitle}>{t('mw.community.manageProject.projectTeam', 'Project team')}</h2><p>{t('mw.community.manageProject.teamLead', 'Give other people access without sharing your account.')}</p></div>
-                                <Button
-                                    className={styles.addTeam}
-                                    disabled={teamSaving}
-                                    onClick={() => setTeam(current => [
-                                        ...current,
-                                        {username: '', role: 'contributor'}
-                                    ])}
-                                >
-                                    <Plus size={15} /> {t('mw.community.manageProject.addTeammate', 'Add teammate')}
-                                </Button>
-                            </div>
-                            {team.length ? (
-                                <div className={styles.teamList}>
-                                    {team.map((member, index) => (
-                                        <div key={index} className={styles.teamMember}>
-                                            <label className={styles.teamUser}>
-                                                <span>{t('mw.community.manageProject.username', 'Username')}</span>
-                                                <input
-                                                    disabled={teamSaving}
-                                                    value={member.username}
-                                                    placeholder="Rotur username"
-                                                    onChange={event => {
-                                                        const {value} = event.target;
-                                                        setTeam(current => current.map((item, itemIndex) => (itemIndex === index ? {...item, username: value} : item)));
-                                                    }}
-                                                />
-                                            </label>
-                                            <label className={styles.teamRole}>
-                                                <span>{t('mw.community.manageProject.role', 'Role')}</span>
-                                                <select
-                                                    disabled={teamSaving}
-                                                    value={member.role}
-                                                    onChange={event => {
-                                                        const {value} = event.target;
-                                                        setTeam(current => current.map((item, itemIndex) => (itemIndex === index ? {...item, role: value} : item)));
-                                                    }}
-                                                >
-                                                    <option value="maintainer">{t('mw.community.manageProject.roleMaintainer', 'Maintainer')}</option>
-                                                    <option value="contributor">{t('mw.community.manageProject.roleContributor', 'Contributor')}</option>
-                                                    <option value="tester">{t('mw.community.manageProject.roleTester', 'Tester')}</option>
-                                                </select>
-                                                <small>{t(ROLE_DESCRIPTION_KEYS[member.role], ROLE_DESCRIPTIONS[member.role])}</small>
-                                            </label>
-                                            <IconButton
-                                                variant="danger"
-                                                className={styles.removeTeam}
-                                                label={t('mw.community.manageProject.removeTeammate', 'Remove {name}', {name: member.username || t('mw.community.manageProject.teammate', 'teammate')})}
-                                                disabled={teamSaving}
-                                                onClick={() => setTeam(current => current.filter(
-                                                    (item, itemIndex) => itemIndex !== index
-                                                ))}
-                                            >
-                                                <Trash2 size={15} />
-                                            </IconButton>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <div className={styles.teamEmpty}><Users size={22} /><strong>{t('mw.community.manageProject.noTeammates', 'No teammates yet')}</strong><span>{t('mw.community.manageProject.noTeammatesHint', 'Add someone when you are ready to work together.')}</span></div>}
-                            <div className={styles.teamFooter}>
-                                <span>{teamStatus}</span>
-                                <Button
-                                    variant="primary"
-                                    className={styles.save}
-                                    busy={teamSaving}
-                                    busyLabel={t('mw.community.manageProject.saving', 'Saving…')}
-                                    onClick={saveTeam}
-                                >
-                                    <Check size={15} /> {t('mw.community.manageProject.saveTeam', 'Save team')}
-                                </Button>
-                            </div>
-                        </div>
-                    ) : null}
                 </div>
             </div>
         </main>
     );
 };
 
-export {SECTIONS, normalizeCollaborators};
 export default ManageProject;

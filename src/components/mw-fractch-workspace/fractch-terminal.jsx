@@ -5,7 +5,6 @@ import {FitAddon} from '@xterm/addon-fit';
 
 import '@xterm/xterm/css/xterm.css';
 import '@fontsource/jetbrains-mono/latin-400.css';
-import '@fontsource/jetbrains-mono/latin-700.css';
 import '!!style-loader!css-loader!./code-font.css';
 
 import {runBrowserCommand, setShellUser} from '../../lib/git/browser-terminal';
@@ -62,9 +61,6 @@ const FractchTerminal = ({className, onWorktreeChanged, style, themeId, vm}) => 
                 cursorBlink: true,
                 fontFamily: CODE_FONT,
                 fontSize: 12,
-                fontWeight: '400',
-                fontWeightBold: '700',
-                letterSpacing: 0,
                 lineHeight: 1,
                 theme: terminalTheme()
             });
@@ -176,10 +172,7 @@ const FractchTerminal = ({className, onWorktreeChanged, style, themeId, vm}) => 
             };
         };
 
-        Promise.all([
-            document.fonts.load(`400 12px ${TERMINAL_FONT_FAMILY}`),
-            document.fonts.load(`700 12px ${TERMINAL_FONT_FAMILY}`)
-        ]).then(start, start);
+        document.fonts.load(`12px ${TERMINAL_FONT_FAMILY}`).then(start, start);
 
         return () => {
             disposed = true;

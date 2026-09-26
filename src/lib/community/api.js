@@ -2,7 +2,6 @@ import JSZip from '@turbowarp/jszip';
 import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {clearContentCache} from './cached-fetch.js';
 import {isGalleryExtensionUrl} from '../trusted-extension.js';
-import {trackApiSuccess} from '../../community/analytics.js';
 
 const API_BASE = 'https://api.bilup.org/api';
 
@@ -207,7 +206,6 @@ const request = async (path, {method = 'GET', body, headers = {}, raw = false, c
         return response;
     }
     const data = await parseResponse(response);
-    trackApiSuccess(path, method);
     if (cacheable) {
         writeApiCache(path, data);
     }
@@ -224,52 +222,19 @@ const logout = async () => {
 
 const createProject = payload => request('/projects', {method: 'POST', body: payload});
 
-const UPLOAD_STALL_TIMEOUT = 120000;
-const UPLOAD_PROCESSING_TIMEOUT = 180000;
-
 const uploadXhr = (path, form, onUploadProgress) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let timeoutId = null;
-    let settled = false;
-    const finish = callback => value => {
-        if (settled) return;
-        settled = true;
-        if (timeoutId) clearTimeout(timeoutId);
-        callback(value);
-    };
-    const finishResolve = finish(resolve);
-    const finishReject = finish(reject);
-    const scheduleTimeout = (delay, processing) => {
-        if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            const error = new Error(processing ?
-                'The upload finished, but the server took too long to respond. It may still finish in the ' +
-                    'background; check My Stuff before retrying.' :
-                'The upload stopped making progress. Check your connection and try again.');
-            error.code = processing ? 'upload_processing_timeout' : 'upload_stalled';
-            finishReject(error);
-            xhr.abort();
-        }, delay);
-    };
     xhr.open('POST', `${API_BASE}${path}`);
     const session = loadSession();
     if (session) {
         xhr.setRequestHeader('Authorization', `Bearer ${session}`);
     }
     xhr.upload.onprogress = event => {
-        if (settled) return;
-        scheduleTimeout(
-            event.lengthComputable && event.loaded >= event.total ? UPLOAD_PROCESSING_TIMEOUT : UPLOAD_STALL_TIMEOUT,
-            event.lengthComputable && event.loaded >= event.total
-        );
         if (event.lengthComputable && typeof onUploadProgress === 'function') {
             onUploadProgress(event.loaded, event.total);
         }
     };
-    xhr.onerror = () => finishReject(new Error('Network error during upload'));
-    xhr.onabort = () => {
-        if (!settled) finishReject(new Error('Upload cancelled'));
-    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
     xhr.onload = () => {
         let data = {};
         try {
@@ -278,16 +243,15 @@ const uploadXhr = (path, form, onUploadProgress) => new Promise((resolve, reject
             data = {};
         }
         if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false && !data.error) {
-            finishResolve(data);
+            resolve(data);
             return;
         }
         const error = new Error(data.error || `Request failed (${xhr.status})`);
         error.status = xhr.status;
         error.code = data.code;
         error.data = data;
-        finishReject(error);
+        reject(error);
     };
-    scheduleTimeout(UPLOAD_STALL_TIMEOUT, false);
     xhr.send(form);
 });
 
@@ -318,8 +282,6 @@ const extensionSourceUrl = async (project, url) => {
     return `${sourceUrl}${query ? `?${query}` : ''}`;
 };
 
-const checkProjectAssets = (id, assets) => request(`/projects/${id}/assets/check`, {method: 'POST', body: {assets}});
-
 const collectExtensionSources = async sb3Blob => {
     const zip = await JSZip.loadAsync(sb3Blob);
     const projectFile = zip.file('project.json');
@@ -334,43 +296,10 @@ const collectExtensionSources = async sb3Blob => {
     return sources;
 };
 
-const PROJECT_ASSET_NAME = /^[0-9a-f]{32}\.[0-9a-zA-Z]{1,5}$/;
-const SPARSE_COMPRESSABLE = ['.json', '.svg', '.wav', '.ttf', '.otf'];
-
-const prepareSparseProjectUpload = async (id, sb3Blob) => {
-    const source = await JSZip.loadAsync(sb3Blob);
-    const projectFile = source.file('project.json');
-    if (!projectFile) throw new Error('Project has no project.json');
-    const assetNames = Object.keys(source.files).filter(name => PROJECT_ASSET_NAME.test(name));
-    const {missing} = await checkProjectAssets(id, assetNames);
-    const missingSet = new Set(missing);
-    const sparse = new JSZip();
-    const addFile = async (name, file) => {
-        sparse.file(name, await file.async('uint8array'), {
-            compression: SPARSE_COMPRESSABLE.some(ext => name.endsWith(ext)) ? 'DEFLATE' : 'STORE'
-        });
-    };
-    await addFile('project.json', projectFile);
-    await Promise.all(assetNames.filter(name => missingSet.has(name)).map(name => addFile(name, source.file(name))));
-    return sparse.generateAsync({type: 'blob', mimeType: 'application/x.scratch.sb3'});
-};
-
-const uploadProject = async (id, sb3Blob, thumbnailBlob, onUploadProgress, {
-    workspace,
-    git,
-    expectedHead,
-    pullId,
-    extensions
-} = {}) => {
+const uploadProject = async (id, sb3Blob, thumbnailBlob, onUploadProgress) => {
     const form = new FormData();
     form.append('project', sb3Blob, 'project.sb3');
-    form.append('extensions', JSON.stringify(
-        typeof extensions === 'undefined' ? await collectExtensionSources(sb3Blob) : extensions
-    ));
-    if (workspace) form.append('workspace', workspace, 'project.mwp');
-    if (git) form.append('git', JSON.stringify(git));
-    if (expectedHead) form.append('expectedHead', expectedHead);
-    if (pullId) form.append('pullId', String(pullId));
+    form.append('extensions', JSON.stringify(await collectExtensionSources(sb3Blob)));
     if (thumbnailBlob) {
         form.append('thumbnail', thumbnailBlob, 'thumb.png');
     }
@@ -390,31 +319,17 @@ const uploadProject = async (id, sb3Blob, thumbnailBlob, onUploadProgress, {
     }
 };
 
-const fetchWorkspace = async url => {
-    const path = String(url)
-        .replace(/^https?:\/\/[^/]+\/api/, '')
-        .replace(/^\/api/, '');
-    const response = await request(path, {raw: true, cache: false});
-    if (!response.ok) throw new Error(`Could not load MistWarp history (${response.status})`);
-    return response.blob();
-};
-
-const bootstrapProjectHistory = (id, {workspace, git}) => {
-    const form = new FormData();
-    form.append('workspace', workspace, 'project.mwp');
-    form.append('git', JSON.stringify(git));
-    return uploadXhr(`/projects/${id}/history/bootstrap`, form);
-};
-
 const publishProject = id => request(`/projects/${id}/publish`, {method: 'POST'});
 
 const updateProject = (id, patch) => request(`/projects/${id}`, {method: 'PUT', body: patch});
+
+const checkProjectAssets = (id, assets) => request(`/projects/${id}/assets/check`, {method: 'POST', body: {assets}});
 
 const getProject = id => request(`/projects/${id}`);
 
 const getEditorProject = id => request(`/projects/${id}/editor`, {cache: false});
 
-const remixProject = (id, setup) => request(`/projects/${id}/remix`, {method: 'POST', body: setup});
+const remixProject = id => request(`/projects/${id}/remix`, {method: 'POST'});
 
 const deleteProject = id => request(`/projects/${id}`, {method: 'DELETE'});
 
@@ -444,7 +359,6 @@ const takeProjectHandoff = id => {
 };
 
 export {
-    uploadXhr,
     loadSession,
     stashProjectHandoff,
     takeProjectHandoff,
@@ -465,10 +379,6 @@ export {
     deleteProject,
     request,
     getCustomExtensionUrls,
-    collectExtensionSources,
-    prepareSparseProjectUpload,
     hashExtensionUrl,
-    extensionSourceUrl,
-    fetchWorkspace,
-    bootstrapProjectHistory
+    extensionSourceUrl
 };

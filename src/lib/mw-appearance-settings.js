@@ -1,8 +1,20 @@
 import {getItem as getStorageItem} from './utils/safe-storage.js';
+
+const storageKey = id => `mw:${id}`;
+
+const safeGetItem = key => {
+    try {
+        return getStorageItem(key);
+    } catch (err) {
+        return null;
+    }
+};
+
+// Static CSS presets for the simple toggles (square corners, hidden buttons, etc.).
 const APPEARANCE_SETTINGS = [
     {
         id: 'square-stage-corners',
-        css: '[class*="stage_stage"],[class*="stage_green-flag-overlay-wrapper"]{border-radius:0 !important;}'
+        css: '[class*="stage_section"],[class*="stage_green-flag-overlay-wrapper"]{border-radius:0 !important;}'
     },
     {
         id: 'hide-delete-button',
@@ -16,7 +28,7 @@ const APPEARANCE_SETTINGS = [
     },
     {
         id: 'hide-backpack',
-        css: '[class^="backpack_backpack-container"]{display:none;}'
+        css: '[class^="uppack_backpack-container"]{display:none;}'
     },
     {
         id: 'unclip-palette',
@@ -25,30 +37,10 @@ const APPEARANCE_SETTINGS = [
             ' > svg.blocklyFlyout:not(.sa-flyoutClose){overflow:visible;}' +
             '.injectionDiv:has(> .blocklyToolboxDiv:hover, > svg.blocklyFlyout:not(.sa-flyoutClose):hover)' +
             ' #blocklyBlockMenuClipRect{width:100000px;}'
-    },
-    {
-        id: 'frosted-glass',
-        css: '.blocklyToolboxDiv{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;}' +
-            '.blocklyFlyout{background:rgba(249,249,249,0.35)!important;' +
-            'backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;}' +
-            '[class*="stage-wrapper_stage-wrapper_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.25)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}' +
-            '[class*="gui_body-wrapper_"]{background:transparent!important;}' +
-            '[class*="asset-panel_wrapper_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}' +
-            '[class*="sprite-selector_scroll-wrapper_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}' +
-            '[class*="stage-header_stage-header-wrapper-overlay_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}' +
-            '[class*="gui_tab-list_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}' +
-            '[class*="selector_wrapper_"]{background:rgba(var(--ui-primary-rgb,229,240,255),0.45)!important;' +
-            'backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}'
     }
 ];
 
-const storageKey = id => `mw:${id}`;
+const elementId = id => `mw-appearance-${id}`;
 
 const defaultValue = id => {
     const setting = APPEARANCE_SETTINGS.find(s => s.id === id);
@@ -56,15 +48,9 @@ const defaultValue = id => {
 };
 
 const getAppearanceSetting = id => {
-    try {
-        const stored = getStorageItem(storageKey(id));
-        return stored === null ? defaultValue(id) : stored === 'true';
-    } catch (err) {
-        return defaultValue(id);
-    }
+    const stored = safeGetItem(storageKey(id));
+    return stored === null ? defaultValue(id) : stored === 'true';
 };
-
-const elementId = id => `mw-appearance-${id}`;
 
 const applyAppearanceSetting = (id, enabled) => {
     const setting = APPEARANCE_SETTINGS.find(s => s.id === id);
@@ -90,6 +76,7 @@ const setAppearanceSetting = (id, enabled) => {
     applyAppearanceSetting(id, enabled);
 };
 
+// Apply all appearance settings on initial load.
 const initAppearanceSettings = () => {
     for (const setting of APPEARANCE_SETTINGS) {
         applyAppearanceSetting(setting.id, getAppearanceSetting(setting.id));

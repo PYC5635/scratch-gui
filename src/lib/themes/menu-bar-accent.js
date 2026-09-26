@@ -7,7 +7,7 @@ const MENU_BAR_TEXT_OPTIONS = ['auto', 'light', 'dark'];
 const MENU_BAR_TEXT_DEFAULT = 'auto';
 
 const MENU_BAR_TEXT_LIGHT = '#ffffff';
-const MENU_BAR_TEXT_DARK = '#2e2e2e';
+const MENU_BAR_TEXT_DARK = '#000000';
 
 const notifyCloudSync = () => {
     try {

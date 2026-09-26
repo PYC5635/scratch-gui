@@ -8,6 +8,7 @@ import Modal from '../../containers/windowed-modal.jsx';
 import FancyCheckbox from '../tw-fancy-checkbox/checkbox.jsx';
 import Input from '../forms/input.jsx';
 import BufferedInputHOC from '../forms/buffered-input-hoc.jsx';
+import DocumentationLink from '../tw-documentation-link/documentation-link.jsx';
 import {
     ModalSidebar,
     ModalSidebarContent,
@@ -17,6 +18,7 @@ import {
     ModalSidebarLayout
 } from '../modal-sidebar/modal-sidebar.jsx';
 import styles from './settings-modal.css';
+import helpIcon from './help-icon.svg';
 import {APP_NAME} from '../../lib/constants/brand.js';
 import {STYLE_GROUPS} from '../../lib/mw-style-settings';
 import StylePreview from './style-preview.jsx';
@@ -24,13 +26,14 @@ import MenuBarLayoutSetting from './menu-bar-layout.jsx';
 import MenuBarFeatureSettings from './menu-bar-settings.jsx';
 import {LanguagePage, ThemePage, WallpaperPage, FontsPage} from './appearance-pages.jsx';
 import LoadingScreenPage from './loading-screen-page.jsx';
+import FrostedGlassPage from './frosted-glass-page.jsx';
 import ShortcutManager from '../shortcut-manager/shortcut-manager.jsx';
 import {takeSettingsModalInitialView} from '../../lib/settings/modal-view.js';
 import isScratchDesktop from '../../lib/utils/isScratchDesktop.js';
 
 import {Settings, Zap, Blocks, Palette, PanelTop, Bug, GitBranch, Variable, Radio,
     Globe, SunMoon, Wallpaper, Type, Monitor, Keyboard, ChevronLeft,
-    Hourglass} from 'lucide-react';
+    Hourglass, Droplets} from 'lucide-react';
 import {connect} from 'react-redux';
 
 import {DEFINITIONS as DEBUGGER_SETTINGS, getSetting as getDebuggerSetting,
@@ -39,7 +42,7 @@ import {DEFINITIONS as VARIABLE_MANAGER_SETTINGS, getSetting as getVariableManag
     setSetting as setVariableManagerSetting} from '../../lib/variable-manager/settings.js';
 import {
     getAuthorName, getAuthorEmail, setAuthorName, setAuthorEmail,
-    getDefaultBranch, setDefaultBranch, getAutoCommit, setAutoCommit
+    getDefaultBranch, setDefaultBranch
 } from '../../lib/git/config.js';
 import {
     getRoturSettings,
@@ -48,7 +51,6 @@ import {
     formatActivityStatus
 } from '../../lib/rotur/settings.js';
 import {readActivityGrants, writeActivityGrants} from '../../lib/rotur/extension-bridge.js';
-import {BooleanSetting, LearnMore, Setting} from './setting.jsx';
 
 const BufferedInput = BufferedInputHOC(Input);
 
@@ -58,7 +60,7 @@ const messages = defineMessages({
         description: 'Title of settings modal',
         id: 'tw.settingsModal.title'
     },
-help: {
+    help: {
         defaultMessage: 'Click for help',
         description: 'Hover text of help icon in settings',
         id: 'tw.settingsModal.help'
@@ -190,6 +192,18 @@ help: {
     }
 });
 
+const LearnMore = props => (
+    <React.Fragment>
+        {' '}
+        <DocumentationLink {...props}>
+            <FormattedMessage
+                defaultMessage="Learn more."
+                id="gui.alerts.cloudInfoLearnMore"
+            />
+        </DocumentationLink>
+    </React.Fragment>
+);
+
 const Header = ({children}) => (
     <div className={styles.header}>
         {children}
@@ -198,6 +212,98 @@ const Header = ({children}) => (
 );
 Header.propTypes = {
     children: PropTypes.node
+};
+
+class UnwrappedSetting extends React.Component {
+    constructor (props) {
+        super(props);
+        bindAll(this, [
+            'handleClickHelp'
+        ]);
+        this.state = {
+            helpVisible: false
+        };
+    }
+    componentDidUpdate (prevProps) {
+        if (this.props.active && !prevProps.active) {
+            // eslint-disable-next-line react/no-did-update-set-state
+            this.setState({
+                helpVisible: true
+            });
+        }
+    }
+    handleClickHelp () {
+        this.setState(prevState => ({
+            helpVisible: !prevState.helpVisible
+        }));
+    }
+    render () {
+        const {active, primary, secondary, help, slug, intl} = this.props;
+        const {helpVisible} = this.state;
+
+        return (
+            <div
+                className={classNames(styles.setting, {
+                    [styles.active]: this.props.active
+                })}
+            >
+                <div className={styles.label}>
+                    {primary}
+                    <button
+                        className={styles.helpIcon}
+                        onClick={this.handleClickHelp}
+                        title={intl.formatMessage(messages.help)}
+                    >
+                        <img
+                            src={helpIcon}
+                            draggable={false}
+                        />
+                    </button>
+                </div>
+                {helpVisible && (
+                    <div className={styles.detail}>
+                        {help}
+                        {slug && <LearnMore slug={slug} />}
+                    </div>
+                )}
+                {secondary}
+            </div>
+        );
+    }
+}
+
+UnwrappedSetting.propTypes = {
+    intl: intlShape,
+    active: PropTypes.bool,
+    help: PropTypes.node,
+    primary: PropTypes.node,
+    secondary: PropTypes.node,
+    slug: PropTypes.string
+};
+
+const Setting = injectIntl(UnwrappedSetting);
+
+const BooleanSetting = ({value, onChange, label, ...props}) => (
+    <Setting
+        {...props}
+        active={value}
+        primary={
+            <label className={styles.label}>
+                <FancyCheckbox
+                    className={styles.checkbox}
+                    checked={value}
+                    onChange={onChange}
+                />
+                {label}
+            </label>
+        }
+    />
+);
+
+BooleanSetting.propTypes = {
+    onChange: PropTypes.func.isRequired,
+    value: PropTypes.bool.isRequired,
+    label: PropTypes.node.isRequired
 };
 
 const settingDefinitions = {
@@ -347,16 +453,18 @@ const settingDefinitions = {
             id: 'mw.settingsModal.windowAnimationHelp'
         }
     },
-    frostedGlass: {
+    scriptLazyLoading: {
         label: {
-            defaultMessage: 'Frosted Glass Theme',
-            description: 'Frosted Glass Theme setting',
-            id: 'mw.settingsModal.frostedGlass'
+            defaultMessage: 'Block Lazy Loading',
+            description: 'Only render blocks near the visible area of the editor',
+            id: 'mw.settingsModal.scriptLazyLoading'
         },
         help: {
-            defaultMessage: 'Applies a frosted glass blur effect to the editor UI, blocks palette, and stage area. Only affects the editor.',
-            description: 'Frosted Glass Theme setting help',
-            id: 'mw.settingsModal.frostedGlassHelp'
+            defaultMessage: 'Only renders blocks on screen and in the area around it ' +
+                '(the ring outside the screen is three times its area). Blocks beyond that ' +
+                'stop being rendered to save performance, and render again when you scroll back.',
+            description: 'Block Lazy Loading setting help',
+            id: 'mw.settingsModal.scriptLazyLoadingHelp'
         }
     },
     squareStageCorners: {
@@ -522,7 +630,7 @@ const CaseSensitiveLists = createBooleanSetting('CaseSensitiveLists', settingDef
 const RealLayerIndexes = createBooleanSetting('RealLayerIndexes', settingDefinitions.realLayerIndexes);
 const EnableStageResize = createBooleanSetting('EnableStageResize', settingDefinitions.enableStageResize);
 const WindowAnimation = createBooleanSetting('WindowAnimation', settingDefinitions.windowAnimation);
-const FrostedGlass = createBooleanSetting('FrostedGlass', settingDefinitions.frostedGlass);
+const ScriptLazyLoading = createBooleanSetting('ScriptLazyLoading', settingDefinitions.scriptLazyLoading);
 const SquareStageCorners = createBooleanSetting('SquareStageCorners', settingDefinitions.squareStageCorners);
 const HideDeleteButton = createBooleanSetting('HideDeleteButton', settingDefinitions.hideDeleteButton);
 const HideExtensionButton = createBooleanSetting('HideExtensionButton', settingDefinitions.hideExtensionButton);
@@ -560,7 +668,6 @@ DisableCompiler.propTypes = {
     value: PropTypes.bool,
     onChange: PropTypes.func.isRequired
 };
-
 const STYLE_OPTIONS = {
     'tab-style': [
         {value: 'mistwarp', labelId: 'mw.settingsModal.tabStyle.mistwarp', label: 'MistWarp'},
@@ -697,40 +804,36 @@ const WindowStyleSelect = props => {
 WindowStyleSelect.propTypes = {value: PropTypes.string, onChange: PropTypes.func, intl: intlShape};
 
 const CustomFPS = ({framerate, onChange, onCustomizeFramerate}) => (
-    <Setting
-        active={framerate !== 30}
-        primary={
-            <div className={styles.label}>
-                <label className={styles.label}>
-                    <FancyCheckbox
-                        className={styles.checkbox}
-                        checked={framerate !== 30}
-                        onChange={onChange}
-                    />
-                    <FormattedMessage
-                        defaultMessage="60 FPS"
-                        description="FPS setting"
-                        id="tw.settingsModal.fps"
-                    />
-                </label>
-                <BufferedInput
-                    className={styles.numberInput}
-                    type="number"
-                    value={framerate}
-                    min="0.1"
-                    step="0.1"
-                    aria-label="Custom framerate"
-                    onSubmit={onCustomizeFramerate}
-                />
-                <span>{'FPS'}</span>
-            </div>
+    <BooleanSetting
+        value={framerate !== 30}
+        onChange={onChange}
+        label={
+            <FormattedMessage
+                defaultMessage="60 FPS (Custom FPS)"
+                description="FPS setting"
+                id="tw.settingsModal.fps"
+            />
         }
         help={
             <FormattedMessage
                 // eslint-disable-next-line max-len
-                defaultMessage="Runs scripts at the selected framerate. Many projects expect 30 FPS and may run too quickly at higher values. Try Interpolation first if you only want smoother motion."
+                defaultMessage="Runs scripts 60 times per second instead of 30. Most projects will not work properly with this enabled. You should try Interpolation with 60 FPS mode disabled if that is the case. {customFramerate}."
                 description="FPS setting help"
                 id="tw.settingsModal.fpsHelp"
+                values={{
+                    customFramerate: (
+                        <a
+                            onClick={onCustomizeFramerate}
+                            tabIndex="0"
+                        >
+                            <FormattedMessage
+                                defaultMessage="Click to use a framerate other than 30 or 60"
+                                description="FPS settings help"
+                                id="tw.settingsModal.fpsHelp.customFramerate"
+                            />
+                        </a>
+                    )
+                }}
             />
         }
         slug="custom-fps"
@@ -857,7 +960,6 @@ const StoreProjectOptions = ({
     <div className={styles.setting}>
         <div>
             <button
-                type="button"
                 onClick={onStoreProjectOptions}
                 className={styles.button}
             >
@@ -1172,9 +1274,8 @@ const pageConfigurations = {
         ]
     },
     experimental: {
-        sections: [
+        groups: [
             {
-                headerMessage: 'headerExperimental',
                 settings: [
                     {
                         component: RealLayerIndexes,
@@ -1189,7 +1290,11 @@ const pageConfigurations = {
                             value: props.caseSensitiveLists,
                             onChange: props.onCaseSensitiveListsChange
                         })
-                    },
+                    }
+                ]
+            },
+            {
+                settings: [
                     {
                         component: EnableStageResize,
                         props: props => ({
@@ -1203,12 +1308,16 @@ const pageConfigurations = {
                             value: props.windowAnimation,
                             onChange: props.onWindowAnimationChange
                         })
-                    },
+                    }
+                ]
+            },
+            {
+                settings: [
                     {
-                        component: FrostedGlass,
+                        component: ScriptLazyLoading,
                         props: props => ({
-                            value: props.frostedGlass,
-                            onChange: props.onFrostedGlassChange
+                            value: props.scriptLazyLoading,
+                            onChange: props.onScriptLazyLoadingChange
                         })
                     }
                 ]
@@ -1247,14 +1356,46 @@ UnwrappedPageRenderer.propTypes = {
     config: PropTypes.object.isRequired,
     intl: intlShape.isRequired
 };
-
 const PageRenderer = injectIntl(UnwrappedPageRenderer);
+
+const UnwrappedExperimentalRenderer = ({config, intl, ...props}) => (
+    <Box className={styles.body}>
+        <Header>{intl.formatMessage(messages.headerExperimental)}</Header>
+        {config.groups.map((group, groupIdx) => (
+            <div
+                key={groupIdx}
+                className={styles.experimentalGroup}
+            >
+                {group.settings.map((setting, settingIdx) => {
+                    if (setting.condition && !setting.condition(props)) {
+                        return null;
+                    }
+                    const SettingComponent = setting.component;
+                    const settingProps = setting.props(props);
+                    return (
+                        <SettingComponent
+                            key={settingIdx}
+                            {...settingProps}
+                            intl={intl}
+                        />
+                    );
+                })}
+            </div>
+        ))}
+    </Box>
+);
+
+UnwrappedExperimentalRenderer.propTypes = {
+    config: PropTypes.object.isRequired,
+    intl: intlShape.isRequired
+};
+const ExperimentalRenderer = injectIntl(UnwrappedExperimentalRenderer);
 
 const GeneralPage = props => (<PageRenderer
     config={pageConfigurations.general}
     {...props}
 />);
-const ExperimentalPage = props => (<PageRenderer
+const ExperimentalPage = props => (<ExperimentalRenderer
     config={pageConfigurations.experimental}
     {...props}
 />);
@@ -1321,14 +1462,12 @@ class UnwrappedVersionControlPage extends React.Component {
         bindAll(this, [
             'handleNameChange',
             'handleEmailChange',
-            'handleBranchChange',
-            'handleAutoCommitChange'
+            'handleBranchChange'
         ]);
         this.state = {
             authorName: getAuthorName(),
             authorEmail: getAuthorEmail(),
-            defaultBranch: getDefaultBranch(),
-            autoCommit: getAutoCommit()
+            defaultBranch: getDefaultBranch()
         };
     }
     handleNameChange (value) {
@@ -1342,11 +1481,6 @@ class UnwrappedVersionControlPage extends React.Component {
     handleBranchChange (value) {
         setDefaultBranch(value);
         this.setState({defaultBranch: getDefaultBranch()});
-    }
-    handleAutoCommitChange (e) {
-        const value = e.target.checked;
-        setAutoCommit(value);
-        this.setState({autoCommit: value});
     }
     render () {
         const {intl} = this.props;
@@ -1395,19 +1529,6 @@ class UnwrappedVersionControlPage extends React.Component {
                     value={this.state.defaultBranch}
                     onSubmit={this.handleBranchChange}
                     placeholder={intl.formatMessage(messages.defaultBranchPlaceholder)}
-                />
-                <BooleanSetting
-                    value={this.state.autoCommit}
-                    onChange={this.handleAutoCommitChange}
-                    label={<FormattedMessage
-                        defaultMessage="Commit automatically when the project is saved"
-                        id="mw.settings.vc.autoCommit"
-                    />}
-                    help={<FormattedMessage
-                        // eslint-disable-next-line max-len
-                        defaultMessage="Creates a commit each time you save the project so your history stays up to date without manual commits."
-                        id="mw.settings.vc.autoCommitHelp"
-                    />}
                 />
             </Box>
         );
@@ -1629,7 +1750,6 @@ class UnwrappedRoturPage extends React.Component {
                     </p>
                     {activityGrantCount > 0 ? (
                         <button
-                            type="button"
                             className={styles.button}
                             onClick={this.handleResetActivityGrants}
                         >
@@ -1930,7 +2050,6 @@ class DesktopPage extends React.Component {
                     />}
                 />
                 <button
-                    type="button"
                     className={styles.button}
                     onClick={() => window.EditorPreload.openUserData()}
                 >
@@ -1958,6 +2077,8 @@ const SettingsRouter = ({view, ...handlers}) => {
         return <WallpaperPage />;
     case 'fonts':
         return <FontsPage />;
+    case 'frostedGlass':
+        return <FrostedGlassPage />;
     case 'loadingScreen':
         return <LoadingScreenPage />;
     case 'debugger':
@@ -2073,6 +2194,11 @@ class SettingsModalComponent extends React.Component {
                         id: 'fonts',
                         label: intl.formatMessage({id: 'tw.menuBar.fonts', defaultMessage: 'Fonts'}),
                         icon: Type
+                    },
+                    {
+                        id: 'frostedGlass',
+                        label: intl.formatMessage({id: 'bl.frostedGlass.pageTitle', defaultMessage: 'Frosted Glass'}),
+                        icon: Droplets
                     },
                     {
                         id: 'editor',
@@ -2197,15 +2323,14 @@ class SettingsModalComponent extends React.Component {
                     </ModalSidebar>
                     <ModalSidebarContent className={styles.contentArea}>
                         <button
-                            type="button"
                             className={styles.mobileBackButton}
                             onClick={this.handleMobileBack}
                         >
                             <ChevronLeft size={18} />
                             <FormattedMessage
-                                defaultMessage="Settings"
+                                defaultMessage="Back"
                                 description="Back button in the settings window on mobile"
-                                id="tw.settingsModal.back"
+                                id="mw.settingsModal.back"
                             />
                         </button>
                         <SettingsRouter
@@ -2283,8 +2408,8 @@ SettingsModalComponent.propTypes = {
     onCloudVariableServerChange: PropTypes.func,
     windowAnimation: PropTypes.bool,
     onWindowAnimationChange: PropTypes.func,
-    frostedGlass: PropTypes.bool,
-    onFrostedGlassChange: PropTypes.func
+    scriptLazyLoading: PropTypes.bool,
+    onScriptLazyLoadingChange: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);

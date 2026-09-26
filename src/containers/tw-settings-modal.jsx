@@ -1,23 +1,60 @@
 import PropTypes from 'prop-types';
 import {getItem as getStorageItem} from '../lib/utils/safe-storage.js';
 import React from 'react';
+import {defineMessages, injectIntl, intlShape} from 'react-intl';
 import bindAll from 'lodash.bindall';
 import {connect} from 'react-redux';
 import {closeSettingsModal} from '../reducers/modals';
 import {setCloudHost} from '../reducers/tw';
 import {setTheme} from '../reducers/theme';
 import SettingsModalComponent from '../components/tw-settings-modal/settings-modal.jsx';
-import {defaultStageSize} from '../reducers/custom-stage-size';
+import {defaultStageSize, setCustomStageSize} from '../reducers/custom-stage-size';
 import {CustomTheme} from '../lib/themes/custom-themes.js';
 import {setSearchParams} from '../lib/utils/navigation';
-import {getAppearanceSetting, setAppearanceSetting} from '../lib/mw-appearance-settings';
+import {getAppearanceSetting, setAppearanceSetting}
+    from '../lib/mw-appearance-settings';
 import {getStyleSetting, getStyleSettings, setStyleSetting} from '../lib/mw-style-settings';
 import {applyTheme} from '../lib/themes/themePersistance';
 import {getHideOperatorArrows, setHideOperatorArrows} from '../lib/mw-operator-arrows';
 import {getVanillaPalette, setVanillaPalette} from '../lib/mw-vanilla-palette';
+import LazyScratchBlocks from '../lib/tw-lazy-scratch-blocks';
+import AddonHooks from '../addons/hooks.js';
 import WindowManager from '../addons/window-system/window-manager';
-import {normalizeCustomFramerate} from '../lib/utils/framerate';
 
+const messages = defineMessages({
+    newFramerate: {
+        defaultMessage: 'New framerate:',
+        description: 'Prompt shown to choose a new framerate',
+        id: 'tw.menuBar.newFramerate'
+    }
+});
+
+// Minimum/maximum allowed custom stage dimensions. Keep in sync with the
+// bounds enforced by src/reducers/custom-stage-size.js.
+const STAGE_DIM_MIN = 1;
+const STAGE_DIM_MAX = 4096;
+
+/**
+ * Coerce a user-entered stage dimension pair into a valid {width, height}
+ * object, clamping to [STAGE_DIM_MIN, STAGE_DIM_MAX] and dropping NaN.
+ * Returns null if either value is not a finite number after coercion —
+ * callers should bail out without touching Redux / vm in that case so that
+ * a stray keystroke cannot corrupt `customStageSize` state.
+ *
+ * @param {number|string} rawWidth
+ * @param {number|string} rawHeight
+ * @returns {{width: number, height: number}|null}
+ */
+const sanitizeStageDimension = (rawWidth, rawHeight) => {
+    const width = Number(rawWidth);
+    const height = Number(rawHeight);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+        return null;
+    }
+    const clampedWidth = Math.max(STAGE_DIM_MIN, Math.min(STAGE_DIM_MAX, Math.round(width)));
+    const clampedHeight = Math.max(STAGE_DIM_MIN, Math.min(STAGE_DIM_MAX, Math.round(height)));
+    return {width: clampedWidth, height: clampedHeight};
+};
 
 class UsernameModal extends React.Component {
     constructor (props) {
@@ -41,6 +78,7 @@ class UsernameModal extends React.Component {
             storeThemeInProject: safeGetItem('mw:store-theme-in-project') === 'true',
             enableStageResize: safeGetItem('mw:enable-stage-resize') !== 'false',
             windowAnimation: safeGetItem('mw:window-animation') !== 'false',
+            scriptLazyLoading: LazyScratchBlocks.isScriptLazyLoadingEnabled(),
             hideOperatorArrows: getHideOperatorArrows(),
             vanillaPalette: getVanillaPalette(),
             squareStageCorners: getAppearanceSetting('square-stage-corners'),
@@ -48,7 +86,6 @@ class UsernameModal extends React.Component {
             hideExtensionButton: getAppearanceSetting('hide-extension-button'),
             unclipPalette: getAppearanceSetting('unclip-palette'),
             hideBackpack: getAppearanceSetting('hide-backpack'),
-            frostedGlass: getAppearanceSetting('frosted-glass')
         };
 
         bindAll(this, [
@@ -75,6 +112,7 @@ class UsernameModal extends React.Component {
             'handleEnableStageResizeChange',
             'handleCloudVariableServerChange',
             'handleWindowAnimationChange',
+            'handleScriptLazyLoadingChange',
             'handleHideOperatorArrowsChange',
             'handleVanillaPaletteChange',
             'handleSquareStageCornersChange',
@@ -82,7 +120,7 @@ class UsernameModal extends React.Component {
             'handleHideExtensionButtonChange',
             'handleUnclipPaletteChange',
             'handleHideBackpackChange',
-            'handleFrostedGlassChange',
+            
             'handleTabStyleChange',
             'handleTabLooksChange',
             'handleWindowStyleChange'
@@ -92,9 +130,12 @@ class UsernameModal extends React.Component {
     handleFramerateChange (e) {
         this.props.vm.setFramerate(e.target.checked ? 60 : 30);
     }
-    handleCustomizeFramerate (value) {
-        const parsed = normalizeCustomFramerate(value);
-        if (parsed !== null) {
+    async handleCustomizeFramerate () {
+        // prompt() returns Promise in desktop app
+        // eslint-disable-next-line no-alert
+        const newFramerate = await prompt(this.props.intl.formatMessage(messages.newFramerate), this.props.framerate);
+        const parsed = parseFloat(newFramerate);
+        if (isFinite(parsed) && parsed > 0 && parsed <= 500) {
             this.props.vm.setFramerate(parsed);
         }
     }
@@ -146,11 +187,20 @@ class UsernameModal extends React.Component {
         });
     }
     handleStageWidthChange (value) {
-        this.props.vm.setStageSize(value, this.props.customStageSize.height);
+        const sanitized = sanitizeStageDimension(value, this.props.customStageSize.height);
+        if (!sanitized) return;
+        // Keep vm and Redux in sync so Stage re-renders, the renderer projection
+        // updates, the URL `?size=` param updates, and a page refresh preserves
+        // the new size (see src/reducers/custom-stage-size.js for the reducer).
+        this.props.vm.setStageSize(sanitized.width, sanitized.height);
+        this.props.onSetCustomStageSize(sanitized.width, sanitized.height);
         this.storeStageSizeInProject();
     }
     handleStageHeightChange (value) {
-        this.props.vm.setStageSize(this.props.customStageSize.width, value);
+        const sanitized = sanitizeStageDimension(this.props.customStageSize.width, value);
+        if (!sanitized) return;
+        this.props.vm.setStageSize(sanitized.width, sanitized.height);
+        this.props.onSetCustomStageSize(sanitized.width, sanitized.height);
         this.storeStageSizeInProject();
     }
     storeStageSizeInProject () {
@@ -273,6 +323,19 @@ handleWindowAnimationChange (e) {
         WindowManager.setAnimationsEnabled(enabled);
     }
 
+    handleScriptLazyLoadingChange (e) {
+        const enabled = e.target.checked;
+        this.setState({scriptLazyLoading: enabled});
+        LazyScratchBlocks.setScriptLazyLoading(enabled);
+        if (!enabled) {
+            // Bring back anything that was unloaded while the setting was on.
+            const workspace = AddonHooks.blocklyWorkspace;
+            if (workspace && typeof workspace.materializeAllScripts === 'function') {
+                workspace.materializeAllScripts();
+            }
+        }
+    }
+
     handleHideOperatorArrowsChange (e) {
         this.setState({hideOperatorArrows: e.target.checked});
         setHideOperatorArrows(e.target.checked);
@@ -302,10 +365,6 @@ handleWindowAnimationChange (e) {
 
     handleHideBackpackChange (e) {
         this.setAppearance_('hideBackpack', 'hide-backpack', e.target.checked);
-    }
-
-    handleFrostedGlassChange (e) {
-        this.setAppearance_('frostedGlass', 'frosted-glass', e.target.checked);
     }
 
     handleUnclipPaletteChange (e) {
@@ -352,6 +411,7 @@ handleWindowAnimationChange (e) {
                 onStageWidthChange={this.handleStageWidthChange}
                 onStageHeightChange={this.handleStageHeightChange}
                 onDisableCompilerChange={this.handleDisableCompilerChange}
+                disableCompiler={this.props.disableCompiler}
                 onCaseSensitiveListsChange={this.handleCaseSensitiveListsChange}
                 onRealLayerIndexesChange={this.handleRealLayerIndexesChange}
                 stageWidth={this.props.customStageSize.width}
@@ -369,6 +429,8 @@ handleWindowAnimationChange (e) {
                 onEnableStageResizeChange={this.handleEnableStageResizeChange}
                 onCloudVariableServerChange={this.handleCloudVariableServerChange}
                 onWindowAnimationChange={this.handleWindowAnimationChange}
+                scriptLazyLoading={this.state.scriptLazyLoading}
+                onScriptLazyLoadingChange={this.handleScriptLazyLoadingChange}
                 onHideOperatorArrowsChange={this.handleHideOperatorArrowsChange}
                 hideOperatorArrows={this.state.hideOperatorArrows}
                 onVanillaPaletteChange={this.handleVanillaPaletteChange}
@@ -396,8 +458,6 @@ handleWindowAnimationChange (e) {
                 storeThemeInProject={this.state.storeThemeInProject}
                 enableStageResize={this.state.enableStageResize}
                 windowAnimation={this.state.windowAnimation}
-                frostedGlass={this.state.frostedGlass}
-                onFrostedGlassChange={this.handleFrostedGlassChange}
                 theme={this.props.theme}
                 {...props}
             />
@@ -406,6 +466,7 @@ handleWindowAnimationChange (e) {
 }
 
 UsernameModal.propTypes = {
+    intl: intlShape,
     onClose: PropTypes.func,
     vm: PropTypes.shape({
         renderer: PropTypes.shape({
@@ -432,6 +493,7 @@ UsernameModal.propTypes = {
         width: PropTypes.number,
         height: PropTypes.number
     }),
+    onSetCustomStageSize: PropTypes.func,
     disableCompiler: PropTypes.bool,
     caseSensitiveLists: PropTypes.bool,
     realLayerIndexes: PropTypes.bool,
@@ -449,6 +511,7 @@ const mapStateToProps = state => ({
     removeFencing: !state.scratchGui.tw.runtimeOptions.fencing,
     removeLimits: !state.scratchGui.tw.runtimeOptions.miscLimits,
     warpTimer: state.scratchGui.tw.compilerOptions.warpTimer,
+    disableCompiler: !state.scratchGui.tw.compilerOptions.enabled,
     customStageSize: state.scratchGui.customStageSize,
     // Handle possible undefined value for caseSensitiveLists
     caseSensitiveLists: !!state.scratchGui.tw.runtimeOptions.caseSensitiveLists,
@@ -460,13 +523,14 @@ const mapStateToProps = state => ({
 const mapDispatchToProps = dispatch => ({
     onClose: () => dispatch(closeSettingsModal()),
     onSetCloudHost: cloudHost => dispatch(setCloudHost(cloudHost)),
+    onSetCustomStageSize: (width, height) => dispatch(setCustomStageSize(width, height)),
     onChangeTheme: theme => {
         dispatch(setTheme(theme));
         applyTheme(theme);
     }
 });
 
-export default connect(
+export default injectIntl(connect(
     mapStateToProps,
     mapDispatchToProps
-)(UsernameModal);
+)(UsernameModal));

@@ -8,7 +8,7 @@ import styles from './featured-projects.css';
 import {setProjectId} from '../../lib/utils/navigation.js';
 import classNames from 'classnames';
 
-export class FeaturedProjects extends React.Component {
+class FeaturedProjects extends React.Component {
     constructor (props) {
         super(props);
         bindAll(this, [
@@ -56,8 +56,7 @@ export class FeaturedProjects extends React.Component {
                         placeholder={!opened}
                     />
                     {opened ? null : (
-                        <button
-                            type="button"
+                        <div
                             className={styles.openerContainer}
                             onClick={this.handleOpenProjects}
                         >
@@ -68,7 +67,7 @@ export class FeaturedProjects extends React.Component {
                                     id="tw.viewFeaturedProjects"
                                 />
                             </div>
-                        </button>
+                        </div>
                     )}
                 </div>
                 <div className={styles.footer}>

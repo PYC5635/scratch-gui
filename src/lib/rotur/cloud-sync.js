@@ -98,7 +98,6 @@ const collectLocalSnapshot = () => {
                     compactSave: getCompactSave(),
                     features: getMenuBarSettings()
                 },
-                notificationPreferences: readLocalJson('mw:notification-preferences', {}),
                 version: 1,
                 updatedAt: Date.now()
             },
@@ -178,10 +177,6 @@ const applySnapshotLocally = snapshot => {
                         detail: {id: 'cloud-sync'}
                     }));
                 }
-            }
-            if (snapshot.settings.notificationPreferences) {
-                writeLocalJson('mw:notification-preferences', snapshot.settings.notificationPreferences);
-                window.dispatchEvent(new Event('mw:notification-preferences'));
             }
         }
     } finally {

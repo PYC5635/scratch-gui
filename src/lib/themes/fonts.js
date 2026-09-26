@@ -66,9 +66,7 @@ const applyThemeFonts = async fonts => {
         '.scratch-render-overlays',
         '.scratch-render-overlays *',
         '.xterm',
-'.xterm *',
-        '.monaco-editor',
-        '.monaco-editor *'
+        '.xterm *'
     ].map(selector => `:not(${selector})`).join('');
 
     // Create style element

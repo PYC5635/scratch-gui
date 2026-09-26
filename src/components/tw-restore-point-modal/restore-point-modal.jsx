@@ -59,7 +59,6 @@ const INTERVAL_OPTIONS = [
     MINUTE * 30,
     -1
 ];
-const ignoreClose = () => {};
 
 const IntervalSelector = props => (
     <select
@@ -107,36 +106,10 @@ const RestorePointModal = props => (
         id="restorePointModal"
         minHeight={420}
         minWidth={500}
-        onRequestClose={props.confirmationBusy ? ignoreClose : props.onClose}
+        onRequestClose={props.onClose}
         width={680}
     >
         <div className={styles.body}>
-            {props.confirmation ? (
-                <div className={styles.confirmationOverlay}>
-                    <div className={styles.confirmationCard}>
-                        <AlertTriangle />
-                        <strong>{props.confirmation.title}</strong>
-                        <p>{props.confirmation.message}</p>
-                        {props.confirmationError ? (
-                            <p className={styles.confirmationError}>{props.confirmationError}</p>
-                        ) : null}
-                        <div className={styles.confirmationActions}>
-                            <button
-                                type="button"
-                                className={styles.secondaryButton}
-                                disabled={props.confirmationBusy}
-                                onClick={props.onCancelConfirmation}
-                            >{'Cancel'}</button>
-                            <button
-                                type="button"
-                                className={styles.confirmationButton}
-                                disabled={props.confirmationBusy}
-                                onClick={props.onConfirm}
-                            >{props.confirmationBusy ? 'Working…' : props.confirmation.action}</button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
             <div className={styles.automaticRow}>
                 <div>
                     <strong>
@@ -191,7 +164,6 @@ const RestorePointModal = props => (
                 </div>
                 <div className={styles.headerActions}>
                     <button
-                        type="button"
                         aria-label={props.intl.formatMessage(messages.refresh)}
                         className={styles.iconButton}
                         disabled={props.isLoading}
@@ -201,7 +173,6 @@ const RestorePointModal = props => (
                         <RefreshCw />
                     </button>
                     <button
-                        type="button"
                         className={styles.primaryButton}
                         disabled={props.isLoading}
                         onClick={props.onClickCreate}
@@ -226,7 +197,6 @@ const RestorePointModal = props => (
                     </strong>
                     <span className={styles.errorMessage}>{props.error}</span>
                     <button
-                        type="button"
                         className={styles.secondaryButton}
                         onClick={props.onClickRefresh}
                     >
@@ -313,7 +283,6 @@ const RestorePointModal = props => (
                         />
                     </span>
                     <button
-                        type="button"
                         className={styles.deleteAllButton}
                         onClick={props.onClickDeleteAll}
                     >
@@ -390,16 +359,7 @@ RestorePointModal.propTypes = {
     }),
     onConfirmDialog: PropTypes.func.isRequired,
     onCancelDialog: PropTypes.func.isRequired,
-    error: PropTypes.string,
-    confirmation: PropTypes.shape({
-        action: PropTypes.string.isRequired,
-        message: PropTypes.string.isRequired,
-        title: PropTypes.string.isRequired
-    }),
-    confirmationBusy: PropTypes.bool.isRequired,
-    confirmationError: PropTypes.string,
-    onCancelConfirmation: PropTypes.func.isRequired,
-    onConfirm: PropTypes.func.isRequired
+    error: PropTypes.string
 };
 
 export default injectIntl(RestorePointModal);

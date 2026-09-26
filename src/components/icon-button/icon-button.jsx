@@ -11,15 +11,14 @@ const IconButton = ({
     title,
     onClick
 }) => (
-    <button
+    <div
         className={classNames(
             styles.container,
             className,
             disabled ? styles.disabled : null
         )}
-        type="button"
-        disabled={disabled}
-        onClick={onClick}
+        role="button"
+        onClick={disabled ? null : onClick}
     >
         <TWRenderRecoloredImage
             className={styles.icon}
@@ -29,7 +28,7 @@ const IconButton = ({
         <div className={styles.title}>
             {title}
         </div>
-    </button>
+    </div>
 );
 
 IconButton.propTypes = {

@@ -9,7 +9,6 @@ import log from '../utils/log';
 import storage from '../persistence/storage';
 import dataURItoBlob from '../utils/data-uri-to-blob';
 import saveProjectToServer from '../utils/save-project-to-server';
-import {guardSavedCallback} from '../mw/smart-save.js';
 
 import {
     showAlertWithTimeout,
@@ -220,7 +219,6 @@ const ProjectSaverHOC = function (WrappedComponent) {
         storeProject (projectId, requestParams) {
             requestParams = requestParams || {};
             this.clearAutoSaveTimeout();
-            const onSavedIfCurrent = guardSavedCallback(this.props.vm, this.props.onSetProjectUnchanged);
             // Serialize VM state now before embarking on
             // the asynchronous journey of storing assets to
             // the server. This ensures that assets don't update
@@ -248,7 +246,7 @@ const ProjectSaverHOC = function (WrappedComponent) {
             )
                 .then(() => this.props.onUpdateProjectData(projectId, savedVMState, requestParams))
                 .then(response => {
-                    onSavedIfCurrent();
+                    this.props.onSetProjectUnchanged();
                     const id = response.id.toString();
                     if (id && this.props.onUpdateProjectThumbnail) {
                         this.storeProjectThumbnail(id);

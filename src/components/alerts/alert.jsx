@@ -68,7 +68,6 @@ const AlertComponent = ({
         <div className={styles.alertButtons}>
             {showSaveNow && (
                 <button
-                    type="button"
                     className={styles.alertConnectionButton}
                     onClick={onSaveNow}
                 >
@@ -81,7 +80,6 @@ const AlertComponent = ({
             )}
             {showDownload && (
                 <button
-                    type="button"
                     className={styles.alertConnectionButton}
                     onClick={onDownload}
                 >
@@ -94,7 +92,6 @@ const AlertComponent = ({
             )}
             {showReconnect && (
                 <button
-                    type="button"
                     className={styles.alertConnectionButton}
                     onClick={onReconnect}
                 >

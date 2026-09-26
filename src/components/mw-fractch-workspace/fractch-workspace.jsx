@@ -1,6 +1,7 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {defineMessages} from 'react-intl';
 import VM from 'scratch-vm';
 import {
     Braces,
@@ -26,6 +27,8 @@ import '@fontsource/jetbrains-mono/latin-400.css';
 import '!!style-loader!css-loader!./code-font.css';
 
 import {Theme} from '../../lib/themes';
+import {useIntl} from '../../lib/tw-use-intl.jsx';
+import {getFormattedMessage} from '../../lib/git/i18n.js';
 import {
     abortEditorMerge,
     applyFractchWorkspace,
@@ -53,6 +56,214 @@ const DEFAULT_TERMINAL_HEIGHT = 220;
 const MAX_GROUPS = 4;
 const MAX_SEARCH_RESULTS = 200;
 const SPLIT_DIRECTIONS = ['left', 'right', 'down'];
+
+const messages = defineMessages({
+    acceptCurrent: {
+        defaultMessage: 'Accept current',
+        description: 'Code lens to keep the current (ours) side of a conflict',
+        id: 'mw.fractch.acceptCurrent'
+    },
+    acceptIncoming: {
+        defaultMessage: 'Accept incoming',
+        description: 'Code lens to keep the incoming (theirs) side of a conflict',
+        id: 'mw.fractch.acceptIncoming'
+    },
+    acceptBoth: {
+        defaultMessage: 'Accept both',
+        description: 'Code lens to keep both sides of a conflict',
+        id: 'mw.fractch.acceptBoth'
+    },
+    newFile: {
+        defaultMessage: 'New file',
+        description: 'Context menu item to create a new file',
+        id: 'mw.fractch.newFile'
+    },
+    rename: {
+        defaultMessage: 'Rename',
+        description: 'Context menu item to rename a file or folder',
+        id: 'mw.fractch.rename'
+    },
+    delete: {
+        defaultMessage: 'Delete',
+        description: 'Context menu item to delete a file or folder',
+        id: 'mw.fractch.delete'
+    },
+    deleteConfirm: {
+        defaultMessage: 'Delete {name}?',
+        description: 'Context menu delete confirmation label',
+        id: 'mw.fractch.deleteConfirm'
+    },
+    saveFractchFile: {
+        defaultMessage: 'Save Fractch file',
+        description: 'Editor action label for saving the current file',
+        id: 'mw.fractch.saveFractchFile'
+    },
+    closeTab: {
+        defaultMessage: 'Close {name}',
+        description: 'Tooltip and aria label for closing an editor tab',
+        id: 'mw.fractch.closeTab'
+    },
+    backToEditing: {
+        defaultMessage: 'Back to editing',
+        description: 'Tooltip for leaving diff view',
+        id: 'mw.fractch.backToEditing'
+    },
+    compareLastCommit: {
+        defaultMessage: 'Compare with the last commit',
+        description: 'Tooltip for opening diff view against the last commit',
+        id: 'mw.fractch.compareLastCommit'
+    },
+    selectFileToEdit: {
+        defaultMessage: 'Select a file to start editing',
+        description: 'Placeholder shown in an empty editor group',
+        id: 'mw.fractch.selectFileToEdit'
+    },
+    statusPreparing: {
+        defaultMessage: 'Preparing Fractch source…',
+        description: 'Status while preparing the fractch workspace',
+        id: 'mw.fractch.status.preparing'
+    },
+    statusApplying: {
+        defaultMessage: 'Applying project…',
+        description: 'Status while applying the fractch tree to the project',
+        id: 'mw.fractch.status.applying'
+    },
+    statusUpdated: {
+        defaultMessage: 'Project updated',
+        description: 'Status after the project is updated from fractch source',
+        id: 'mw.fractch.status.updated'
+    },
+    statusHasErrors: {
+        defaultMessage: 'Project has errors',
+        description: 'Status when applying the project fails',
+        id: 'mw.fractch.status.hasErrors'
+    },
+    statusSaved: {
+        defaultMessage: 'Saved {filepath}',
+        description: 'Status after saving a file',
+        id: 'mw.fractch.status.saved'
+    },
+    statusSaveFailed: {
+        defaultMessage: 'Save failed',
+        description: 'Status when saving a file fails',
+        id: 'mw.fractch.status.saveFailed'
+    },
+    statusUnsaved: {
+        defaultMessage: 'Unsaved changes',
+        description: 'Status when the open file has unsaved edits',
+        id: 'mw.fractch.status.unsaved'
+    },
+    statusReady: {
+        defaultMessage: 'Fractch workspace ready',
+        description: 'Status when the workspace is ready',
+        id: 'mw.fractch.status.ready'
+    },
+    statusSearchResult: {
+        defaultMessage: '{count} result for "{query}"',
+        description: 'Search status for a single match',
+        id: 'mw.fractch.status.searchResult'
+    },
+    statusSearchResults: {
+        defaultMessage: '{count} results for "{query}"',
+        description: 'Search status for multiple matches',
+        id: 'mw.fractch.status.searchResults'
+    },
+    statusResolveConflicts: {
+        defaultMessage: 'Resolve {count} conflicted file(s)',
+        description: 'Status asking the user to resolve merge conflicts',
+        id: 'mw.fractch.status.resolveConflicts'
+    },
+    statusAddedFiles: {
+        defaultMessage: 'Added {count} file(s)',
+        description: 'Status after importing files',
+        id: 'mw.fractch.status.addedFiles'
+    },
+    statusMoved: {
+        defaultMessage: 'Moved {path}',
+        description: 'Status after moving a file or folder',
+        id: 'mw.fractch.status.moved'
+    },
+    statusCreated: {
+        defaultMessage: 'Created {filepath}',
+        description: 'Status after creating a file',
+        id: 'mw.fractch.status.created'
+    },
+    statusRenamed: {
+        defaultMessage: 'Renamed to {path}',
+        description: 'Status after renaming a file or folder',
+        id: 'mw.fractch.status.renamed'
+    },
+    statusDeleted: {
+        defaultMessage: 'Deleted {path}',
+        description: 'Status after deleting a file or folder',
+        id: 'mw.fractch.status.deleted'
+    },
+    mergeCommitted: {
+        defaultMessage: 'Merge committed',
+        description: 'Status after committing a merge',
+        id: 'mw.fractch.mergeCommitted'
+    },
+    mergeAborted: {
+        defaultMessage: 'Merge aborted',
+        description: 'Status after aborting a merge',
+        id: 'mw.fractch.mergeAborted'
+    },
+    mergeBanner: {
+        defaultMessage: 'Merging {theirs} into {ours}.',
+        description: 'Merge banner text naming the two branches',
+        id: 'mw.fractch.mergeBanner'
+    },
+    mergeBannerHelp: {
+        defaultMessage: 'Resolve the conflicts in {count} file(s), then commit the merge.',
+        description: 'Merge banner instructions',
+        id: 'mw.fractch.mergeBannerHelp'
+    },
+    commitMerge: {
+        defaultMessage: 'Commit merge',
+        description: 'Button to commit a merge',
+        id: 'mw.fractch.commitMerge'
+    },
+    abort: {
+        defaultMessage: 'Abort',
+        description: 'Button to abort a merge',
+        id: 'mw.fractch.abort'
+    },
+    projectFiles: {
+        defaultMessage: 'Project files',
+        description: 'Accessible label for the file explorer sidebar',
+        id: 'mw.fractch.projectFiles'
+    },
+    explorer: {
+        defaultMessage: 'Explorer',
+        description: 'Title of the file explorer sidebar',
+        id: 'mw.fractch.explorer'
+    },
+    dragResizeTerminal: {
+        defaultMessage: 'Drag to resize the terminal',
+        description: 'Tooltip for the terminal resize handle',
+        id: 'mw.fractch.dragResizeTerminal'
+    },
+    showTerminal: {
+        defaultMessage: 'Show the terminal',
+        description: 'Tooltip and aria label for opening the terminal',
+        id: 'mw.fractch.showTerminal'
+    },
+    hideTerminal: {
+        defaultMessage: 'Hide terminal',
+        description: 'Aria label for hiding the terminal',
+        id: 'mw.fractch.hideTerminal'
+    },
+    terminal: {
+        defaultMessage: 'Terminal',
+        description: 'Label for the terminal panel',
+        id: 'mw.fractch.terminal'
+    },
+    dismissError: {
+        defaultMessage: 'Dismiss error',
+        description: 'Aria label for dismissing an error',
+        id: 'mw.fractch.dismissError'
+    }
+});
 
 const compactRows = groups => {
     const rows = [...new Set(groups.map(group => group.row))].sort((a, b) => a - b);
@@ -144,9 +355,9 @@ monaco.editor.registerCommand(RESOLVE_COMMAND, (accessor, uri, startLine, choice
 monaco.languages.registerCodeLensProvider('*', {
     provideCodeLenses: model => {
         const lenses = parseConflicts(model.getValue()).flatMap(region => ([
-            ['Accept current', 'ours'],
-            ['Accept incoming', 'theirs'],
-            ['Accept both', 'both']
+            [getFormattedMessage(messages.acceptCurrent.id, messages.acceptCurrent.defaultMessage), 'ours'],
+            [getFormattedMessage(messages.acceptIncoming.id, messages.acceptIncoming.defaultMessage), 'theirs'],
+            [getFormattedMessage(messages.acceptBoth.id, messages.acceptBoth.defaultMessage), 'both']
         ].map(([title, choice]) => ({
             command: {
                 arguments: [model.uri, region.startLine, choice],
@@ -344,6 +555,7 @@ FileTree.propTypes = {
 };
 
 const ContextMenu = ({colors, menu, onClose, onCreate, onDelete, onRename}) => {
+    const intl = useIntl();
     const [renaming, setRenaming] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -412,7 +624,7 @@ const ContextMenu = ({colors, menu, onClose, onCreate, onDelete, onRename}) => {
                         onClick={startCreate}
                     >
                         <FilePlus size={14} />
-                        {'New file'}
+                        {intl.formatMessage(messages.newFile)}
                     </button>
                     {menu.path ? (
                         <React.Fragment>
@@ -422,7 +634,7 @@ const ContextMenu = ({colors, menu, onClose, onCreate, onDelete, onRename}) => {
                                 onClick={startRename}
                             >
                                 <Pencil size={14} />
-                                {'Rename'}
+                                {intl.formatMessage(messages.rename)}
                             </button>
                             <button
                                 className={classNames(styles.contextItem, {
@@ -432,7 +644,9 @@ const ContextMenu = ({colors, menu, onClose, onCreate, onDelete, onRename}) => {
                                 onClick={handleDelete}
                             >
                                 <Trash2 size={14} />
-                                {confirming ? `Delete ${basename(menu.path)}?` : 'Delete'}
+                                {confirming ?
+                                    intl.formatMessage(messages.deleteConfirm, {name: basename(menu.path)}) :
+                                    intl.formatMessage(messages.delete)}
                             </button>
                         </React.Fragment>
                     ) : null}
@@ -485,6 +699,7 @@ const EditorGroup = ({
     const [splitHover, setSplitHover] = useState(null);
     const [diffMode, setDiffMode] = useState(false);
     const groupId = group.id;
+    const intl = useIntl();
 
     useEffect(() => {
         const options = {
@@ -509,7 +724,7 @@ const EditorGroup = ({
         const focusListener = code.onDidFocusEditorText(() => onFocus(groupId));
         code.addAction({
             id: 'mistwarp-save-fractch',
-            label: 'Save Fractch file',
+            label: getFormattedMessage(messages.saveFractchFile.id, messages.saveFractchFile.defaultMessage),
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
             run: () => onSave()
         });
@@ -646,11 +861,11 @@ const EditorGroup = ({
                                 {labels[filepath] || basename(filepath)}
                             </span>
                             <button
-                                aria-label={`Close ${filepath}`}
+                                aria-label={intl.formatMessage(messages.closeTab, {name: filepath})}
                                 className={classNames(styles.editorTabClose, {
                                     [styles.dirty]: dirtyFiles.includes(filepath)
                                 })}
-                                title={`Close ${basename(filepath)}`}
+                                title={intl.formatMessage(messages.closeTab, {name: basename(filepath)})}
                                 type="button"
                                 onClick={handleCloseTab}
                             >
@@ -666,7 +881,9 @@ const EditorGroup = ({
                         aria-pressed={diffMode}
                         className={classNames(styles.actionButton, {[styles.toggled]: diffMode})}
                         disabled={!group.active}
-                        title={diffMode ? 'Back to editing' : 'Compare with the last commit'}
+                        title={diffMode ?
+                            intl.formatMessage(messages.backToEditing) :
+                            intl.formatMessage(messages.compareLastCommit)}
                         type="button"
                         onClick={handleToggleDiff}
                     >
@@ -681,7 +898,7 @@ const EditorGroup = ({
                     style={group.active ? null : {display: 'none'}}
                 />
                 {group.active ? null : (
-                    <div className={styles.emptyEditor}>{'Select a file to start editing'}</div>
+                    <div className={styles.emptyEditor}>{intl.formatMessage(messages.selectFileToEdit)}</div>
                 )}
                 {dragging ? SPLIT_DIRECTIONS.map(direction => (
                     <div
@@ -735,6 +952,7 @@ const parsePayload = raw => {
 };
 
 const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
+    const intl = useIntl();
     const editorColumnElement = useRef(null);
     const editors = useRef(new Map());
     const focusedGroupRef = useRef(1);
@@ -764,7 +982,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
     const [terminalHeight, setTerminalHeight] = useState(DEFAULT_TERMINAL_HEIGHT);
     const [resizing, setResizing] = useState(false);
     const [expandedFolders, setExpandedFolders] = useState(sessionExpandedFolders);
-    const [status, setStatus] = useState('Preparing Fractch source…');
+    const [status, setStatus] = useState(() => intl.formatMessage(messages.statusPreparing));
     const [merge, setMerge] = useState(getPendingMerge);
     const [error, setError] = useState(null);
 
@@ -786,14 +1004,14 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
 
     const applyProject = useCallback(async () => {
         setWorking(true);
-        setStatus('Applying project…');
+        setStatus(getFormattedMessage(messages.statusApplying.id, messages.statusApplying.defaultMessage));
         try {
             await applyFractchWorkspace(vm);
             setError(null);
-            setStatus('Project updated');
+            setStatus(getFormattedMessage(messages.statusUpdated.id, messages.statusUpdated.defaultMessage));
         } catch (e) {
             setError(errorMessage(e));
-            setStatus('Project has errors');
+            setStatus(getFormattedMessage(messages.statusHasErrors.id, messages.statusHasErrors.defaultMessage));
         } finally {
             setWorking(false);
         }
@@ -806,12 +1024,12 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
         saveQueue.current = saveQueue.current.then(async () => {
             await writeWorktreeFile(filepath, encoder.encode(value));
             markClean(filepath);
-            setStatus(`Saved ${filepath}`);
+            setStatus(getFormattedMessage(messages.statusSaved.id, messages.statusSaved.defaultMessage, {filepath}));
             setError(null);
             if (apply) await applyProject();
         }).catch(e => {
             setError(errorMessage(e));
-            setStatus('Save failed');
+            setStatus(getFormattedMessage(messages.statusSaveFailed.id, messages.statusSaveFailed.defaultMessage));
         });
         return saveQueue.current;
     }, [applyProject, markClean]);
@@ -831,7 +1049,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
         const model = monaco.editor.createModel(contents, languageForFile(filepath));
         const listener = model.onDidChangeContent(() => {
             markDirty(filepath);
-            setStatus('Unsaved changes');
+            setStatus(getFormattedMessage(messages.statusUnsaved.id, messages.statusUnsaved.defaultMessage));
         });
         const entry = {listener, model};
         models.current.set(filepath, entry);
@@ -972,7 +1190,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
             },
             searchAll: async (query, caseSensitive) => {
                 if (!query) {
-                    setStatus('Fractch workspace ready');
+                    setStatus(getFormattedMessage(messages.statusReady.id, messages.statusReady.defaultMessage));
                     return [];
                 }
                 const needle = caseSensitive ? query : query.toLowerCase();
@@ -997,10 +1215,14 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     }
                     if (truncated) break;
                 }
-                setStatus(
-                    `${results.length}${truncated ? '+' : ''} result${results.length === 1 ? '' : 's'} ` +
-                    `for "${query}"`
-                );
+                const countLabel = `${results.length}${truncated ? '+' : ''}`;
+                const searchMessage = results.length === 1 ?
+                    messages.statusSearchResult : messages.statusSearchResults;
+                setStatus(getFormattedMessage(
+                    searchMessage.id,
+                    searchMessage.defaultMessage,
+                    {count: countLabel, query}
+                ));
                 return results;
             },
             step: direction => reveal(searchIndex.current + direction)
@@ -1021,12 +1243,20 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                         if (cancelled) return;
                         await openFile(filepath);
                     }
-                    if (!cancelled) setStatus(`Resolve ${pending.conflicts.length} conflicted file(s)`);
+                    if (!cancelled) {
+                        setStatus(getFormattedMessage(
+                            messages.statusResolveConflicts.id,
+                            messages.statusResolveConflicts.defaultMessage,
+                            {count: pending.conflicts.length}
+                        ));
+                    }
                 } else {
                     const firstFile = nextFiles.find(file => /\.fractch$/i.test(file)) ||
                         nextFiles.find(file => TEXT_FILE_RE.test(file));
                     if (firstFile) await openFile(firstFile);
-                    if (!cancelled) setStatus('Fractch workspace ready');
+                    if (!cancelled) {
+                        setStatus(getFormattedMessage(messages.statusReady.id, messages.statusReady.defaultMessage));
+                    }
                 }
             } catch (e) {
                 if (!cancelled) setError(errorMessage(e));
@@ -1190,7 +1420,11 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                 const bytes = new Uint8Array(await file.arrayBuffer());
                 await writeWorktreeFile(joinPath(directory, file.name), bytes);
             }
-            setStatus(`Added ${fileList.length} file(s)`);
+            setStatus(getFormattedMessage(
+                messages.statusAddedFiles.id,
+                messages.statusAddedFiles.defaultMessage,
+                {count: fileList.length}
+            ));
             await handleWorktreeChanged();
         } catch (e) {
             setError(errorMessage(e));
@@ -1223,7 +1457,11 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     await openFile(destination);
                 }
             }
-            setStatus(`Moved ${source}`);
+            setStatus(getFormattedMessage(
+                messages.statusMoved.id,
+                messages.statusMoved.defaultMessage,
+                {path: source}
+            ));
             await handleWorktreeChanged();
         } catch (e) {
             setError(errorMessage(e));
@@ -1288,7 +1526,11 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
         try {
             await writeWorktreeFile(filepath, encoder.encode(''));
             await syncFromWorktree();
-            setStatus(`Created ${filepath}`);
+            setStatus(getFormattedMessage(
+                messages.statusCreated.id,
+                messages.statusCreated.defaultMessage,
+                {filepath}
+            ));
             if (TEXT_FILE_RE.test(filepath)) await openFile(filepath);
         } catch (e) {
             setError(errorMessage(e));
@@ -1316,7 +1558,11 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     await openFile(next);
                 }
             }
-            setStatus(`Renamed to ${destination}`);
+            setStatus(getFormattedMessage(
+                messages.statusRenamed.id,
+                messages.statusRenamed.defaultMessage,
+                {path: destination}
+            ));
             await handleWorktreeChanged();
         } catch (e) {
             setError(errorMessage(e));
@@ -1335,7 +1581,11 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                 await deleteWorktreeFile(filepath);
                 if (models.current.has(filepath)) disposeModel(filepath);
             }
-            setStatus(`Deleted ${target.path}`);
+            setStatus(getFormattedMessage(
+                messages.statusDeleted.id,
+                messages.statusDeleted.defaultMessage,
+                {path: target.path}
+            ));
             await handleWorktreeChanged();
         } catch (e) {
             setError(errorMessage(e));
@@ -1362,7 +1612,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
             await saveDirtyFiles();
             await completeEditorMerge({});
             setMerge(null);
-            setStatus('Merge committed');
+            setStatus(getFormattedMessage(messages.mergeCommitted.id, messages.mergeCommitted.defaultMessage));
             setError(null);
         } catch (e) {
             setError(errorMessage(e));
@@ -1378,7 +1628,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
             setMerge(null);
             await syncFromWorktree();
             await applyProject();
-            setStatus('Merge aborted');
+            setStatus(getFormattedMessage(messages.mergeAborted.id, messages.mergeAborted.defaultMessage));
         } catch (e) {
             setError(errorMessage(e));
         } finally {
@@ -1454,8 +1704,9 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                 <div className={styles.mergeBanner}>
                     <GitMerge size={15} />
                     <span className={styles.mergeMessage}>
-                        {`Merging ${merge.theirs} into ${merge.ours}. `}
-                        {`Resolve the conflicts in ${merge.conflicts.length} file(s), then commit the merge.`}
+                        {intl.formatMessage(messages.mergeBanner, {theirs: merge.theirs, ours: merge.ours})}
+                        {' '}
+                        {intl.formatMessage(messages.mergeBannerHelp, {count: merge.conflicts.length})}
                     </span>
                     <button
                         className={styles.actionButton}
@@ -1463,7 +1714,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                         type="button"
                         onClick={handleCompleteMerge}
                     >
-                        {'Commit merge'}
+                        {intl.formatMessage(messages.commitMerge)}
                     </button>
                     <button
                         className={styles.actionButton}
@@ -1471,13 +1722,13 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                         type="button"
                         onClick={handleAbortMerge}
                     >
-                        {'Abort'}
+                        {intl.formatMessage(messages.abort)}
                     </button>
                 </div>
             ) : null}
             <div className={styles.main}>
                 <aside
-                    aria-label="Project files"
+                    aria-label={intl.formatMessage(messages.projectFiles)}
                     className={classNames(styles.sidebar, {[styles.dropTarget]: dropTarget === ''})}
                     data-type="root"
                     onContextMenu={handleContextMenu}
@@ -1485,7 +1736,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     onDragOver={handleDragOverRoot}
                     onDrop={handleDropOnRoot}
                 >
-                    <div className={styles.sidebarTitle}>{'Explorer'}</div>
+                    <div className={styles.sidebarTitle}>{intl.formatMessage(messages.explorer)}</div>
                     <FileTree
                         activeFile={activeFile}
                         depth={0}
@@ -1540,16 +1791,21 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                             [styles.open]: terminalVisible
                         })}
                         role="presentation"
-                        title={terminalVisible ? 'Drag to resize the terminal' : 'Show the terminal'}
+                        title={terminalVisible ?
+                            intl.formatMessage(messages.dragResizeTerminal) :
+                            intl.formatMessage(messages.showTerminal)}
                         onClick={terminalVisible ? null : handleToggleTerminal}
                         onPointerDown={handlePanelPointerDown}
                     >
                         <span>
                             <TerminalSquare size={14} />
-                            {' Terminal'}
+                            {' '}
+                            {intl.formatMessage(messages.terminal)}
                         </span>
                         <button
-                            aria-label={terminalVisible ? 'Hide terminal' : 'Show terminal'}
+                            aria-label={terminalVisible ?
+                                intl.formatMessage(messages.hideTerminal) :
+                                intl.formatMessage(messages.showTerminal)}
                             className={styles.panelToggle}
                             type="button"
                             onClick={handleToggleTerminal}
@@ -1571,7 +1827,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     <React.Fragment>
                         <span className={styles.statusItem}>{error}</span>
                         <button
-                            aria-label="Dismiss error"
+                            aria-label={intl.formatMessage(messages.dismissError)}
                             className={styles.panelToggle}
                             type="button"
                             onClick={handleDismissError}
@@ -1598,7 +1854,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                     onRename={handleRename}
                 />
             ) : null}
-            {loading ? <div className={styles.loading}>{'Preparing Fractch source…'}</div> : null}
+            {loading ? <div className={styles.loading}>{intl.formatMessage(messages.statusPreparing)}</div> : null}
         </div>
     );
 };

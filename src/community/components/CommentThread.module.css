@@ -59,36 +59,6 @@
     font-size: 12px;
 }
 
-.playtime {
-    padding: 2px 6px;
-    border-radius: 5px;
-    color: var(--accent-strong);
-    background: var(--accent-softer);
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.kind {
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--accent-strong);
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.kind-bug {
-    background: color-mix(in srgb, #e25555 18%, transparent);
-    color: #e25555;
-}
-
-.kind-suggestion {
-    background: color-mix(in srgb, #3aa675 18%, transparent);
-    color: #3aa675;
-}
-
 .iconAction {
     display: inline-flex;
     align-items: center;
@@ -127,7 +97,6 @@
     .replies {
         margin-left: 18px;
     }
-
 }
 
 .inlineComposer,
@@ -147,57 +116,7 @@
     min-width: 0;
 }
 
-.composerToolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 7px;
-}
-
-.composerAction {
-    display: flex;
-    justify-content: flex-end;
-    margin-left: auto;
-}
-
-.disabledComposerAction {
-    display: flex;
-    justify-content: flex-end;
-    margin: 0 0 8px 46px;
-}
-
-.kindSelect {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
-    background: var(--bg-raised);
-    color: var(--mw-text);
-    font: inherit;
-    font-size: 13px;
-    padding: 7px 9px;
-}
-
-.commentTools {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 150px;
-    gap: 8px;
-    margin: 4px 0 10px 46px;
-}
-
-.commentTools input,
-.commentTools select {
-    min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
-    background: var(--bg-raised);
-    color: var(--mw-text);
-    font: inherit;
-    font-size: 13px;
-    padding: 8px 10px;
-}
-
 .input {
-    box-sizing: border-box;
     width: 100%;
     min-height: 64px;
     resize: vertical;
@@ -249,42 +168,6 @@
     border-color: var(--accent-border);
 }
 
-.deleteConfirm {
-    border: 1px solid var(--mw-danger);
-    border-radius: var(--radius-xs);
-    background: var(--mw-danger);
-    color: #fff;
-    font-size: 13.5px;
-    font-weight: 700;
-    padding: 7px 16px;
-}
-
-.deleteConfirm:disabled {
-    opacity: 0.55;
-}
-
-.modalText,
-.commentPreview {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.modalText {
-    color: var(--text-dim);
-}
-
-.commentPreview {
-    max-height: 8em;
-    overflow: auto;
-    padding: 10px 12px;
-    border-radius: var(--radius-xs);
-    background: var(--bg-raised);
-    color: var(--mw-text);
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
 .error {
     color: #e0245e;
     font-size: 13px;
@@ -308,11 +191,4 @@
 
 .showMore:hover {
     background: var(--accent-softer);
-}
-
-@media (max-width: 620px) {
-    .commentTools {
-        grid-template-columns: 1fr;
-        margin-left: 0;
-    }
 }

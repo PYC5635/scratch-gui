@@ -13,14 +13,10 @@ class ActionMenu extends React.Component {
         super(props);
         bindAll(this, [
             'clickDelayer',
-            'handleBlur',
             'handleClosePopover',
-            'handleFocus',
-            'handleKeyDown',
             'handleToggleOpenState',
             'handleTouchStart',
             'handleTouchOutside',
-            'hideTooltips',
             'setButtonRef',
             'setContainerRef'
         ]);
@@ -29,8 +25,6 @@ class ActionMenu extends React.Component {
             forceHide: false
         };
         this.mainTooltipId = `tooltip-${Math.random()}`;
-        this.moreTooltipId = `${this.mainTooltipId}-more`;
-        this.comingSoonTooltipId = `${this.mainTooltipId}-coming-soon`;
     }
     componentDidMount () {
         // Touch start on the main button is caught to trigger open and not click
@@ -38,52 +32,19 @@ class ActionMenu extends React.Component {
         // Touch start on document is used to trigger close if it is outside
         document.addEventListener('touchstart', this.handleTouchOutside);
     }
+    shouldComponentUpdate (newProps, newState) {
+        // This check prevents re-rendering while the project is updating.
+        // @todo check only the state and the title because it is enough to know
+        //  if anything substantial has changed
+        // This is needed because of the sloppy way the props are passed as a new object,
+        //  which should be refactored.
+        return newState.isOpen !== this.state.isOpen ||
+            newState.forceHide !== this.state.forceHide ||
+            newProps.title !== this.props.title;
+    }
     componentWillUnmount () {
-        if (this.closeTimeoutId) clearTimeout(this.closeTimeoutId);
-        if (this.forceHideTimeoutId) clearTimeout(this.forceHideTimeoutId);
         this.buttonRef.removeEventListener('touchstart', this.handleTouchStart);
         document.removeEventListener('touchstart', this.handleTouchOutside);
-    }
-    hideTooltips () {
-        // react-tooltip v3 has no imperative API to close a tooltip; the
-        // tooltips are hidden automatically when the menu collapses.
-    }
-    handleFocus () {
-        if (this.closeTimeoutId) {
-            clearTimeout(this.closeTimeoutId);
-            this.closeTimeoutId = null;
-        }
-        if (!this.state.isOpen) {
-            this.setState({isOpen: true, forceHide: false});
-        }
-    }
-    handleBlur (event) {
-        if (this.containerRef && this.containerRef.contains(event.relatedTarget)) return;
-        if (this.closeTimeoutId) {
-            clearTimeout(this.closeTimeoutId);
-            this.closeTimeoutId = null;
-        }
-        this.setState({isOpen: false});
-    }
-    handleKeyDown (event) {
-        if (event.key === 'Escape') {
-            this.hideTooltips();
-            if (this.buttonRef) this.buttonRef.focus();
-            this.setState({isOpen: false});
-            event.preventDefault();
-            return;
-        }
-        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-        const buttons = Array.from(this.containerRef.querySelectorAll('[data-action-menu-more]:not(:disabled)'));
-        if (!buttons.length) return;
-        const currentIndex = buttons.indexOf(document.activeElement);
-        let nextIndex;
-        if (event.key === 'Home') nextIndex = 0;
-        else if (event.key === 'End') nextIndex = buttons.length - 1;
-        else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % buttons.length;
-        else nextIndex = currentIndex < 0 ? buttons.length - 1 : (currentIndex - 1 + buttons.length) % buttons.length;
-        event.preventDefault();
-        buttons[nextIndex].focus();
     }
     handleClosePopover () {
         this.closeTimeoutId = setTimeout(() => {
@@ -104,9 +65,9 @@ class ActionMenu extends React.Component {
         }
     }
     handleTouchOutside (e) {
-        if (this.state.isOpen && this.containerRef && !this.containerRef.contains(e.target)) {
+        if (this.state.isOpen && !this.containerRef.contains(e.target)) {
             this.setState({isOpen: false});
-            this.hideTooltips();
+            ReactTooltip.hide();
         }
     }
     clickDelayer (fn) {
@@ -115,16 +76,13 @@ class ActionMenu extends React.Component {
         // for now all this work is to ensure the menu closes BEFORE the
         // (possibly slow) action is started.
         return event => {
-            this.hideTooltips();
+            ReactTooltip.hide();
             if (fn) fn(event);
             // Blur the button so it does not keep focus after being clicked
             // This prevents keyboard events from triggering the button
             this.buttonRef.blur();
             this.setState({forceHide: true, isOpen: false}, () => {
-                this.forceHideTimeoutId = setTimeout(() => {
-                    this.forceHideTimeoutId = null;
-                    this.setState({forceHide: false});
-                });
+                setTimeout(() => this.setState({forceHide: false}));
             });
         };
     }
@@ -158,20 +116,14 @@ class ActionMenu extends React.Component {
                     [styles.forceHidden]: this.state.forceHide
                 })}
                 ref={this.setContainerRef}
-                onBlur={this.handleBlur}
-                onFocus={this.handleFocus}
-                onKeyDown={this.handleKeyDown}
                 onMouseEnter={this.handleToggleOpenState}
                 onMouseLeave={this.handleClosePopover}
             >
                 <button
-                    type="button"
                     aria-label={mainTitle}
-                    aria-expanded={this.state.isOpen}
-                    aria-haspopup="menu"
                     className={classNames(styles.button, styles.mainButton)}
-                    data-tip={mainTitle}
                     data-for={this.mainTooltipId}
+                    data-tip={mainTitle}
                     ref={this.setButtonRef}
                     onClick={this.clickDelayer(onClick)}
                 >
@@ -191,33 +143,23 @@ class ActionMenu extends React.Component {
                     id={this.mainTooltipId}
                     place={tooltipPlace || 'left'}
                 />
-                <div
-                    className={styles.moreButtonsOuter}
-                    aria-hidden={!this.state.isOpen}
-                >
+                <div className={styles.moreButtonsOuter}>
                     <div className={styles.moreButtons}>
                         {(moreButtons || []).map(({img, title, onClick: handleClick,
                             fileAccept, fileChange, fileInput, fileMultiple}, keyId) => {
                             const isComingSoon = !handleClick;
                             const hasFileInput = fileInput;
-                            const tooltipId = isComingSoon ? this.comingSoonTooltipId : this.moreTooltipId;
+                            const tooltipId = `${this.mainTooltipId}-${title}`;
                             return (
-                                <div key={`${tooltipId}-${title}-${keyId}`}>
+                                <div key={`${tooltipId}-${keyId}`}>
                                     <button
-                                        type="button"
                                         aria-label={title}
                                         className={classNames(styles.button, styles.moreButton, {
                                             [styles.comingSoon]: isComingSoon
                                         })}
-                                        data-tip={title}
                                         data-for={tooltipId}
-                                        data-action-menu-more
-                                        disabled={isComingSoon}
-                                        tabIndex={this.state.isOpen && !this.state.forceHide && !isComingSoon ? 0 : -1}
-                                        title={isComingSoon ?
-                                            (typeof title === 'string' ? `${title} (coming soon)` : 'Coming soon') :
-                                            null}
-                                        onClick={this.clickDelayer(handleClick)}
+                                        data-tip={title}
+                                        onClick={hasFileInput ? handleClick : this.clickDelayer(handleClick)}
                                     >
                                         {typeof img === 'string' ? (
                                             <img
@@ -228,33 +170,29 @@ class ActionMenu extends React.Component {
                                         ) : img ? (
                                             React.createElement(img, {className: styles.moreIcon, size: 20})
                                         ) : null}
+                                        {hasFileInput ? (
+                                            <input
+                                                accept={fileAccept}
+                                                className={styles.fileInput}
+                                                multiple={fileMultiple}
+                                                ref={fileInput}
+                                                type="file"
+                                                onChange={fileChange}
+                                            />) : null}
                                     </button>
-                                    {hasFileInput ? (
-                                        <input
-                                            accept={fileAccept}
-                                            className={styles.fileInput}
-                                            multiple={fileMultiple}
-                                            ref={fileInput}
-                                            type="file"
-                                            onChange={fileChange}
-                                        />) : null}
+                                    <ReactTooltip
+                                        className={classNames(styles.tooltip, {
+                                            [styles.comingSoonTooltip]: isComingSoon
+                                        })}
+                                        effect="solid"
+                                        id={tooltipId}
+                                        place={tooltipPlace || 'left'}
+                                    />
                                 </div>
                             );
                         })}
                     </div>
                 </div>
-                <ReactTooltip
-                    className={styles.tooltip}
-                    effect="solid"
-                    id={this.moreTooltipId}
-                    place={tooltipPlace || 'left'}
-                />
-                <ReactTooltip
-                    className={classNames(styles.tooltip, styles.comingSoonTooltip)}
-                    effect="solid"
-                    id={this.comingSoonTooltipId}
-                    place={tooltipPlace || 'left'}
-                />
             </div>
         );
     }

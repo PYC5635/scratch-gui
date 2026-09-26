@@ -168,7 +168,6 @@ export class RestorePoint extends React.Component {
 
                 <div className={styles.restorePointButtons}>
                     <button
-                        type="button"
                         aria-label={restoreLabel}
                         className={styles.actionButton}
                         onClick={this.handleClickLoad}
@@ -177,7 +176,6 @@ export class RestorePoint extends React.Component {
                         <RotateCcw />
                     </button>
                     <button
-                        type="button"
                         aria-label={exportLabel}
                         className={styles.actionButton}
                         disabled={this.props.isExporting}
@@ -188,7 +186,6 @@ export class RestorePoint extends React.Component {
                     </button>
 
                     <button
-                        type="button"
                         aria-label={deleteLabel}
                         className={`${styles.actionButton} ${styles.deleteButton}`}
                         disabled={this.props.isExporting}

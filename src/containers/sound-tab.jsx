@@ -24,8 +24,6 @@ import {handleFileUpload, soundUpload} from '../lib/file-uploader.js';
 import errorBoundaryHOC from '../lib/components/error-boundary-hoc.jsx';
 import DragConstants from '../lib/constants/drag-constants';
 import downloadBlob from '../lib/utils/download-blob';
-import {projectFilename} from '../lib/utils/safe-filename.js';
-import {selectedIndexAfterDelete} from '../lib/utils/asset-selection.js';
 import SharedAudioContext from '../lib/audio/shared-audio-context.js';
 
 import {connect} from 'react-redux';
@@ -84,8 +82,6 @@ class SoundTab extends React.Component {
             'setFileInput'
         ]);
         this.state = {selectedSoundIndex: 0};
-        this.unmounted = false;
-        this.deletingSounds = new Set();
     }
 
     UNSAFE_componentWillReceiveProps (nextProps) {
@@ -100,13 +96,6 @@ class SoundTab extends React.Component {
             return;
         }
 
-        const oldTarget = this.props.editingTarget && this.props.sprites[this.props.editingTarget] ?
-            this.props.sprites[this.props.editingTarget] : this.props.stage;
-        if (this.props.editingTarget !== editingTarget ||
-            !oldTarget || !oldTarget.sounds || oldTarget.sounds.length !== target.sounds.length) {
-            this.deletingSounds.clear();
-        }
-
         // If switching editing targets, reset the sound index
         if (this.props.editingTarget !== editingTarget) {
             this.setState({selectedSoundIndex: 0});
@@ -115,135 +104,74 @@ class SoundTab extends React.Component {
         }
     }
 
-    componentWillUnmount () {
-        this.unmounted = true;
-    }
-
     handleSelectSound (soundIndex) {
         this.setState({selectedSoundIndex: soundIndex});
         CollaborationService.getInstance().setActivity({assetIndex: soundIndex});
     }
 
     handleDeleteSound (soundIndex) {
-        if (!this.deletingSounds) this.deletingSounds = new Set();
-        if (this.deletingSounds.has(soundIndex)) return false;
-        this.deletingSounds.add(soundIndex);
-        const soundCount = this.props.vm.editingTarget.sprite.sounds.length;
-        let restoreFun;
-        try {
-            restoreFun = this.props.vm.deleteSound(soundIndex);
-        } catch (error) {
-            this.deletingSounds.delete(soundIndex);
-            this.props.onShowDeleteError(error);
-            return false;
+        const restoreFun = this.props.vm.deleteSound(soundIndex);
+        if (soundIndex >= this.state.selectedSoundIndex) {
+            this.setState({selectedSoundIndex: Math.max(0, soundIndex - 1)});
         }
-        this.setState({
-            selectedSoundIndex: selectedIndexAfterDelete(
-                this.state.selectedSoundIndex,
-                soundIndex,
-                soundCount
-            )
-        });
         this.props.dispatchUpdateRestore({restoreFun, deletedItem: 'Sound'});
-        return true;
     }
 
     handleExportSound (soundIndex) {
-        try {
-            const item = this.props.vm.editingTarget.sprite.sounds[soundIndex];
-            const blob = new Blob([item.asset.data], {type: item.asset.assetType.contentType});
-            downloadBlob(projectFilename(item.name, 'Sound', item.asset.dataFormat), blob);
-        } catch (error) {
-            this.props.onShowExportError(error);
-        }
+        const item = this.props.vm.editingTarget.sprite.sounds[soundIndex];
+        const blob = new Blob([item.asset.data], {type: item.asset.assetType.contentType});
+        downloadBlob(`${item.name}.${item.asset.dataFormat}`, blob);
     }
 
     handleDuplicateSound (soundIndex) {
-        const targetId = this.props.vm.editingTarget.id;
-        let duplicatePromise;
-        try {
-            duplicatePromise = this.props.vm.duplicateSound(soundIndex);
-        } catch (error) {
-            this.props.onShowImportError(error);
-            return Promise.resolve(false);
-        }
-        return Promise.resolve(duplicatePromise)
-            .then(() => {
-                this.handleNewSound(targetId, soundIndex + 1);
-            })
-            .catch(this.props.onShowImportError);
+        this.props.vm.duplicateSound(soundIndex).then(() => {
+            this.setState({selectedSoundIndex: soundIndex + 1});
+        });
     }
 
-    handleNewSound (targetId, selectedSoundIndex) {
-        if (this.unmounted) {
-            return null;
-        }
+    handleNewSound () {
         if (!this.props.vm.editingTarget) {
-            return null;
-        }
-        if (targetId && this.props.vm.editingTarget.id !== targetId) {
             return null;
         }
         const sprite = this.props.vm.editingTarget.sprite;
         const sounds = sprite.sounds ? sprite.sounds : [];
-        this.setState({
-            selectedSoundIndex: typeof selectedSoundIndex === 'number' ?
-                selectedSoundIndex : Math.max(sounds.length - 1, 0)
-        });
+        this.setState({selectedSoundIndex: Math.max(sounds.length - 1, 0)});
     }
 
     async handleSurpriseSound () {
-        const targetId = this.props.vm.editingTarget.id;
-        try {
-            const soundLibraryContent = await getSoundLibrary();
-            const soundItem = soundLibraryContent[Math.floor(Math.random() * soundLibraryContent.length)];
-            if (!soundItem) throw new Error('No sounds are available');
-            const vmSound = {
-                format: soundItem.dataFormat,
-                md5: soundItem.md5ext,
-                rate: soundItem.rate,
-                sampleCount: soundItem.sampleCount,
-                name: soundItem.name
-            };
-            await this.props.vm.addSound(vmSound, targetId);
-            this.handleNewSound(targetId);
-        } catch (error) {
-            this.props.onShowImportError(error);
-        }
+        const soundLibraryContent = await getSoundLibrary();
+        const soundItem = soundLibraryContent[Math.floor(Math.random() * soundLibraryContent.length)];
+        const vmSound = {
+            format: soundItem.dataFormat,
+            md5: soundItem.md5ext,
+            rate: soundItem.rate,
+            sampleCount: soundItem.sampleCount,
+            name: soundItem.name
+        };
+        this.props.vm.addSound(vmSound).then(() => {
+            this.handleNewSound();
+        });
     }
 
     handleFileUploadClick () {
-        if (!this.fileInput) return false;
         this.fileInput.click();
-        return true;
     }
 
     handleSoundUpload (e) {
         const storage = this.props.vm.runtime.storage;
         const targetId = this.props.vm.editingTarget.id;
-        const completedFiles = new Set();
-        const finishFile = (fileIndex, fileCount) => {
-            completedFiles.add(fileIndex);
-            if (completedFiles.size === fileCount) {
-                this.props.onCloseImporting();
-            }
-        };
-        const failFile = (error, fileIndex, fileCount) => {
-            this.props.onShowImportError(error);
-            finishFile(fileIndex, fileCount);
-        };
         this.props.onShowImporting();
-        const fileCount = handleFileUpload(e.target, (buffer, fileType, fileName, fileIndex, totalFiles) => {
+        handleFileUpload(e.target, (buffer, fileType, fileName, fileIndex, fileCount) => {
             soundUpload(buffer, fileType, storage, newSound => {
                 newSound.name = fileName;
                 this.props.vm.addSound(newSound, targetId).then(() => {
-                    this.handleNewSound(targetId);
-                    finishFile(fileIndex, totalFiles);
-                })
-                    .catch(error => failFile(error, fileIndex, totalFiles));
-            }, error => failFile(error, fileIndex, totalFiles));
-        }, failFile);
-        if (fileCount === 0) this.props.onCloseImporting();
+                    this.handleNewSound();
+                    if (fileIndex === fileCount - 1) {
+                        this.props.onCloseImporting();
+                    }
+                });
+            }, this.props.onCloseImporting);
+        }, this.props.onCloseImporting);
     }
 
     handleDrop (dropInfo) {
@@ -257,17 +185,14 @@ class SoundTab extends React.Component {
             this.setState({selectedSoundIndex: sprite.sounds.indexOf(activeSound)});
         } else if (dropInfo.dragType === DragConstants.BACKPACK_COSTUME) {
             this.props.onActivateCostumesTab();
-            return this.props.vm.addCostume(dropInfo.payload.body, {
+            this.props.vm.addCostume(dropInfo.payload.body, {
                 name: dropInfo.payload.name
-            }).catch(this.props.onShowImportError);
+            });
         } else if (dropInfo.dragType === DragConstants.BACKPACK_SOUND) {
-            const targetId = this.props.vm.editingTarget.id;
-            return this.props.vm.addSound({
+            this.props.vm.addSound({
                 md5: dropInfo.payload.body,
                 name: dropInfo.payload.name
-            }, targetId)
-                .then(() => this.handleNewSound(targetId))
-                .catch(this.props.onShowImportError);
+            }).then(this.handleNewSound);
         }
     }
 
@@ -364,9 +289,6 @@ SoundTab.propTypes = {
     isRtl: PropTypes.bool,
     onActivateCostumesTab: PropTypes.func.isRequired,
     onCloseImporting: PropTypes.func.isRequired,
-    onShowExportError: PropTypes.func.isRequired,
-    onShowDeleteError: PropTypes.func.isRequired,
-    onShowImportError: PropTypes.func.isRequired,
     onNewSoundFromLibraryClick: PropTypes.func.isRequired,
     onNewSoundFromRecordingClick: PropTypes.func.isRequired,
     onShowImporting: PropTypes.func.isRequired,
@@ -407,10 +329,7 @@ const mapDispatchToProps = dispatch => ({
         dispatch(setRestore(restoreState));
     },
     onCloseImporting: () => dispatch(closeAlertWithId('importingAsset')),
-    onShowImporting: () => dispatch(showStandardAlert('importingAsset')),
-    onShowExportError: () => dispatch(showStandardAlert('assetExportError')),
-    onShowDeleteError: () => dispatch(showStandardAlert('assetDeleteError')),
-    onShowImportError: () => dispatch(showStandardAlert('assetImportError'))
+    onShowImporting: () => dispatch(showStandardAlert('importingAsset'))
 });
 
 export default errorBoundaryHOC('Sound Tab')(
@@ -419,5 +338,3 @@ export default errorBoundaryHOC('Sound Tab')(
         mapDispatchToProps
     )(SoundTab))
 );
-
-export {SoundTab};

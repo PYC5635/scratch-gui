@@ -6,7 +6,6 @@ import rotur from '../rotur';
 import api from '../api';
 import useLatest from '../use-latest.js';
 import Avatar from '../components/Avatar.jsx';
-import Button from '../components/ui/Button.jsx';
 import styles from './Leaderboard.module.css';
 
 const PODIUM_CLASSES = [styles.podium1, styles.podium2, styles.podium3];
@@ -81,7 +80,6 @@ const Leaderboard = () => {
     const [board, setBoard] = useState('followers');
     const [users, setUsers] = useState(null);
     const [error, setError] = useState('');
-    const [attempt, setAttempt] = useState(0);
     const beginLoad = useLatest();
     const active = BOARDS.find(item => item.key === board);
     const boardLabel = item => intl.formatMessage({id: item.labelKey, defaultMessage: item.labelDefault});
@@ -102,7 +100,7 @@ const Leaderboard = () => {
                     defaultMessage: 'Could not load the leaderboard.'
                 }));
             }));
-}, [attempt, board, intl]);
+    }, [board, intl]);
 
     return (
         <main className={styles.page}>
@@ -125,13 +123,7 @@ const Leaderboard = () => {
                     defaultMessage: 'Loading…'
                 })}</p>
             ) : error ? (
-                <div className={styles.status}>
-                    <p>{error}</p>
-                    <Button onClick={() => setAttempt(value => value + 1)}>{intl.formatMessage({
-                        id: 'mw.community.leaderboard.tryAgain',
-                        defaultMessage: 'Try again'
-                    })}</Button>
-                </div>
+                <p className={styles.status}>{error}</p>
             ) : !users.length ? (
                 <p className={styles.status}>{intl.formatMessage({
                     id: 'mw.community.leaderboard.empty',

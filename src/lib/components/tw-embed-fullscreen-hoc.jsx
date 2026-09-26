@@ -16,28 +16,22 @@ const TWFullScreenHOC = function (WrappedComponent) {
             ]);
         }
         componentDidMount () {
-            this.mounted = true;
             document.addEventListener('fullscreenchange', this.handleFullScreenChange);
             document.addEventListener('webkitfullscreenchange', this.handleFullScreenChange);
         }
-        componentDidUpdate (previousProps) {
-            if (this.props.isFullScreen === previousProps.isFullScreen) return;
+        shouldComponentUpdate (nextProps) {
+            return this.props.isFullScreen !== nextProps.isFullScreen;
+        }
+        componentDidUpdate () {
             if (FullscreenAPI.available()) {
-                let operation;
                 if (this.props.isFullScreen) {
-                    operation = FullscreenAPI.request();
+                    FullscreenAPI.request();
                 } else if (FullscreenAPI.enabled()) {
-                    operation = FullscreenAPI.exit();
-                }
-                if (operation && typeof operation.catch === 'function') {
-                    operation.catch(() => {
-                        if (this.mounted) this.handleFullScreenChange();
-                    });
+                    FullscreenAPI.exit();
                 }
             }
         }
         componentWillUnmount () {
-            this.mounted = false;
             document.removeEventListener('fullscreenchange', this.handleFullScreenChange);
             document.removeEventListener('webkitfullscreenchange', this.handleFullScreenChange);
         }

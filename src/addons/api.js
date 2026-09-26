@@ -23,6 +23,7 @@ import addons from './generated/addon-manifests';
 import addonMessages from './addons-l10n/en.json';
 import l10nEntries from './generated/l10n-entries';
 import addonEntries from './generated/addon-entries';
+import CustomPlugins from './custom-plugins';
 import {addContextMenu} from './contextmenu';
 import * as modal from './modal';
 import * as textColorHelpers from './libraries/common/cs/text-color.esm.js';
@@ -730,7 +731,8 @@ class Self extends EventTargetShim {
 class AddonRunner {
     constructor (id) {
         AddonRunner.instances.push(this);
-        const manifest = addons[id];
+        // 内置插件走静态清单；自定义插件从登记处取（运行时导入，不在 addons 里）
+        const manifest = addons[id] || CustomPlugins.getManifest(id);
 
         this.id = id;
         this.manifest = manifest;
@@ -910,7 +912,10 @@ class AddonRunner {
             await untilInEditor();
         }
 
-        const mod = await addonEntries[this.id]();
+        // 自定义插件不走 webpack 生成的 addonEntries，直接从登记处取入口
+        const mod = CustomPlugins.isCustom(this.id) ?
+            await CustomPlugins.getEntry(this.id) :
+            await addonEntries[this.id]();
         this.resources = mod.resources;
 
         if (!this.manifest.noTranslations) {
@@ -991,9 +996,17 @@ SettingsStore.addEventListener('addon-changed', e => {
     }
 });
 
-for (const id of Object.keys(addons)) {
-    if (!SettingsStore.getAddonEnabled(id)) {
-        continue;
+// 启动：先从 IndexedDB 恢复自定义插件，再运行所有已启用的插件（内置 + 自定义）
+const boot = async () => {
+    await CustomPlugins.refreshFromDB();
+    // 注册表加载后重新读取本地存储，恢复自定义插件的开关/设置
+    SettingsStore.readLocalStorage();
+    const allAddonIds = [...Object.keys(addons), ...CustomPlugins.getIds()];
+    for (const id of allAddonIds) {
+        if (!SettingsStore.getAddonEnabled(id)) {
+            continue;
+        }
+        runAddon(id);
     }
-    runAddon(id);
-}
+};
+boot();

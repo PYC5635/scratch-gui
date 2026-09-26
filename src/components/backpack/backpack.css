@@ -16,7 +16,6 @@
 }
 
 .backpack-header {
-    width: 100%;
     margin-top: 0.5rem;
     border: 1px solid $ui-black-transparent;
     background: $ui-white;
@@ -27,12 +26,6 @@
     transition: 0.2s;
     cursor: pointer;
     user-select: none;
-    font-family: inherit;
-}
-
-.backpack-header:focus-visible {
-    outline: 3px solid $ui-primary;
-    outline-offset: -3px;
 }
 
 .search-container {

@@ -1,69 +1,45 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
-import {useCommunityIntl} from '../i18n.jsx';
 import {Coins, Wallet as WalletIcon, HeartHandshake, Send, ExternalLink, CalendarCheck} from 'lucide-react';
 import api, {projectUrl} from '../api';
 import {getAccountSummary, claimDaily} from '../../lib/rotur/client.js';
 import {CREDIT_PACKS, getBillingStatus, openCreditCheckout, openBillingPortal, consumeBillingResult} from '../credits';
 import {useUser} from '../UserContext.jsx';
-import Button from '../components/ui/Button.jsx';
-import {formatDate} from '../format';
 import styles from './Wallet.module.css';
 
 const fmtCredits = value => Math.round((Number(value) || 0) * 100) / 100;
 
+const formatDate = ms => {
+    if (!ms) return '';
+    try {
+        return new Date(ms).toLocaleDateString([], {year: 'numeric', month: 'short', day: 'numeric'});
+    } catch (e) {
+        return '';
+    }
+};
+
 const Wallet = () => {
     const intl = useIntl();
-    const {t: ct} = useCommunityIntl();
-    const {user, loading, login} = useUser();
-    const viewerName = (user && user.username) || '';
-    const walletContext = useRef(viewerName);
-    walletContext.current = viewerName;
+    const {user, loading} = useUser();
     const [account, setAccount] = useState(null);
     const [accountLoaded, setAccountLoaded] = useState(false);
     const [purchases, setPurchases] = useState(null);
-    const [purchaseError, setPurchaseError] = useState('');
-    const [purchaseAttempt, setPurchaseAttempt] = useState(0);
     const [claiming, setClaiming] = useState(false);
     const [claimMsg, setClaimMsg] = useState('');
     const [billing, setBilling] = useState(null);
     const [checkoutBusy, setCheckoutBusy] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
-    const [billingResult, setBillingResult] = useState(null);
-    const billingResultConsumed = useRef(false);
-    const actionLocks = useRef(new Set());
-
-    useEffect(() => {
-        if (loading || !viewerName || billingResultConsumed.current) return;
-        billingResultConsumed.current = true;
-        const value = consumeBillingResult();
-        if (value) setBillingResult({viewerName, value});
-    }, [loading, viewerName]);
+    const billingMsg = consumeBillingResult();
 
     useEffect(() => {
         if (!user) {
             setAccount(null);
-            setAccountLoaded(false);
             setPurchases(null);
-            setPurchaseError('');
             setBilling(null);
-            setClaimMsg('');
-            setClaiming(false);
-            setCheckoutBusy(false);
-            setCheckoutError('');
             return () => {};
         }
         let stale = false;
-        setAccount(null);
-        setAccountLoaded(false);
-        setPurchases(null);
-        setPurchaseError('');
-        setBilling(null);
-        setClaimMsg('');
-        setClaiming(false);
-        setCheckoutBusy(false);
-        setCheckoutError('');
         getAccountSummary()
             .then(data => {
                 if (stale) return;
@@ -73,48 +49,37 @@ const Wallet = () => {
             .catch(() => !stale && setAccountLoaded(true));
         api.purchases()
             .then(data => !stale && setPurchases(data.purchases || []))
-            .catch(() => !stale && setPurchaseError(ct('wallet.purchaseHistoryFailed')));
+            .catch(() => !stale && setPurchases([]));
         getBillingStatus()
             .then(data => !stale && setBilling(data))
             .catch(() => !stale && setBilling({billing_configured: false}));
         return () => {
             stale = true;
         };
-    }, [user, purchaseAttempt]);
+    }, [user]);
 
     if (loading) {
         return <main className={styles.page}><p className={styles.status}>{intl.formatMessage({id: 'mw.community.wallet.loading', defaultMessage: 'Loading…'})}</p></main>;
     }
     if (!user) {
-        return (
-            <main className={styles.page}>
-                <p className={styles.status}>{intl.formatMessage({id: 'mw.community.wallet.signIn', defaultMessage: 'Sign in to view your wallet.'})} <Button onClick={login}>{ct('common.signIn')}</Button></p>
-            </main>
-        );
+        return <main className={styles.page}><p className={styles.status}>{intl.formatMessage({id: 'mw.community.wallet.signIn', defaultMessage: 'Sign in to view your wallet.'})}</p></main>;
     }
 
     const balance = account && account.balance !== null ? account.balance : null;
-    const billingReady = Boolean(billing && billing.billing_configured);
-    const billingMsg = billingResult && billingResult.viewerName === viewerName ? billingResult.value : null;
 
     const doClaimDaily = async () => {
-        const context = walletContext.current;
-        const actionKey = `${context}\u0000claim`;
-        if (actionLocks.current.has(actionKey)) return;
-        actionLocks.current.add(actionKey);
+        if (claiming) return;
         setClaiming(true);
         setClaimMsg('');
         try {
             await claimDaily();
-            if (walletContext.current !== context) return;
             setClaimMsg(intl.formatMessage({id: 'mw.community.wallet.claimed', defaultMessage: 'Daily credits claimed!'}));
             const data = await getAccountSummary();
-            if (data && walletContext.current === context) {
+            if (data) {
                 setAccount(data);
                 setAccountLoaded(true);
             }
         } catch (e) {
-            if (walletContext.current !== context) return;
             if (e.waitHours) {
                 setClaimMsg(intl.formatMessage({id: 'mw.community.wallet.claimedWait', defaultMessage: 'Already claimed. Come back in {hours}h.'}, {hours: e.waitHours}));
             } else if (e.needsReauth) {
@@ -123,48 +88,35 @@ const Wallet = () => {
                 setClaimMsg(e.message || intl.formatMessage({id: 'mw.community.wallet.claimFailed', defaultMessage: 'Could not claim daily credits.'}));
             }
         } finally {
-            actionLocks.current.delete(actionKey);
-            if (walletContext.current === context) setClaiming(false);
+            setClaiming(false);
         }
     };
 
     const buy = async pack => {
-        const context = walletContext.current;
-        const actionKey = `${context}\u0000billing`;
-        if (actionLocks.current.has(actionKey)) return;
-        actionLocks.current.add(actionKey);
+        if (checkoutBusy) return;
         setCheckoutBusy(true);
         setCheckoutError('');
         try {
             await openCreditCheckout(pack);
         } catch (e) {
-            if (walletContext.current === context) {
-                setCheckoutError(e.needsReauth ?
-                    ct('wallet.reauthBuyCredits') :
-                    (e.message || ct('wallet.checkoutFailed')));
-            }
+            setCheckoutError(e.needsReauth ?
+                'Your current login cannot buy credits. Log out and back in, then try again.' :
+                (e.message || 'Could not open checkout.'));
         } finally {
-            actionLocks.current.delete(actionKey);
-            if (walletContext.current === context) setCheckoutBusy(false);
+            setCheckoutBusy(false);
         }
     };
 
     const manageBilling = async () => {
-        const context = walletContext.current;
-        const actionKey = `${context}\u0000billing`;
-        if (actionLocks.current.has(actionKey)) return;
-        actionLocks.current.add(actionKey);
+        if (checkoutBusy) return;
         setCheckoutBusy(true);
         setCheckoutError('');
         try {
             await openBillingPortal();
         } catch (e) {
-            if (walletContext.current === context) {
-                setCheckoutError(e.message || ct('wallet.openBillingFailed'));
-            }
+            setCheckoutError(e.message || 'Could not open billing.');
         } finally {
-            actionLocks.current.delete(actionKey);
-            if (walletContext.current === context) setCheckoutBusy(false);
+            setCheckoutBusy(false);
         }
     };
 
@@ -190,18 +142,16 @@ const Wallet = () => {
                     </div>
                     {claimMsg ? <div className={styles.claimMsg}>{claimMsg}</div> : null}
                 </div>
-                <Button
-                    variant="primary"
+                <button
                     className={styles.claimBtn}
                     onClick={doClaimDaily}
-                    busy={claiming}
-                    busyLabel={ct('wallet.claiming')}
+                    disabled={claiming}
                 >
                     <CalendarCheck size={16} />
                     {claiming ?
                         intl.formatMessage({id: 'mw.community.wallet.claiming', defaultMessage: 'Claiming…'}) :
                         intl.formatMessage({id: 'mw.community.wallet.claimDaily', defaultMessage: 'Claim daily'})}
-                </Button>
+                </button>
             </section>
 
             {account && (account.donationsReceived > 0 || account.donationsGiven > 0) ? (
@@ -222,15 +172,15 @@ const Wallet = () => {
             ) : null}
 
             <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>{ct('wallet.buyCredits')}</h2>
+                <h2 className={styles.sectionTitle}>Buy credits</h2>
                 <p className={styles.sectionLead}>
-                    {ct('wallet.buyCreditsLead')}
+                    Top up through Stripe. Credits are added to your Rotur account after checkout.
                 </p>
                 {billingMsg ? (
                     <p className={styles.billingMsg}>
                         {billingMsg === 'success' ?
-                            ct('wallet.paymentSuccess') :
-                            ct('wallet.checkoutCancelled')}
+                            'Payment successful. Credits will appear in your balance shortly.' :
+                            'Checkout cancelled.'}
                     </p>
                 ) : null}
                 <div className={styles.tiers}>
@@ -240,47 +190,37 @@ const Wallet = () => {
                             type="button"
                             className={styles.tier}
                             onClick={() => buy(pack)}
-                            disabled={checkoutBusy || !billingReady}
+                            disabled={checkoutBusy}
                         >
                             <span className={styles.tierCredits}>
                                 {pack.credits.toLocaleString()}
-                                <span> {ct('credits.label')}</span>
+                                <span> credits</span>
                             </span>
                             <span className={styles.tierPrice}>${pack.price.toFixed(2)}</span>
                         </button>
                     ))}
                 </div>
-                {checkoutBusy ? <p className={styles.checkoutNote}>{ct('wallet.openingCheckout')}</p> : null}
-                {!billing ? <p className={styles.checkoutNote}>{ct('wallet.checkingBilling')}</p> : null}
+                {checkoutBusy ? <p className={styles.checkoutNote}>Opening secure Stripe checkout…</p> : null}
                 {checkoutError ? <p className={styles.checkoutError}>{checkoutError}</p> : null}
                 {billing && !billing.billing_configured ? (
-                    <p className={styles.checkoutError}>{ct('wallet.billingUnavailable')}</p>
+                    <p className={styles.checkoutError}>Stripe billing is currently unavailable. Try again later.</p>
                 ) : null}
                 {billing && billing.stripe_portal ? (
-                    <Button
-                        variant="secondary"
+                    <button
+                        type="button"
                         className={styles.portalButton}
                         onClick={manageBilling}
-                        busy={checkoutBusy}
-                        busyLabel={ct('wallet.openingBilling')}
+                        disabled={checkoutBusy}
                     >
                         <ExternalLink size={14} />
-                        {ct('wallet.manageBilling')}
-                    </Button>
+                        Manage billing
+                    </button>
                 ) : null}
             </section>
 
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>{intl.formatMessage({id: 'mw.community.wallet.purchaseHistory', defaultMessage: 'Purchase history'})}</h2>
-                {purchaseError ? (
-                    <p className={styles.status}>
-                        {purchaseError}{' '}
-                        <Button
-                            variant="secondary"
-                            onClick={() => setPurchaseAttempt(value => value + 1)}
-                        >{intl.formatMessage({id: 'mw.community.wallet.tryAgain', defaultMessage: 'Try again'})}</Button>
-                    </p>
-                ) : purchases === null ? (
+                {purchases === null ? (
                     <p className={styles.status}>{intl.formatMessage({id: 'mw.community.wallet.loading', defaultMessage: 'Loading…'})}</p>
                 ) : purchases.length ? (
                     <ul className={styles.purchases}>

@@ -11,7 +11,6 @@ import {
     API, TOKEN_MANAGER, request, openSession, storeToken, gradientStyle
 } from '../../lib/warptheme.js';
 import {CustomTheme, customThemeManager} from '../../lib/themes/custom-themes.js';
-import Modal from './ui/Modal.jsx';
 import styles from './WarpThemePanel.module.css';
 
 const TABS = [
@@ -67,9 +66,6 @@ const WarpThemePanel = ({onThemeChange}) => {
     const [reporting, setReporting] = useState(null);
     const [reportReason, setReportReason] = useState('');
     const [savedIds, setSavedIds] = useState(() => new Set());
-    const [deletingTheme, setDeletingTheme] = useState(null);
-    const [deleteError, setDeleteError] = useState('');
-    const deleteInFlight = useRef(false);
 
     // Tracks whether the panel is still mounted so async callbacks (network
     // requests, modal close) do not call setState after unmount.
@@ -79,8 +75,6 @@ const WarpThemePanel = ({onThemeChange}) => {
     }, []);
 
     const username = user && user.username;
-    const currentUsername = useRef(username);
-    currentUsername.current = username;
 
     // Resolve the BilupTheme account id defensively: the backend returns it at
     // the top level of /user, but also nests it inside user, so fall back if the
@@ -101,8 +95,6 @@ const WarpThemePanel = ({onThemeChange}) => {
 
     useEffect(() => {
         let active = true;
-        setDeletingTheme(null);
-        setDeleteError('');
         if (!username) {
             storeToken(null);
             setAccount(null);
@@ -221,33 +213,12 @@ const WarpThemePanel = ({onThemeChange}) => {
     });
 
     const deleteTheme = item => {
-        if (deleteInFlight.current) return;
-        setDeleteError('');
-        setDeletingTheme(item);
-    };
-
-    const confirmDeleteTheme = async () => {
-        if (!deletingTheme || deleteInFlight.current) return;
-        const item = deletingTheme;
-        const actionUsername = username;
-        const releaseDelete = () => {
-            deleteInFlight.current = false;
-        };
-        deleteInFlight.current = true;
-        setBusy(true);
-        setDeleteError('');
-        try {
+        if (!window.confirm(t('mw.community.biluptheme.deleteConfirm', 'Delete "{name}"? This cannot be undone.', {name: item.name}))) return;
+        run(async () => {
             await request(`/theme?uuid=${encodeURIComponent(item.uuid)}`, token, {method: 'DELETE'});
             if (mountedRef.current) setSelected(null);
             await refresh();
-        } catch (err) {
-            if (mountedRef.current) {
-                setDeleteError(err.message || String(err));
-            }
-        } finally {
-            releaseDelete();
-            if (mountedRef.current) setBusy(false);
-        }
+        });
     };
 
     const submitReport = () => run(async () => {
@@ -276,8 +247,6 @@ const WarpThemePanel = ({onThemeChange}) => {
         setSelected(null);
         setEditing(null);
         setReporting(null);
-        setDeletingTheme(null);
-        setDeleteError('');
         setNotice('');
     };
 
@@ -569,37 +538,6 @@ const WarpThemePanel = ({onThemeChange}) => {
 
     return (
         <div className={styles.panel}>
-            {deletingTheme ? (
-                <Modal
-                    icon={Trash2}
-                    title={t('mw.community.biluptheme.deleteThemeTitle', 'Delete theme?')}
-                    dismissDisabled={busy}
-                    onClose={() => {
-                        setDeletingTheme(null);
-                        setDeleteError('');
-                    }}
-                    actions={<React.Fragment>
-                        <button
-                            className={styles.secondaryButton}
-                            disabled={busy}
-                            onClick={() => {
-                                setDeletingTheme(null);
-                                setDeleteError('');
-                            }}
-                            type="button"
-                        >{t('mw.community.biluptheme.cancel', 'Cancel')}</button>
-                        <button
-                            className={styles.dangerButton}
-                            disabled={busy}
-                            onClick={confirmDeleteTheme}
-                            type="button"
-                        >{busy ? t('mw.community.biluptheme.deleting', 'Deleting…') : t('mw.community.biluptheme.deleteTheme', 'Delete theme')}</button>
-                    </React.Fragment>}
-                >
-                    <p>{t('mw.community.biluptheme.deleteConfirm', 'This permanently deletes “{name}” from WarpTheme.', {name: deletingTheme.name})}</p>
-                    {deleteError ? <p className={styles.error}>{deleteError}</p> : null}
-                </Modal>
-            ) : null}
             <div
                 className={styles.tabs}
                 role="tablist"

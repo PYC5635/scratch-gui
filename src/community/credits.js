@@ -9,7 +9,7 @@ const PURCHASE_TIERS = [
 
 const KO_FI_SHOP_URL = 'https://ifdian.net/a/RyaninCn11';
 
-const ROTUR_API = 'https://api.accounts.bilup.org/v2';
+const ROTUR_API = 'https://api.rotur.dev/v2';
 const TOKEN_KEY = 'mw:rotur-token';
 
 // Stripe credit top-up tiers (shared with the Rotur wallet). Buying opens a

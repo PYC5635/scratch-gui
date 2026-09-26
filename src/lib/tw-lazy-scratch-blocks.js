@@ -1,9 +1,34 @@
 import {getVanillaPalette} from './mw-vanilla-palette';
-import {getItem as getStorageItem} from './utils/safe-storage.js';
+import {getItem as getStorageItem, setItem as setStorageItem} from './utils/safe-storage.js';
 
 let _ScratchBlocks = null;
 
 const isLoaded = () => !!_ScratchBlocks;
+
+const SCRIPT_LAZY_LOADING_KEY = 'mw:script-lazy-loading';
+
+/**
+ * Whether the experimental block lazy loading setting is on. Defaults to off.
+ * @returns {boolean} True when scripts outside the loaded region get unloaded.
+ */
+const isScriptLazyLoadingEnabled = () => getStorageItem(SCRIPT_LAZY_LOADING_KEY) === 'true';
+
+/**
+ * Push the lazy loading setting into scratch-blocks. This only controls whether
+ * scripts that leave the region are unloaded again; loading stays progressive
+ * either way.
+ * @param {boolean} enabled True to unload scripts that leave the loaded region.
+ */
+const applyScriptLazyLoading = enabled => {
+    if (!_ScratchBlocks || !_ScratchBlocks.Xml) return;
+    if (typeof _ScratchBlocks.Xml.VIRTUAL_CULLING_ENABLED === 'undefined') return;
+    _ScratchBlocks.Xml.VIRTUAL_CULLING_ENABLED = !!enabled;
+};
+
+const setScriptLazyLoading = enabled => {
+    setStorageItem(SCRIPT_LAZY_LOADING_KEY, enabled);
+    applyScriptLazyLoading(enabled);
+};
 
 const get = () => {
     if (!isLoaded()) {
@@ -19,6 +44,7 @@ const load = () => {
     return import(/* webpackChunkName: "sb" */ 'scratch-blocks')
         .then(m => {
             _ScratchBlocks = m.default;
+            applyScriptLazyLoading(isScriptLazyLoadingEnabled());
 
             try {
                 const operatorUtils = _ScratchBlocks.ScratchBlocks && _ScratchBlocks.ScratchBlocks.OperatorUtils;
@@ -109,5 +135,8 @@ const load = () => {
 export default {
     get,
     isLoaded,
-    load
+    load,
+    isScriptLazyLoadingEnabled,
+    setScriptLazyLoading,
+    applyScriptLazyLoading
 };

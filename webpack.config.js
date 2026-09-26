@@ -18,7 +18,6 @@ try {
 }
 
 const ENABLE_COMMUNITY = true;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Plugins
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -91,10 +90,8 @@ const htmlWebpackPluginCommon = {
 const CACHE_EPOCH = 'gleba';
 
 const base = {
-    mode: IS_PRODUCTION ? 'production' : 'development',
-    cache: !IS_PRODUCTION,
-    devtool: process.env.SOURCEMAP || (IS_PRODUCTION ? false : 'eval-cheap-module-source-map'),
-    stats: IS_PRODUCTION ? 'normal' : 'errors-warnings',
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+    devtool: process.env.SOURCEMAP || (process.env.NODE_ENV === 'production' ? false : 'cheap-module-source-map'),
     devServer: {
         contentBase: false,
         host: '0.0.0.0',
@@ -167,10 +164,6 @@ const base = {
         alias: {
             'react': require.resolve('react'),
             'react-dom': require.resolve('react-dom'),
-            // scratch-paint links its own copy of react-popover under
-            // ../_sdeps which webpack 4 cannot parse. Pin it to the same
-            // prebuilt top-level 0.5.10 the app itself uses.
-            'react-popover': path.resolve(__dirname, 'node_modules/react-popover'),
             'text-encoding$': path.resolve(__dirname, 'src/lib/tw-text-encoder'),
             'just-bash$': path.resolve(__dirname, 'node_modules/just-bash/dist/bundle/browser.js'),
             'node:zlib$': path.resolve(__dirname, 'src/lib/just-bash-zlib.js'),
@@ -235,35 +228,16 @@ const base = {
                 /node_modules/
             ]
         }, {
-            // scratch-render/src/shaders/*.vert|.frag are `require`d as raw
-            // strings by ShaderManager; once resolved to _sdeps they no longer
-            // match the upstream node_modules shader rule, so load them here.
-            test: /\.(vert|frag|glsl|hlsl)$/,
-            loader: 'raw-loader'
-        }, {
             test: /\.m?jsx?$/,
             loader: 'babel-loader',
             include: [
                 path.resolve(__dirname, 'src'),
-                // Linked scratch-* deps are junctioned into node_modules but
-                // resolve.symlinks resolves them to their real path under
-                // ../_sdeps, so the `node_modules/scratch-*/src` regex below
-                // does not match them. Include each real src root so their
-                // modern syntax (?. / ??) gets transpiled by babel, while
-                // excluding each dep's nested node_modules (e.g.
-                // scratch-paint/node_modules/react-popover, which is prebuilt
-                // and must not be re-transpiled).
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-vm', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-paint', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-render', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-blocks', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-svg-renderer', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-storage', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-audio', 'src'),
-                path.resolve(__dirname, '..', '_sdeps', 'scratch-l10n', 'src'),
-                // rotur-sdk resolves to _sdeps/accounts-sdk via junction; its
-                // ESM dist/index.mjs also needs transpiling.
-                path.resolve(__dirname, '..', '_sdeps', 'accounts-sdk'),
+                // Linked scratch-vm is resolved to its real sibling path by
+                // resolve.symlinks, so the `node_modules/scratch-*/src` regex
+                // below does not match it. Include it explicitly so its modern
+                // syntax (?. / ??) gets transpiled by babel.
+                path.resolve(__dirname, '..', 'scratch-vm', 'src'),
+                path.resolve(__dirname, '..', 'scratch-paint', 'src'),
                 /node_modules[\\/]scratch-[^\\/]+[\\/]src/,
                 /node_modules[\\/]scratch-parser[\\/]/,
                 /node_modules[\\/]pify/,
@@ -279,10 +253,6 @@ const base = {
                 /node_modules[\\/]fake-indexeddb/
             ],
             options: {
-                cacheDirectory: path.resolve(__dirname, 'node_modules/.cache/babel-loader'),
-                cacheCompression: false,
-                // Explicitly disable babelrc so we don't catch various config
-                // in much lower dependencies.
                 babelrc: false,
                 plugins: [
                     ['react-intl', {
@@ -495,8 +465,7 @@ module.exports = [
                 'process.env.ENABLE_SERVICE_WORKER': JSON.stringify(process.env.ENABLE_SERVICE_WORKER || ''),
                 'process.env.ROOT': JSON.stringify(root),
                 'process.env.ROUTING_STYLE': JSON.stringify(process.env.ROUTING_STYLE || 'wildcard'),
-                'process.env.MW_COMMUNITY': JSON.stringify(ENABLE_COMMUNITY ? 'true' : ''),
-                'process.env.MW_STATUS_URL': JSON.stringify(process.env.MW_STATUS_URL || 'https://status.com.bilup.org')
+                'process.env.MW_COMMUNITY': JSON.stringify(ENABLE_COMMUNITY ? 'true' : '')
             }),
             new HtmlWebpackPlugin({
                 chunks: ['editor'],
@@ -556,13 +525,15 @@ module.exports = [
                     }
                 ]
             }),
-            ...(IS_PRODUCTION ? [new CopyWebpackPlugin({
-                patterns: [{
-                    from: path.resolve(__dirname, '../docs/build'),
-                    to: 'docs',
-                    noErrorOnMissing: true
-                }]
-            })] : []),
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        from: path.resolve(__dirname, '../docs/build'),
+                        to: 'docs',
+                        noErrorOnMissing: true
+                    }
+                ]
+            }),
             new CopyWebpackPlugin({
                 patterns: [
                     {

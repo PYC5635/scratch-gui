@@ -2,10 +2,18 @@ import bindAll from 'lodash.bindall';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {connect} from 'react-redux';
+import {defineMessages, injectIntl, intlShape} from 'react-intl';
 import {openUsernameModal} from '../reducers/modals';
 import {closeEditMenu} from '../reducers/menus';
-import {showStandardAlert} from '../reducers/alerts';
 import isScratchDesktop from '../lib/utils/isScratchDesktop';
+
+const messages = defineMessages({
+    cannotChangeWhileRunning: {
+        defaultMessage: 'Username cannot be changed while the project is running.',
+        description: 'Alert that appears when trying to change username while project is running',
+        id: 'tw.changeUsername.cannotChangeWhileRunning'
+    }
+});
 
 class ChangeUsername extends React.Component {
     constructor (props) {
@@ -16,7 +24,8 @@ class ChangeUsername extends React.Component {
     }
     changeUsername () {
         if (this.props.running && !isScratchDesktop()) {
-            this.props.onShowUnavailable();
+            // eslint-disable-next-line no-alert
+            alert(this.props.intl.formatMessage(messages.cannotChangeWhileRunning));
             return;
         }
         this.props.onOpenUsernameModal();
@@ -29,8 +38,8 @@ class ChangeUsername extends React.Component {
 ChangeUsername.propTypes = {
     children: PropTypes.func,
     onOpenUsernameModal: PropTypes.func,
-    onShowUnavailable: PropTypes.func,
-    running: PropTypes.bool
+    running: PropTypes.bool,
+    intl: intlShape
 };
 
 const mapStateToProps = state => ({
@@ -41,18 +50,10 @@ const mapDispatchToProps = dispatch => ({
     onOpenUsernameModal: () => {
         dispatch(openUsernameModal());
         dispatch(closeEditMenu());
-    },
-    onShowUnavailable: () => {
-        dispatch(closeEditMenu());
-        dispatch(showStandardAlert('usernameChangeUnavailable'));
     }
 });
 
-export {
-    ChangeUsername
-};
-
-export default connect(
+export default injectIntl(connect(
     mapStateToProps,
     mapDispatchToProps
-)(ChangeUsername);
+)(ChangeUsername));

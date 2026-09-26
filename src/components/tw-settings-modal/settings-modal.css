@@ -1,4 +1,4 @@
-@import "../../css/colors.css";
+﻿@import "../../css/colors.css";
 @import "../../css/filters.css";
 @import "../../css/default-colors.css";
 
@@ -105,22 +105,6 @@
     font-size: 0.8125rem;
     line-height: 1.4;
     color: color-mix(in srgb, $text-primary 68%, transparent);
-}
-
-.inline-link-button {
-    appearance: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: $link-color;
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-}
-
-.inline-link-button:focus-visible {
-    outline: 2px solid $looks-secondary;
-    outline-offset: 2px;
 }
 
 .textSettingLabel {
@@ -475,6 +459,85 @@
     font-size: 0.8125rem;
 }
 
+/* Shared slider style used by Wallpaper. `accent-color` makes modern browsers color the fill natively;
+   ::-webkit-slider-* and ::-moz-range-* styles are kept so Firefox and
+   Chrome both render the same flat thumb and track instead of falling back
+   to platform-native 3-D widgets that don't match the editor UI.
+   Firefox needs a larger min-height for clickable area when appearance: none is set. */
+.gcSlider {
+    flex: 1;
+    min-width: 0;
+    height: auto;
+    min-height: 20px;
+    background: transparent;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    accent-color: $looks-secondary;
+    cursor: pointer;
+}
+
+/* Remove Firefox's dotted focus outline */
+.gcSlider::-moz-focus-outer {
+    border: 0;
+}
+
+.gcSlider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: $ui-black-transparent;
+}
+
+.gcSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: $looks-secondary;
+    cursor: pointer;
+    margin-top: -5px;
+    border: 0;
+}
+
+.gcSlider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: $ui-black-transparent;
+    border: 0;
+}
+
+.gcSlider::-moz-range-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: $looks-secondary;
+}
+
+.gcSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: $looks-secondary;
+    cursor: pointer;
+    border: 0;
+}
+
+/* Experimental page groups: visually wrap related settings in a bordered box. */
+.experimental-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0.5rem 0;
+    padding: 0.25rem 0.5rem 0.5rem;
+    border: 1px solid $ui-black-transparent;
+    border-radius: 8px;
+    background: color-mix(in srgb, $ui-primary 55%, transparent);
+}
+
+.experimental-group .setting {
+    margin: 0.125rem 0;
+}
+
 .wallpaper-list {
     display: flex;
     flex-direction: column;
@@ -488,30 +551,13 @@
     padding: 0.375rem 1rem;
     border: 2px solid transparent;
     border-radius: 8px;
+    cursor: pointer;
 }
 .wallpaper-item:hover {
     background: $badge-border;
 }
 .wallpaper-item-selected {
     border-color: $looks-secondary;
-}
-.wallpaper-choice {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    gap: 0.75rem;
-    padding: 0;
-    border: 0;
-    color: inherit;
-    background: transparent;
-    font: inherit;
-    text-align: inherit;
-    cursor: pointer;
-}
-.wallpaper-choice:focus-visible {
-    outline: 3px solid $looks-secondary;
-    outline-offset: 2px;
 }
 .wallpaper-thumb {
     width: 4rem;
@@ -556,19 +602,6 @@
 }
 .font-row:hover {
     border-color: color-mix(in srgb, $looks-secondary 60%, transparent);
-}
-
-.font-list .font-row {
-    width: 100%;
-    color: inherit;
-    font: inherit;
-    text-align: inherit;
-    cursor: pointer;
-}
-
-.font-list .font-row:focus-visible {
-    outline: 3px solid $looks-secondary;
-    outline-offset: 2px;
 }
 
 /* ── Custom Themes page ── */
@@ -761,41 +794,6 @@
     gap: 0.1rem;
     padding: 0 0.4rem 0 0;
     flex-shrink: 0;
-}
-
-.ct-delete-confirm {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    width: 100%;
-    padding: 0.65rem;
-}
-
-.ct-delete-confirm > span:first-child {
-    display: grid;
-    gap: 0.15rem;
-    min-width: 0;
-}
-
-.ct-delete-confirm small {
-    color: color-mix(in srgb, $text-primary 62%, transparent);
-}
-
-.ct-delete-error {
-    color: $error-primary !important;
-}
-
-.ct-delete-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-shrink: 0;
-}
-
-.ct-delete-actions .button,
-.ct-delete-actions .ct-button-secondary {
-    padding: 0.4rem 0.65rem;
-    font-size: 0.75rem;
 }
 
 .ct-empty {
@@ -1142,6 +1140,32 @@
     color: color-mix(in srgb, $text-primary 68%, transparent);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+/* ── Frosted Glass page ── */
+
+.settingHeader {
+    margin: 0.5rem 0 0.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.settingValue {
+    margin-left: 0.5rem;
+    font-size: 0.8125rem;
+    color: color-mix(in srgb, $text-primary 65%, transparent);
+    font-weight: 600;
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+.rangeLabels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: color-mix(in srgb, $text-primary 55%, transparent);
+    margin-top: 0.2rem;
+    padding: 0 0.15rem;
 }
 
 .mobile-back-button {

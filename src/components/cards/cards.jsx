@@ -20,8 +20,7 @@ import {translateImage} from '../../lib/libraries/decks/translate-image.js';
 
 const CardHeader = ({onCloseCards, onShrinkExpandCards, onShowAll, totalSteps, step, expanded}) => (
     <div className={expanded ? styles.headerButtons : classNames(styles.headerButtons, styles.headerButtonsHidden)}>
-        <button
-            type="button"
+        <div
             className={styles.allButton}
             onClick={onShowAll}
         >
@@ -34,7 +33,7 @@ const CardHeader = ({onCloseCards, onShrinkExpandCards, onShowAll, totalSteps, s
                 description="Title for button to return to tutorials library"
                 id="gui.cards.all-tutorials"
             />
-        </button>
+        </div>
         {totalSteps > 1 ? (
             <div className={styles.stepsList}>
                 {Array(totalSteps).fill(0)
@@ -47,8 +46,7 @@ const CardHeader = ({onCloseCards, onShrinkExpandCards, onShowAll, totalSteps, s
             </div>
         ) : null}
         <div className={styles.headerButtonsRight}>
-            <button
-                type="button"
+            <div
                 className={styles.shrinkExpandButton}
                 onClick={onShrinkExpandCards}
             >
@@ -68,9 +66,8 @@ const CardHeader = ({onCloseCards, onShrinkExpandCards, onShowAll, totalSteps, s
                         id="gui.cards.expand"
                     />
                 }
-            </button>
-            <button
-                type="button"
+            </div>
+            <div
                 className={styles.removeButton}
                 onClick={onCloseCards}
             >
@@ -83,7 +80,7 @@ const CardHeader = ({onCloseCards, onShrinkExpandCards, onShowAll, totalSteps, s
                     description="Title for button to close how-to card"
                     id="gui.cards.close"
                 />
-            </button>
+            </div>
         </div>
     </div>
 );
@@ -178,9 +175,7 @@ const NextPrevButtons = ({isRtl, onNextStep, onPrevStep, expanded}) => (
         {onNextStep ? (
             <div>
                 <div className={expanded ? (isRtl ? styles.leftCard : styles.rightCard) : styles.hidden} />
-                <button
-                    type="button"
-                    aria-label="Next tutorial step"
+                <div
                     className={expanded ? (isRtl ? styles.leftButton : styles.rightButton) : styles.hidden}
                     onClick={onNextStep}
                 >
@@ -188,15 +183,13 @@ const NextPrevButtons = ({isRtl, onNextStep, onPrevStep, expanded}) => (
                         draggable={false}
                         src={isRtl ? leftArrow : rightArrow}
                     />
-                </button>
+                </div>
             </div>
         ) : null}
         {onPrevStep ? (
             <div>
                 <div className={expanded ? (isRtl ? styles.rightCard : styles.leftCard) : styles.hidden} />
-                <button
-                    type="button"
-                    aria-label="Previous tutorial step"
+                <div
                     className={expanded ? (isRtl ? styles.rightButton : styles.leftButton) : styles.hidden}
                     onClick={onPrevStep}
                 >
@@ -204,7 +197,7 @@ const NextPrevButtons = ({isRtl, onNextStep, onPrevStep, expanded}) => (
                         draggable={false}
                         src={isRtl ? rightArrow : leftArrow}
                     />
-                </button>
+                </div>
             </div>
         ) : null}
     </Fragment>
@@ -236,8 +229,7 @@ const PreviewsStep = ({deckIds, content, onActivateDeckFactory, onShowAll}) => (
         </div>
         <div className={styles.decks}>
             {deckIds.slice(0, 2).map(id => (
-                <button
-                    type="button"
+                <div
                     className={styles.deck}
                     key={`deck-preview-${id}`}
                     onClick={onActivateDeckFactory(id)}
@@ -248,12 +240,11 @@ const PreviewsStep = ({deckIds, content, onActivateDeckFactory, onShowAll}) => (
                         src={content[id].img}
                     />
                     <div className={styles.deckName}>{content[id].name}</div>
-                </button>
+                </div>
             ))}
         </div>
         <div className={styles.seeAll}>
-            <button
-                type="button"
+            <div
                 className={styles.seeAllButton}
                 onClick={onShowAll}
             >
@@ -262,7 +253,7 @@ const PreviewsStep = ({deckIds, content, onActivateDeckFactory, onShowAll}) => (
                     description="Title for button to see more in how-to library"
                     id="gui.cards.see-more"
                 />
-            </button>
+            </div>
         </div>
     </Fragment>
 );

@@ -28,8 +28,7 @@ export default function (Input) {
         }
         handleFlush () {
             const isNumeric = typeof this.props.value === 'number';
-            const numericValue = isNumeric && typeof this.state.value === 'string' ? this.state.value.trim() : null;
-            const validatesNumeric = isNumeric ? numericValue !== '' && Number.isFinite(Number(numericValue)) : true;
+            const validatesNumeric = isNumeric ? !isNaN(this.state.value) : true;
             if (this.state.value !== null && validatesNumeric) {
                 this.props.onSubmit(isNumeric ? Number(this.state.value) : this.state.value);
             }

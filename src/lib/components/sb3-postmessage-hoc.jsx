@@ -2,6 +2,7 @@ import React from 'react';
 import {connect} from 'react-redux';
 import PropTypes from 'prop-types';
 import log from '../utils/log';
+import {getIsShowingProject} from '../../reducers/project-state';
 import RestorePointAPI from '../api/restore-points';
 
 /**
@@ -14,31 +15,21 @@ import RestorePointAPI from '../api/restore-points';
  *   data: ArrayBuffer | string (URL) | Uint8Array,
  *   title?: string
  * }
- * @param {React.Component} WrappedComponent component to add external project loading to
- * @returns {React.Component} connected component with external project loading support
  */
 const SB3PostMessageHOC = function (WrappedComponent) {
     class SB3PostMessageComponent extends React.Component {
         constructor (props) {
             super(props);
             this.handleMessage = this.handleMessage.bind(this);
-            this.loadGeneration = 0;
-            this.fetchController = null;
-            this._isMounted = false;
+            this.lastMessageSource = null;
+            this.lastMessageOrigin = null;
         }
 
         componentDidMount () {
-            this._isMounted = true;
             window.addEventListener('message', this.handleMessage);
         }
 
         componentWillUnmount () {
-            this._isMounted = false;
-            this.loadGeneration++;
-            if (this.fetchController) {
-                this.fetchController.abort();
-                this.fetchController = null;
-            }
             window.removeEventListener('message', this.handleMessage);
         }
 
@@ -61,7 +52,7 @@ const SB3PostMessageHOC = function (WrappedComponent) {
 
                 // Block localhost with non-standard ports (except our known dev ports)
                 if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-                    const port = parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80);
+                    const port = parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80);
                     const allowedLocalPorts = [80, 443, 3000, 8080, 8601];
                     return allowedLocalPorts.includes(port);
                 }
@@ -94,7 +85,7 @@ const SB3PostMessageHOC = function (WrappedComponent) {
             // Check if this is an SB3 loading message before validating the
             // origin so unrelated messages do not log warnings.
             if (!message || message.type !== 'LOAD_SB3') {
-                return false;
+                return;
             }
 
             // Allow messages from various sources:
@@ -120,65 +111,46 @@ const SB3PostMessageHOC = function (WrappedComponent) {
                 // Allow parent pages (more permissive for cross-origin scenarios)
             } else {
                 log.warn(`Blocked postMessage from unauthorized origin: ${e.origin}`);
-                return false;
+                return;
             }
 
             log.info('Received SB3 load request via postMessage', message);
 
-            const request = {
-                generation: ++this.loadGeneration,
-                origin: e.origin,
-                source: e.source
-            };
-            if (this.fetchController) {
-                this.fetchController.abort();
-                this.fetchController = null;
-            }
+            // Store message source for response
+            this.lastMessageSource = e.source;
+            this.lastMessageOrigin = e.origin;
 
             // Validate message structure
             if (!message.data) {
                 log.error('SB3 postMessage missing data field');
-                this.sendResponse(request, 'error', 'SB3 load request is missing project data', message.title);
-                return false;
+                return;
             }
 
             try {
                 if (typeof message.data === 'string') {
                     // Data is a URL
-                    return this.loadSB3FromUrl(message.data, message.title, request);
-                }
-                if (message.data instanceof ArrayBuffer || message.data instanceof Uint8Array) {
+                    this.loadSB3FromUrl(message.data, message.title);
+                } else if (message.data instanceof ArrayBuffer || message.data instanceof Uint8Array) {
                     // Data is binary SB3 content
-                    return this.loadSB3Data(message.data, message.title, request);
+                    this.loadSB3Data(message.data, message.title);
+                } else {
+                    log.error('SB3 postMessage data must be a URL string, ArrayBuffer, or Uint8Array');
                 }
-                log.error('SB3 postMessage data must be a URL string, ArrayBuffer, or Uint8Array');
-                this.sendResponse(
-                    request,
-                    'error',
-                    'SB3 project data must be a URL, ArrayBuffer, or Uint8Array',
-                    message.title
-                );
-                return false;
             } catch (error) {
                 log.error('Error processing SB3 postMessage:', error);
-                this.sendResponse(request, 'error', `Failed to process SB3 project: ${error.message}`, message.title);
-                return false;
             }
         }
 
-        loadSB3FromUrl (url, title, request) {
+        loadSB3FromUrl (url, title) {
             if (!this.props.vm) {
                 log.error('VM not available');
-                this.sendResponse(request, 'error', 'VM not available', title);
-                return Promise.resolve(false);
+                this.sendResponse('error', 'VM not available');
+                return;
             }
 
             log.info(`Loading SB3 from URL: ${url}`);
-
-            const controller = typeof AbortController === 'undefined' ? null : new AbortController();
-            this.fetchController = controller;
-            const fetchPromise = controller ? fetch(url, {signal: controller.signal}) : fetch(url);
-            return fetchPromise
+            
+            fetch(url)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`Failed to fetch: ${response.status}`);
@@ -186,32 +158,19 @@ const SB3PostMessageHOC = function (WrappedComponent) {
                     return response.arrayBuffer();
                 })
                 .then(arrayBuffer => {
-                    if (!this.isCurrentRequest(request)) {
-                        return false;
-                    }
-                    return this.loadSB3Data(arrayBuffer, title, request);
+                    this.loadSB3Data(arrayBuffer, title);
                 })
                 .catch(error => {
-                    if (!this.isCurrentRequest(request) || error.name === 'AbortError') {
-                        return false;
-                    }
                     log.error('Error loading SB3 from URL:', error);
-                    this.sendResponse(request, 'error', `Failed to load SB3 from URL: ${error.message}`, title);
-                    return false;
-                })
-                .then(result => {
-                    if (this.fetchController === controller) {
-                        this.fetchController = null;
-                    }
-                    return result;
+                    this.sendResponse('error', `Failed to load SB3 from URL: ${error.message}`);
                 });
         }
 
-        loadSB3Data (data, title, request) {
+        loadSB3Data (data, title) {
             if (!this.props.vm) {
                 log.error('VM not available');
-                this.sendResponse(request, 'error', 'VM not available', title);
-                return Promise.resolve(false);
+                this.sendResponse('error', 'VM not available');
+                return;
             }
 
             log.info('Loading SB3 data directly');
@@ -223,51 +182,29 @@ const SB3PostMessageHOC = function (WrappedComponent) {
             }
 
             // Stop current project and load new one
-            return RestorePointAPI.createSafetyRestorePoint(this.props.vm, 'Before external load')
-                .catch(error => {
-                    log.warn('Could not create a restore point before external load:', error);
-                })
+            RestorePointAPI.createSafetyRestorePoint(this.props.vm, 'Before external load')
                 .then(() => {
-                    if (!this.isCurrentRequest(request)) {
-                        return false;
-                    }
                     this.props.vm.quit();
                     return this.props.vm.loadProject(arrayBuffer);
                 })
-                .then(loadResult => {
-                    if (loadResult === false || !this.isCurrentRequest(request)) {
-                        return false;
-                    }
+                .then(() => {
                     log.info('SB3 project loaded successfully via postMessage');
                     
                     // Draw the renderer if available
                     if (this.props.vm.renderer && this.props.vm.renderer.draw) {
-                        try {
-                            this.props.vm.renderer.draw();
-                        } catch (error) {
-                            log.warn('Could not redraw the externally loaded project:', error);
-                        }
+                        this.props.vm.renderer.draw();
                     }
 
                     // Send success response to parent
-                    this.sendResponse(request, 'success', 'SB3 project loaded successfully', title);
-                    return true;
+                    this.sendResponse('success', 'SB3 project loaded successfully', title);
                 })
                 .catch(error => {
-                    if (!this.isCurrentRequest(request)) {
-                        return false;
-                    }
                     log.error('Error loading SB3 data:', error);
-                    this.sendResponse(request, 'error', `Failed to load SB3 project: ${error.message}`, title);
-                    return false;
+                    this.sendResponse('error', `Failed to load SB3 project: ${error.message}`);
                 });
         }
 
-        isCurrentRequest (request) {
-            return this._isMounted && request.generation === this.loadGeneration;
-        }
-
-        sendResponse (request, status, message, title) {
+        sendResponse (status, message, title) {
             const response = {
                 type: 'LOAD_SB3_RESPONSE',
                 status: status,
@@ -277,9 +214,9 @@ const SB3PostMessageHOC = function (WrappedComponent) {
             };
 
             // Send response back to the specific message source first
-            if (request.source && request.origin) {
+            if (this.lastMessageSource && this.lastMessageOrigin) {
                 try {
-                    request.source.postMessage(response, request.origin);
+                    this.lastMessageSource.postMessage(response, this.lastMessageOrigin);
                     log.info('Sent response to message source:', response);
                     return; // Successfully sent to specific source
                 } catch (error) {

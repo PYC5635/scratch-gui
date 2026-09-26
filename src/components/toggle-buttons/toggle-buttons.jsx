@@ -14,18 +14,17 @@ const ToggleButtons = ({buttons, className, disabled}) => (
             }
         )}
     >
-        {buttons.map(button => {
+        {buttons.map((button, index) => {
             const Icon = button.icon;
             return (
                 <button
-                    key={button.id || button.title}
+                    key={`toggle-${index}`}
                     className={styles.button}
-                    type="button"
                     title={button.title}
                     aria-label={button.title}
                     aria-pressed={button.isSelected}
                     onClick={button.handleClick}
-                    disabled={disabled || button.disabled}
+                    disabled={disabled}
                 >
                     {typeof Icon === 'function' ? (
                         <img
@@ -57,8 +56,6 @@ const ToggleButtons = ({buttons, className, disabled}) => (
 
 ToggleButtons.propTypes = {
     buttons: PropTypes.arrayOf(PropTypes.shape({
-        disabled: PropTypes.bool,
-        id: PropTypes.string,
         title: PropTypes.string.isRequired,
         handleClick: PropTypes.func.isRequired,
         // string: image URL

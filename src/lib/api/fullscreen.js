@@ -20,25 +20,23 @@ const enabled = () => {
 
 /**
  * Request entering the document into fullscreen mode.
- * @returns {Promise|undefined} browser fullscreen request, when supported
  */
 const request = () => {
     if (document.body.requestFullscreen) {
-        return document.body.requestFullscreen();
+        document.body.requestFullscreen();
     } else if (document.body.webkitRequestFullscreen) {
-        return document.body.webkitRequestFullscreen();
+        document.body.webkitRequestFullscreen();
     }
 };
 
 /**
  * Exit fullscreen mode.
- * @returns {Promise|undefined} browser fullscreen exit request, when supported
  */
 const exit = () => {
     if (document.exitFullscreen) {
-        return document.exitFullscreen();
+        document.exitFullscreen();
     } else if (document.webkitExitFullscreen) {
-        return document.webkitExitFullscreen();
+        document.webkitExitFullscreen();
     }
 };
 

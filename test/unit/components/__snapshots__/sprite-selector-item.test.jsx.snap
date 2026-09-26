@@ -1,65 +1,73 @@
-﻿// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`SpriteSelectorItemComponent matches snapshot when given a number and details to show 1`] = `
 <div
-  className="ponies undefined"
+  className="react-contextmenu-wrapper ponies undefined"
+  onClick={[Function]}
+  onContextMenu={[Function]}
+  onMouseDown={[Function]}
+  onMouseEnter={undefined}
+  onMouseLeave={undefined}
+  onMouseOut={[Function]}
+  onMouseUp={[Function]}
+  onTouchEnd={[Function]}
+  onTouchStart={[Function]}
 >
-  <button
-    aria-pressed={true}
-    className="react-contextmenu-wrapper"
-    onClick={[MockFunction]}
-    onContextMenu={[Function]}
-    onMouseDown={[Function]}
-    onMouseOut={[Function]}
-    onMouseUp={[Function]}
-    onTouchEnd={[Function]}
-    onTouchStart={[Function]}
-    type="button"
+  <div
+    className={undefined}
   >
-    <div>
-      5
+    5
+  </div>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
+      <img
+        className={undefined}
+        draggable={false}
+        src="https://scratch.mit.edu/foo/bar/pony"
+      />
     </div>
-    <div>
-      <div>
-        <img
-          draggable={false}
-          loading="lazy"
-          src="https://scratch.mit.edu/foo/bar/pony"
-        />
-      </div>
+  </div>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
+      Pony sprite
     </div>
-    <div>
-      <div>
-        Pony sprite
-      </div>
-      <div>
-        480 x 360
-      </div>
+    <div
+      className={undefined}
+    >
+      480 x 360
     </div>
-  </button>
-  <button
+  </div>
+  <div
     aria-label="Delete"
     className=""
-    disabled={false}
-    onClick={[MockFunction]}
+    onClick={[Function]}
+    role="button"
     tabIndex={0}
-    type="button"
   >
-    <div>
+    <div
+      className={undefined}
+    >
       <img
-        alt="Delete"
-        draggable={false}
+        className={undefined}
         src="test-file-stub"
       />
     </div>
-  </button>
+  </div>
   <nav
     className="react-contextmenu"
     onContextMenu={[Function]}
     onMouseLeave={[Function]}
     role="menu"
     style={
-      {
+      Object {
         "opacity": 0,
         "pointerEvents": "none",
         "position": "fixed",
@@ -88,58 +96,62 @@ exports[`SpriteSelectorItemComponent matches snapshot when given a number and de
 
 exports[`SpriteSelectorItemComponent matches snapshot when selected 1`] = `
 <div
-  className="ponies undefined"
+  className="react-contextmenu-wrapper ponies undefined"
+  onClick={[Function]}
+  onContextMenu={[Function]}
+  onMouseDown={[Function]}
+  onMouseEnter={undefined}
+  onMouseLeave={undefined}
+  onMouseOut={[Function]}
+  onMouseUp={[Function]}
+  onTouchEnd={[Function]}
+  onTouchStart={[Function]}
 >
-  <button
-    aria-pressed={true}
-    className="react-contextmenu-wrapper"
-    onClick={[MockFunction]}
-    onContextMenu={[Function]}
-    onMouseDown={[Function]}
-    onMouseOut={[Function]}
-    onMouseUp={[Function]}
-    onTouchEnd={[Function]}
-    onTouchStart={[Function]}
-    type="button"
+  <div
+    className={undefined}
   >
-    <div>
-      <div>
-        <img
-          draggable={false}
-          loading="lazy"
-          src="https://scratch.mit.edu/foo/bar/pony"
-        />
-      </div>
+    <div
+      className={undefined}
+    >
+      <img
+        className={undefined}
+        draggable={false}
+        src="https://scratch.mit.edu/foo/bar/pony"
+      />
     </div>
-    <div>
-      <div>
-        Pony sprite
-      </div>
+  </div>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
+      Pony sprite
     </div>
-  </button>
-  <button
+  </div>
+  <div
     aria-label="Delete"
     className=""
-    disabled={false}
-    onClick={[MockFunction]}
+    onClick={[Function]}
+    role="button"
     tabIndex={0}
-    type="button"
   >
-    <div>
+    <div
+      className={undefined}
+    >
       <img
-        alt="Delete"
-        draggable={false}
+        className={undefined}
         src="test-file-stub"
       />
     </div>
-  </button>
+  </div>
   <nav
     className="react-contextmenu"
     onContextMenu={[Function]}
     onMouseLeave={[Function]}
     role="menu"
     style={
-      {
+      Object {
         "opacity": 0,
         "pointerEvents": "none",
         "position": "fixed",

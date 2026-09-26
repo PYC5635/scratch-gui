@@ -6,7 +6,7 @@ const AVATARS = 'https://avatars.accounts.bilup.org';
 
 const overlayStatus = new Map();
 
-const Avatar = ({username, src, size = 40, className}) => {
+const Avatar = ({username, size = 40, className}) => {
     const name = encodeURIComponent((username || '').toLowerCase());
     const [overlayFailed, setOverlayFailed] = useState(() => overlayStatus.get(name) === false);
     useEffect(() => {
@@ -19,7 +19,6 @@ const Avatar = ({username, src, size = 40, className}) => {
     const handleOverlayLoad = useCallback(() => overlayStatus.set(name, true), [name]);
     const imageSize = Math.max(64, size * 2);
     const imageRadius = Math.max(32, size);
-    const imageSource = src || `${AVATARS}/${name}?s=${imageSize}&radius=${imageRadius}`;
     return (
         <span
             className={className ? `${styles.wrapper} ${className}` : styles.wrapper}
@@ -27,7 +26,7 @@ const Avatar = ({username, src, size = 40, className}) => {
         >
             <img
                 className={styles.avatar}
-                src={imageSource}
+                src={`${AVATARS}/${name}?s=${imageSize}&radius=${imageRadius}`}
                 alt=""
                 loading="lazy"
             />
@@ -47,7 +46,6 @@ const Avatar = ({username, src, size = 40, className}) => {
 
 Avatar.propTypes = {
     username: PropTypes.string,
-    src: PropTypes.string,
     size: PropTypes.number,
     className: PropTypes.string
 };

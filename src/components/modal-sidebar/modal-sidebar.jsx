@@ -127,7 +127,7 @@ ModalSidebarItem.propTypes = {
     label: PropTypes.node.isRequired,
     onClick: PropTypes.func.isRequired,
     selected: PropTypes.bool,
-statusDot: PropTypes.node,
+    statusDot: PropTypes.node,
     title: PropTypes.string,
     trailingAction: PropTypes.node
 };

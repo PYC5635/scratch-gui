@@ -28,8 +28,7 @@ const SaveStatus = ({
     filterInlineAlerts(alertsList).length > 0 ? (
         <InlineMessages />
     ) : projectChanged && (
-        <button
-            type="button"
+        <div
             className={styles.saveNow}
             onClick={onClickSave}
         >
@@ -40,7 +39,7 @@ const SaveStatus = ({
                     id="gui.menuBar.saveNowLink"
                 />
             </span>
-        </button>
+        </div>
     ));
 
 SaveStatus.propTypes = {

@@ -151,6 +151,23 @@ export default async function ({ addon, console, msg }) {
   yContainer.appendChild(yInput);
   settingsPage.appendChild(yContainer);
 
+  // Direction input (Scratch direction: 0 = right, 90 = up, counterclockwise positive, range -180..180)
+  const directionContainer = document.createElement("label");
+  directionContainer.className = "sa-resize-settings-line";
+  const directionLabel = document.createElement("div");
+  directionLabel.className = "sa-resize-settings-label";
+  directionLabel.textContent = msg("direction");
+  directionContainer.appendChild(directionLabel);
+  const directionInput = document.createElement("input");
+  directionInput.className = "sa-resize-settings-input";
+  directionInput.type = "number";
+  directionInput.min = "-180";
+  directionInput.max = "180";
+  directionInput.step = "0.001";
+  directionInput.value = "0";
+  directionContainer.appendChild(directionInput);
+  settingsPage.appendChild(directionContainer);
+
   // Toggle button
   const toggleButton = createButton();
   toggleButton.addEventListener("click", (e) => {
@@ -178,6 +195,56 @@ export default async function ({ addon, console, msg }) {
   const toPrecision = (value) => {
     const rounded = Math.round(value * 1000) / 1000;
     return rounded;
+  };
+
+  // Normalize an angle to the range [-180, 180), matching Scratch's direction display
+  const normalizeDirection = (value) => {
+    let d = value % 360;
+    if (d > 180) d -= 360;
+    if (d <= -180) d += 360;
+    return d;
+  };
+
+  // Get the dominant visual rotation (paper.js convention, clockwise positive) of an item
+  // and its descendants. Scratch bakes item transforms into geometry (applyMatrix = true),
+  // so the root item's matrix is usually identity and item.rotation is 0 even after rotating.
+  // Recurse into children and pick the rotation of the largest child that actually has one.
+  const getVisualRotation = (item) => {
+    let bestRotation = 0;
+    let bestArea = -1;
+    const walk = (node) => {
+      const area = Math.abs(node.bounds.width * node.bounds.height);
+      const rotation = node.matrix.rotation;
+      if (Math.abs(rotation) > 1e-9 && area > bestArea) {
+        bestRotation = rotation;
+        bestArea = area;
+      }
+      if (node.children) {
+        for (const child of node.children) {
+          walk(child);
+        }
+      }
+    };
+    walk(item);
+    return bestRotation;
+  };
+
+  // For single Paths with applyMatrix = true the rotation is baked into the geometry and
+  // cannot be recovered from any matrix, so keep track of rotations we apply ourselves.
+  const rotationCache = new Map(); // item.id -> rotation
+
+  const getItemRotation = (item) => {
+    if (rotationCache.has(item.id)) {
+      // If the rotation is still readable from a matrix (e.g. group children that
+      // weren't baked), trust the visual value and sync the cache, so manual
+      // rotations done outside this addon are picked up too.
+      const visual = getVisualRotation(item);
+      if (Math.abs(visual) > 1e-9 && Math.abs(visual - rotationCache.get(item.id)) > 1e-6) {
+        rotationCache.set(item.id, normalizeDirection(visual));
+      }
+      return rotationCache.get(item.id);
+    }
+    return getVisualRotation(item);
   };
 
   const updateDimensions = () => {
@@ -210,6 +277,21 @@ export default async function ({ addon, console, msg }) {
     // Canvas center in display coords: (240, 180) for 480x360 stage
     xInput.value = toPrecision(bounds.center.x / 2 - 240);
     yInput.value = toPrecision(180 - bounds.center.y / 2);
+
+    // Direction: paper.js rotation is clockwise positive (screen Y grows downward).
+    // Scratch direction is also clockwise positive but offset by 90 degrees:
+    // a non-rotated asset faces right by default, which is Scratch direction 90.
+    // Scratch direction = 90 + rotation, normalized to [-180, 180).
+    let totalRotation = 0;
+    let rotCount = 0;
+    for (const item of items) {
+      if (item instanceof paper.Layer || item.data?.isHelperItem || item.guide) continue;
+      totalRotation += getItemRotation(item);
+      rotCount++;
+    }
+    if (rotCount > 0) {
+      directionInput.value = toPrecision(normalizeDirection(90 + totalRotation / rotCount));
+    }
   };
 
   // Debounced resize execution
@@ -245,10 +327,12 @@ export default async function ({ addon, console, msg }) {
     const sx = (newWidth * 2) / currentWidth;
     const sy = (newHeight * 2) / currentHeight;
 
-    const group = new paper.Group(validItems);
-    group.scale(sx, sy, bounds.center);
-    group.layer.addChildren(group.children);
-    group.remove();
+    // Scale each item directly around the selection center. (Avoid wrapping items in
+    // a temporary Group: folding the group's transform back into children can corrupt
+    // gradient fills, causing wrong colors.)
+    for (const item of validItems) {
+      item.scale(sx, sy, bounds.center);
+    }
 
     // Update displayed values with precision
     widthInput.value = toPrecision(newWidth);
@@ -395,6 +479,97 @@ export default async function ({ addon, console, msg }) {
   xInput.addEventListener("input", scheduleMove);
   yInput.addEventListener("input", scheduleMove);
 
+  // Debounced direction (rotation) execution
+  let directionTimer = null;
+  const doRotate = () => {
+    if (!paper || !paper.project) return;
+    const items = paper.project.selectedItems;
+    if (items.length === 0) return;
+
+    const newDirection = parseFloat(directionInput.value);
+    if (isNaN(newDirection)) return;
+
+    let bounds = null;
+    const validItems = [];
+    let totalRotation = 0;
+    for (const item of items) {
+      if (item instanceof paper.Layer || item.data?.isHelperItem || item.guide) continue;
+      validItems.push(item);
+      totalRotation += getItemRotation(item);
+      if (bounds) {
+        bounds = bounds.unite(item.bounds);
+      } else {
+        bounds = item.bounds.clone();
+      }
+    }
+    if (!bounds || validItems.length === 0) return;
+
+    // paper.js rotation is clockwise positive; Scratch direction = 90 + rotation.
+    // Rotating by +delta in paper.js increases Scratch direction by the same amount.
+    const currentScratchDir = normalizeDirection(90 + totalRotation / validItems.length);
+    let deltaScratch = normalizeDirection(newDirection) - currentScratchDir;
+    // Take the shortest rotation path
+    if (deltaScratch > 180) deltaScratch -= 360;
+    if (deltaScratch < -180) deltaScratch += 360;
+    if (deltaScratch === 0) return;
+
+    // Rotate each item directly around the center of the selection bounds.
+    // (Avoid wrapping items in a temporary Group: folding the group's transform
+    // back into children can corrupt gradient fills, causing wrong colors.)
+    for (const item of validItems) {
+      // Read the rotation *before* rotating: for baked (applyMatrix = true) items
+      // getVisualRotation() already sees the new angle after rotating, so adding
+      // delta again would double-count it.
+      const before = getItemRotation(item);
+      item.rotate(deltaScratch, bounds.center);
+      // Record the rotation we applied so it stays readable even when baked
+      // into the geometry (applyMatrix = true).
+      rotationCache.set(item.id, normalizeDirection(before + deltaScratch));
+    }
+
+    paper.view.update();
+
+    // Update the bounding box selection handles to reflect the new rotation
+    if (paper.tool && paper.tool.boundingBoxTool && typeof paper.tool.boundingBoxTool.setSelectionBounds === 'function') {
+      paper.tool.boundingBoxTool.setSelectionBounds();
+    }
+
+    // Sync width/height/position inputs after rotation (bounds change when rotated)
+    let syncBounds = null;
+    for (const item of validItems) {
+      if (syncBounds) {
+        syncBounds = syncBounds.unite(item.bounds);
+      } else {
+        syncBounds = item.bounds.clone();
+      }
+    }
+    if (syncBounds) {
+      widthInput.value = toPrecision(syncBounds.width / 2);
+      heightInput.value = toPrecision(syncBounds.height / 2);
+      if (syncBounds.width > 0 && syncBounds.height > 0) {
+        originalAspectRatio = (syncBounds.width / 2) / (syncBounds.height / 2);
+      }
+      xInput.value = toPrecision(syncBounds.center.x / 2 - 240);
+      yInput.value = toPrecision(180 - syncBounds.center.y / 2);
+    }
+
+    // Update displayed direction value (normalized)
+    directionInput.value = toPrecision(normalizeDirection(newDirection));
+
+    // Commit changes to SVG file via the paint editor's tool
+    if (paper.tool && typeof paper.tool.onUpdateImage === 'function') {
+      paper.tool.onUpdateImage();
+    }
+  };
+
+  directionInput.addEventListener("input", () => {
+    if (directionTimer) clearTimeout(directionTimer);
+    directionTimer = setTimeout(() => {
+      doRotate();
+      directionTimer = null;
+    }, 50);
+  });
+
   // Update visibility when selection changes
   const updateButtonVisibility = () => {
     if (!paper || !paper.project) {
@@ -460,10 +635,12 @@ export default async function ({ addon, console, msg }) {
         for (const el of document.querySelectorAll(".sa-resize-image")) {
           el.className += " " + imageClass;
         }
+        // Only register the polling interval once; each loop iteration used to add
+        // another interval, accumulating timers over time.
+        setInterval(updateButtonVisibility, 500);
       }
 
       updateButtonVisibility();
-      setInterval(updateButtonVisibility, 500);
     }
   };
 

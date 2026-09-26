@@ -55,18 +55,14 @@ const CloudVariableBadge = props => {
                 values={{
                     APP_NAME,
                     changeTheirUsername: (
-                        <button
-                            type="button"
-                            className={styles.inlineButton}
-                            onClick={props.onOpenChangeUsername}
-                        >
+                        <a onClick={props.onOpenChangeUsername}>
                             <FormattedMessage
                                 defaultMessage="change their username"
                                 // eslint-disable-next-line max-len
                                 description="Link that opens modal to change one's username. Used in the context 'Anyone can change their username'"
                                 id="tw.usesCloudVariables2.change"
                             />
-                        </button>
+                        </a>
                     )
                 }}
             />

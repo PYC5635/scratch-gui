@@ -12,10 +12,9 @@ import styles from './settings-menu.css';
 import {Settings} from 'lucide-react';
 
 const SettingsMenu = ({onOpenSettings}) => (
-<button
-        type="button"
-        data-mw-item="view"
-        className={classNames(styles.button, menuBarStyles.menuBarItem, menuBarStyles.hoverable)}
+    <div
+        data-mw-item="settings"
+        className={classNames(menuBarStyles.menuBarItem, menuBarStyles.hoverable)}
         onClick={onOpenSettings}
     >
         <Settings
@@ -30,19 +29,16 @@ const SettingsMenu = ({onOpenSettings}) => (
                 id="mw.menuBar.settings"
             />
         </span>
-    </button>
+    </div>
 );
 
 SettingsMenu.propTypes = {
     onOpenSettings: PropTypes.func
 };
 
-const ConnectedSettingsMenu = connect(
+export default connect(
     null,
     dispatch => ({
         onOpenSettings: () => dispatch(openSettingsModal())
     })
 )(SettingsMenu);
-
-export {SettingsMenu};
-export default ConnectedSettingsMenu;

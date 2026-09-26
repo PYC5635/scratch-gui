@@ -1,15 +1,11 @@
-import React, {useRef, useState} from 'react';
-import {Trash2, ExternalLink} from 'lucide-react';
+import React, {useState} from 'react';
+import {Trash2} from 'lucide-react';
 import {FormattedMessage} from 'react-intl';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
-import {Link} from 'react-router-dom';
 import api from '../api';
 import {useUser} from '../UserContext.jsx';
 import ReactionButtons from './ReactionButtons.jsx';
 import RichText from './RichText.jsx';
-import Button from './ui/Button.jsx';
-import IconButton from './ui/IconButton.jsx';
-import Modal from './ui/Modal.jsx';
 import styles from './NewsItem.module.css';
 
 // Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).
@@ -21,216 +17,65 @@ const formatDateTime = ms => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export const safeNewsLink = link => {
-    const url = link && typeof link.url === 'string' ? link.url.trim() : '';
-    if (/^https:\/\/\S+$/i.test(url)) return {url, external: true};
-    if (/^\/(?!\/)/.test(url)) return {url, external: false};
-    return null;
-};
-
 const NewsItem = ({item, onChanged}) => {
-    const {user, login} = useUser();
+    const {user} = useUser();
     const intl = useIntl();
     const canDelete = Boolean(user && user.isAdmin);
     const [error, setError] = useState('');
-    const [actionBusy, setActionBusy] = useState('');
-    const [confirmingDelete, setConfirmingDelete] = useState(false);
-    const actionInFlight = useRef(false);
-    const releaseAction = () => {
-        actionInFlight.current = false;
-    };
 
     const react = async type => {
-        if (actionInFlight.current) return;
-        actionInFlight.current = true;
-        setActionBusy('reaction');
         setError('');
         try {
             await api.reactNews(item.id, type);
             onChanged();
         } catch (e) {
-setError(e.message || intl.formatMessage({
+            setError(e.message || intl.formatMessage({
                 id: 'mw.community.newsItem.couldNotReact',
                 defaultMessage: 'Could not react.'
             }));
-        } finally {
-            releaseAction();
-            setActionBusy('');
         }
     };
 
-    const remove = () => {
-        if (actionInFlight.current) return;
-        setError('');
-        setConfirmingDelete(true);
-    };
-
-    const confirmRemove = async () => {
-        if (actionInFlight.current) return;
-        actionInFlight.current = true;
-        setActionBusy('delete');
+    const remove = async () => {
+        if (!window.confirm(intl.formatMessage({
+            id: 'mw.community.newsItem.deleteConfirm',
+            defaultMessage: 'Delete this update?'
+        }))) return;
         setError('');
         try {
             await api.deleteNews(item.id);
-            setConfirmingDelete(false);
             onChanged();
         } catch (e) {
-setError(e.message || intl.formatMessage({
+            setError(e.message || intl.formatMessage({
                 id: 'mw.community.newsItem.couldNotDelete',
                 defaultMessage: 'Could not delete update.'
             }));
-        } finally {
-            releaseAction();
-            setActionBusy('');
         }
     };
 
-    const vote = async option => {
-        if (actionInFlight.current) return;
-        if (!user) {
-            login();
-            return;
-        }
-        actionInFlight.current = true;
-        setActionBusy('vote');
-        setError('');
-        try {
-            await api.voteNewsPoll(item.id, option);
-            onChanged();
-        } catch (e) {
-            setError(e.message || 'Could not vote.');
-        } finally {
-            releaseAction();
-            setActionBusy('');
-        }
-    };
-
-    const category = item.category || 'update';
-    const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
-    const pollTotal = item.poll ? Number(item.poll.total) || 0 : 0;
-    const newsLink = safeNewsLink(item.link);
-    const linkUrl = newsLink ? newsLink.url : '';
-    const linkLabel = item.link && item.link.label ? item.link.label : intl.formatMessage({
-        id: 'mw.community.newsItem.openLink',
-        defaultMessage: 'Open link'
-    });
-    const externalLink = Boolean(newsLink && newsLink.external);
-
-    return (<>
-        {confirmingDelete ? (
-            <Modal
-                icon={Trash2}
-                title={intl.formatMessage({id: 'mw.community.newsItem.deleteUpdateTitle', defaultMessage: 'Delete update?'})}
-                dismissDisabled={actionBusy === 'delete'}
-                onClose={() => {
-                    setConfirmingDelete(false);
-                    setError('');
-                }}
-                actions={<>
-                    <Button
-                        disabled={actionBusy === 'delete'}
-                        onClick={() => {
-                            setConfirmingDelete(false);
-                            setError('');
-                        }}
-                    >{intl.formatMessage({id: 'mw.community.newsItem.cancel', defaultMessage: 'Cancel'})}</Button>
-                    <Button
-                        variant="danger"
-                        busy={actionBusy === 'delete'}
-                        busyLabel={intl.formatMessage({id: 'mw.community.newsItem.deleting', defaultMessage: 'Deleting…'})}
-                        onClick={confirmRemove}
-                    >{intl.formatMessage({id: 'mw.community.newsItem.deleteUpdate', defaultMessage: 'Delete update'})}</Button>
-                </>}
-            >
-                <p>{intl.formatMessage({id: 'mw.community.newsItem.deleteConfirm', defaultMessage: 'This permanently deletes “{title}”.'}, {title: item.title})}</p>
-                {error ? <p className={styles.error}>{error}</p> : null}
-            </Modal>
-        ) : null}
+    return (
         <article className={styles.item}>
-            {category === 'update' ? null : (
-                <span className={`${styles.category} ${styles[`category${categoryLabel}`] || ''}`}>
-                    {categoryLabel}
-                </span>
-            )}
             <div className={styles.head}>
                 <h3>{item.title}</h3>
                 <span className={styles.date}>{formatDateTime(item.created)}</span>
                 {canDelete ? (
-                    <IconButton
-                        variant="secondary"
+                    <button
                         className={styles.delete}
-title={intl.formatMessage({
+                        title={intl.formatMessage({
                             id: 'mw.community.newsItem.deleteUpdate',
                             defaultMessage: 'Delete update'
                         })}
-                        label={intl.formatMessage({
-                            id: 'mw.community.newsItem.deleteProjectLabel',
-                            defaultMessage: 'Delete {title}'
-                        }, {title: item.title})}
-                        disabled={Boolean(actionBusy)}
                         onClick={remove}
                     >
                         <Trash2 size={14} />
-                    </IconButton>
+                    </button>
                 ) : null}
             </div>
             <p className={styles.body}><RichText text={item.body} /></p>
-            {item.poll && item.poll.options ? (
-                <div className={styles.poll}>
-                    {item.poll.options.map(option => {
-                        const percent = pollTotal ? Math.round((option.votes / pollTotal) * 100) : 0;
-                        return (
-                            <button
-                                type="button"
-                                key={option.id}
-                                className={option.voted ? styles.pollOptionVoted : styles.pollOption}
-                                disabled={Boolean(actionBusy)}
-                                onClick={() => vote(option.id)}
-                            >
-                                <i style={{width: `${percent}%`}} />
-                                <span>{option.text}</span>
-                                <strong>{option.votes} {option.votes === 1 ? intl.formatMessage({
-                                id: 'mw.community.newsItem.voteOne',
-                                defaultMessage: 'vote'
-                            }) : intl.formatMessage({
-                                id: 'mw.community.newsItem.votes',
-                                defaultMessage: 'votes'
-                            })} · {percent}%</strong>
-                            </button>
-                        );
-                    })}
-                    <span className={styles.pollTotal}>{pollTotal} {pollTotal === 1 ? intl.formatMessage({
-                        id: 'mw.community.newsItem.totalVoteOne',
-                        defaultMessage: 'total vote'
-                    }) : intl.formatMessage({
-                        id: 'mw.community.newsItem.totalVotes',
-                        defaultMessage: 'total votes'
-                    })}</span>
-                </div>
-            ) : null}
-            {linkUrl ? externalLink ? (
-                <a className={styles.postLink} href={linkUrl} target="_blank" rel="noreferrer">
-                    {linkLabel}
-                    <ExternalLink size={13} />
-                </a>
-            ) : (
-                <Link className={styles.postLink} to={linkUrl}>
-                    {linkLabel}
-                    <ExternalLink size={13} />
-                </Link>
-            ) : null}
             <div className={styles.footer}>
                 <ReactionButtons
                     reactions={item.reactions}
                     onReact={react}
-                    disabled={Boolean(actionBusy)}
-                    disabledTitle={!user ? intl.formatMessage({
-                        id: 'mw.community.newsItem.signInToReact',
-                        defaultMessage: 'Sign in to react'
-                    }) : intl.formatMessage({
-                        id: 'mw.community.newsItem.saving',
-                        defaultMessage: 'Saving…'
-                    })}
                 />
                 {item.author ? (
                     <span className={styles.author}>
@@ -245,7 +90,7 @@ title={intl.formatMessage({
             </div>
             {error ? <p className={styles.error}>{error}</p> : null}
         </article>
-    </>);
+    );
 };
 
 export default NewsItem;

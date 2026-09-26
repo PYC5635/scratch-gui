@@ -50,9 +50,7 @@ class CustomThemesPage extends React.Component {
             createName: '',
             createDescription: '',
             originalThemeBeforePreview: null,
-            statusMessage: '',
-            pendingDelete: null,
-            deleteError: ''
+            statusMessage: ''
         };
         this.fileInputRef = React.createRef();
     }
@@ -77,8 +75,6 @@ class CustomThemesPage extends React.Component {
             activeEditor: null,
             editingThemeUuid: null,
             editorInitial: {},
-            pendingDelete: null,
-            deleteError: '',
             statusMessage: ''
         });
     };
@@ -414,7 +410,7 @@ class CustomThemesPage extends React.Component {
 
     renderLibrary () {
         const {theme} = this.props;
-        const {customThemes, deleteError, pendingDelete} = this.state;
+        const {customThemes} = this.state;
 
         if (customThemes.length === 0) {
             return (
@@ -467,7 +463,6 @@ class CustomThemesPage extends React.Component {
                 {customThemes.map(customTheme => {
                     const isSelected = theme instanceof CustomTheme && theme.uuid === customTheme.uuid;
                     const isGradient = customThemeManager.hasCustomGradient(customTheme.uuid);
-                    const confirmingDelete = pendingDelete && pendingDelete.uuid === customTheme.uuid;
                     return (
                         <div
                             key={customTheme.uuid}
@@ -475,114 +470,82 @@ class CustomThemesPage extends React.Component {
                                 [styles.ctCardSelected]: isSelected
                             })}
                         >
-                            {confirmingDelete ? (
-                                <div className={styles.ctDeleteConfirm}>
-                                    <span>
-                                        <strong>
-                                            <FormattedMessage
-                                                defaultMessage="Delete “{themeName}”?"
-                                                id="mw.customThemes.delete.confirm"
-                                                values={{themeName: customTheme.name}}
-                                            />
-                                        </strong>
-                                        <small>
-                                            <FormattedMessage
-                                                defaultMessage="This cannot be undone."
-                                                id="mw.customThemes.delete.warning"
-                                            />
-                                        </small>
-                                        {deleteError ? (
-                                            <small className={styles.ctDeleteError}>{deleteError}</small>
-                                        ) : null}
+                            <button
+                                type="button"
+                                className={styles.ctCardMain}
+                                onClick={() => this.props.onChangeTheme(customTheme)}
+                            >
+                                <span
+                                    className={styles.ctCardSwatch}
+                                    style={themePreviewStyle(customTheme)}
+                                />
+                                <span className={styles.ctCardBody}>
+                                    <span className={styles.ctCardTitleRow}>
+                                        <span className={styles.ctCardName}>{customTheme.name}</span>
+                                        {isSelected && (
+                                            <span className={styles.ctActivePill}>
+                                                <Check size={12} />
+                                                <FormattedMessage
+                                                    defaultMessage="Active"
+                                                    id="mw.customThemes.active"
+                                                />
+                                            </span>
+                                        )}
                                     </span>
-                                    <span className={styles.ctDeleteActions}>
-                                        <button
-                                            type="button"
-                                            className={styles.ctButtonSecondary}
-                                            onClick={() => this.setState({pendingDelete: null, deleteError: ''})}
-                                        >
-                                            <FormattedMessage
-                                                defaultMessage="Cancel"
-                                                id="general.cancel"
-                                            />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={styles.button}
-                                            onClick={this.handleConfirmDeleteTheme}
-                                        >
-                                            <FormattedMessage
-                                                defaultMessage="Delete theme"
-                                                id="mw.customThemes.delete.action"
-                                            />
-                                        </button>
-                                    </span>
-                                </div>
-                            ) : (
-                                <React.Fragment>
+                                    {customTheme.description ? (
+                                        <span className={styles.ctCardDesc}>{customTheme.description}</span>
+                                    ) : (
+                                        <span className={styles.ctCardDescMuted}>
+                                            {isGradient ? this.props.intl.formatMessage({
+                                                id: 'tw.customThemes.gradientTheme',
+                                                defaultMessage: 'Gradient theme'
+                                            }) : this.props.intl.formatMessage({
+                                                id: 'tw.customThemes.customTheme',
+                                                defaultMessage: 'Custom theme'
+                                            })}
+                                            {customTheme.author && customTheme.author !== 'User' ?
+                                                ` · ${customTheme.author}` : ''}
+                                        </span>
+                                    )}
+                                </span>
+                            </button>
+                            <div className={styles.ctCardActions}>
+                                {isGradient && (
                                     <button
                                         type="button"
-                                        className={styles.ctCardMain}
-                                        onClick={() => this.props.onChangeTheme(customTheme)}
+                                        className={styles.iconButton}
+                                        title={this.props.intl.formatMessage({
+                                            id: 'tw.customThemes.editGradient',
+                                            defaultMessage: 'Edit gradient'
+                                        })}
+                                        onClick={() => this.handleEditGradient(customTheme.uuid)}
                                     >
-                                        <span
-                                            className={styles.ctCardSwatch}
-                                            style={themePreviewStyle(customTheme)}
-                                        />
-                                        <span className={styles.ctCardBody}>
-                                            <span className={styles.ctCardTitleRow}>
-                                                <span className={styles.ctCardName}>{customTheme.name}</span>
-                                                {isSelected && (
-                                                    <span className={styles.ctActivePill}>
-                                                        <Check size={12} />
-                                                        <FormattedMessage
-                                                            defaultMessage="Active"
-                                                            id="mw.customThemes.active"
-                                                        />
-                                                    </span>
-                                                )}
-                                            </span>
-                                            {customTheme.description ? (
-                                                <span className={styles.ctCardDesc}>{customTheme.description}</span>
-                                            ) : (
-                                                <span className={styles.ctCardDescMuted}>
-                                                    {isGradient ? 'Gradient theme' : 'Custom theme'}
-                                                    {customTheme.author && customTheme.author !== 'User' ?
-                                                        ` · ${customTheme.author}` : ''}
-                                                </span>
-                                            )}
-                                        </span>
+                                        <Edit size={15} />
                                     </button>
-                                    <div className={styles.ctCardActions}>
-                                        {isGradient && (
-                                            <button
-                                                type="button"
-                                                className={styles.iconButton}
-                                                title="Edit gradient"
-                                                onClick={() => this.handleEditGradient(customTheme.uuid)}
-                                            >
-                                                <Edit size={15} />
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className={styles.iconButton}
-                                            title="Export theme"
-                                            onClick={() => this.handleExportSingleTheme(customTheme)}
-                                        >
-                                            <Download size={15} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={styles.iconButton}
-                                            title="Delete theme"
-                                            onClick={() => this.handleDeleteTheme(customTheme.uuid, customTheme.name)}
-                                        >
-                                            <Trash size={15} />
-                                        </button>
-                                    </div>
-                                </React.Fragment>
-                            )}
+                                )}
+                                <button
+                                    type="button"
+                                    className={styles.iconButton}
+                                    title={this.props.intl.formatMessage({
+                                        id: 'tw.customThemes.exportTheme',
+                                        defaultMessage: 'Export theme'
+                                    })}
+                                    onClick={() => this.handleExportSingleTheme(customTheme)}
+                                >
+                                    <Download size={15} />
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.iconButton}
+                                    title={this.props.intl.formatMessage({
+                                        id: 'tw.customThemes.deleteTheme',
+                                        defaultMessage: 'Delete theme'
+                                    })}
+                                    onClick={() => this.handleDeleteTheme(customTheme.uuid, customTheme.name)}
+                                >
+                                    <Trash size={15} />
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

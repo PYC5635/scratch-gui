@@ -28,8 +28,8 @@ const computeChunkedRMS = function (samples, chunkSize = 1024) {
     return chunkLevels;
 };
 
-const encodeAndAddSoundToVM = function (vm, samples, sampleRate, name, callback, targetId) {
-    return WavEncoder.encode({
+const encodeAndAddSoundToVM = function (vm, samples, sampleRate, name, callback) {
+    WavEncoder.encode({
         sampleRate: sampleRate,
         channelData: [samples]
     }).then(wavBuffer => {
@@ -56,9 +56,8 @@ const encodeAndAddSoundToVM = function (vm, samples, sampleRate, name, callback,
         // The VM will update the sound name to a fresh name
         vmSound.name = name;
 
-        return vm.addSound(vmSound, targetId).then(() => {
+        vm.addSound(vmSound).then(() => {
             if (callback) callback();
-            return vmSound;
         });
     });
 };

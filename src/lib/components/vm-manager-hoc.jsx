@@ -36,12 +36,11 @@ const vmManagerHOC = function (WrappedComponent) {
             bindAll(this, [
                 'loadProject'
             ]);
-            this._isMounted = false;
-            this.loadGeneration = 0;
-            this.loadTimeouts = new Set();
+            this._loadTimeout = null;
+            this._drawTimeout = null;
+            this._loadingPromise = null;
         }
         componentDidMount () {
-            this._isMounted = true;
             if (!this.props.vm.initialized) {
                 window.vm = this.props.vm;
 
@@ -73,75 +72,106 @@ const vmManagerHOC = function (WrappedComponent) {
                 this.props.vm.start();
             }
         }
+
         componentWillUnmount () {
-            this._isMounted = false;
-            this.loadGeneration++;
-            this.loadTimeouts.forEach(timeout => clearTimeout(timeout));
-            this.loadTimeouts.clear();
+            // Cancel pending post-load callbacks so nothing dispatches or
+            // touches the renderer after the GUI has been torn down.
+            if (this._loadTimeout) {
+                clearTimeout(this._loadTimeout);
+                this._loadTimeout = null;
+            }
+            if (this._drawTimeout) {
+                clearTimeout(this._drawTimeout);
+                this._drawTimeout = null;
+            }
+            // Mark any in-flight load as cancelled so its .then() callbacks
+            // do not dispatch to an unmounted component.
+            this._loadingPromise = null;
         }
 
         loadProject () {
-            const loadGeneration = ++this.loadGeneration;
-            const {
-                canSave,
-                isStarted,
-                loadingState,
-                onError,
-                onLoadedProject: handleLoadedProject,
-                onSetProjectUnchanged,
-                projectData,
-                vm
-            } = this.props;
+            // Guard against concurrent loads: if a previous load is still in
+            // flight, quit the VM first (which cancels its work) and then let
+            // the new load proceed. The old promise is discarded so its
+            // callbacks won't fire on a stale VM state.
+            if (this._loadingPromise) {
+                if (process.env.DEBUG) {
+                    console.warn('[VM Manager] New project load requested while previous load is still in progress; cancelling previous load');
+                }
+                this.props.vm.quit();
+            }
+
             // tw: stop when loading new project
-            vm.quit();
-            const prepareProjectHistory = vm._mwPrepareProjectHistory;
-            vm._mwPrepareProjectHistory = null;
-            return vm.loadProject(projectData, {skipGitImport: true})
-                .then(async () => {
-                    if (!this._isMounted || loadGeneration !== this.loadGeneration) return false;
-                    if (prepareProjectHistory) {
-                        try {
-                            await prepareProjectHistory();
-                        } catch (error) {
-                            log.error('Could not preload MistWarp version history:', error);
+            if (process.env.DEBUG) {
+                // eslint-disable-next-line no-console
+                console.log('[VM Manager] Quitting VM before loading project');
+                // eslint-disable-next-line no-console
+                console.log('[VM Manager] Loading project data, size:',
+                    this.props.projectData instanceof ArrayBuffer ? this.props.projectData.byteLength : 'unknown');
+            }
+            this.props.vm.quit();
+            const promise = this.props.vm.loadProject(this.props.projectData)
+                .then(() => {
+                    // If a newer load has started (or the component unmounted),
+                    // discard this result — the VM is already in a different state.
+                    if (this._loadingPromise !== promise) {
+                        if (process.env.DEBUG) {
+                            console.warn('[VM Manager] Discarding stale project load result');
+                        }
+                        return;
+                    }
+                    if (process.env.DEBUG) {
+                        // eslint-disable-next-line no-console
+                        console.log('[VM Manager] Project loaded successfully');
+                    }
+                    this.props.onLoadedProject(this.props.loadingState, this.props.canSave);
+                    // tw: eagerly compile all scripts to avoid runtime compilation latency
+                    // This is safe to do after the project is parsed and targets are created.
+                    try {
+                        this.props.vm.runtime.precompile();
+                    } catch (e) {
+                        // Precompilation is best-effort; individual compile errors are handled by the compiler
+                        if (process.env.DEBUG) {
+                            console.warn('[VM Manager] Precompilation encountered errors:', e);
                         }
                     }
-                    if (!this._isMounted || loadGeneration !== this.loadGeneration) return false;
-                    handleLoadedProject(loadingState, canSave);
                     // Wrap in a setTimeout because skin loading in
                     // the renderer can be async.
-                    const unchangedTimeout = setTimeout(() => {
-                        this.loadTimeouts.delete(unchangedTimeout);
-                        if (this._isMounted && loadGeneration === this.loadGeneration) {
-                            onSetProjectUnchanged();
+                    this._loadTimeout = setTimeout(() => {
+                        if (this._loadingPromise !== promise) return;
+                        if (process.env.DEBUG) {
+                            // eslint-disable-next-line no-console
+                            console.log('[VM Manager] Setting project as unchanged');
                         }
+                        this.props.onSetProjectUnchanged();
+                        this._loadTimeout = null;
                     });
-                    this.loadTimeouts.add(unchangedTimeout);
 
                     // If the vm is not running, call draw on the renderer manually
                     // This draws the state of the loaded project with no blocks running
                     // which closely matches the 2.0 behavior, except for monitors–
                     // 2.0 runs monitors and shows updates (e.g. timer monitor)
                     // before the VM starts running other hat blocks.
-                    if (!isStarted) {
+                    if (!this.props.isStarted) {
                         // Wrap in a setTimeout because skin loading in
                         // the renderer can be async.
-                        const drawTimeout = setTimeout(() => {
-                            this.loadTimeouts.delete(drawTimeout);
-                            if (this._isMounted && loadGeneration === this.loadGeneration) {
-                                vm.renderer.draw();
-                            }
+                        this._drawTimeout = setTimeout(() => {
+                            if (this._loadingPromise !== promise) return;
+                            this.props.vm.renderer.draw();
+                            this._drawTimeout = null;
                         });
-                        this.loadTimeouts.add(drawTimeout);
                     }
-                    return true;
+                    this._loadingPromise = null;
                 })
                 .catch(e => {
-                    if (this._isMounted && loadGeneration === this.loadGeneration) {
-                        onError(e);
-                    }
-                    return false;
+                    if (this._loadingPromise !== promise) return;
+                    // eslint-disable-next-line no-console
+                    console.error('[VM Manager] Project loading failed:', e);
+                    this.props.onError(e);
+                    this._loadingPromise = null;
                 });
+            this._loadingPromise = promise;
+            return promise;
         }
         render () {
             const {

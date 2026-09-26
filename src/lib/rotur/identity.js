@@ -6,7 +6,6 @@ import {
     getRotur
 } from './client.js';
 import {onRoturLogout} from './cloud-sync.js';
-import {clearGitAuth} from './git-api.js';
 import {
     runExchange,
     onAuthInvalid,
@@ -157,11 +156,6 @@ const logout = () => {
     } catch (_) {
         // ignore
     }
-    try {
-        clearGitAuth();
-    } catch (_) {
-        // ignore
-    }
     roturLogout();
     storeSession(null);
     setState({status: 'idle', user: null, banMessage: null});
@@ -174,11 +168,6 @@ onAuthInvalid(() => invalidateFailedValidator({code: 'VALIDATOR_GENERATION_FAILE
 onBanned(message => {
     roturLogout();
     storeSession(null);
-    try {
-        clearGitAuth();
-    } catch (_) {
-        // ignore
-    }
     try {
         onRoturLogout();
     } catch (_) {

@@ -63,7 +63,6 @@ class PeripheralTile extends React.Component {
                         />
                     </Box>
                     <button
-                        type="button"
                         onClick={this.handleConnecting}
                     >
                         <FormattedMessage

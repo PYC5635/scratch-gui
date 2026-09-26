@@ -40,7 +40,6 @@ const ConnectingStep = props => (
             />
             <div className={classNames(styles.bottomAreaItem, styles.segmentedButton)}>
                 <button
-                    type="button"
                     disabled
                     className={styles.connectionButton}
                 >
@@ -51,7 +50,6 @@ const ConnectingStep = props => (
                     />
                 </button>
                 <button
-                    type="button"
                     className={styles.connectionButton}
                     onClick={props.onDisconnect}
                 >

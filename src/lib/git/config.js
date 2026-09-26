@@ -2,7 +2,6 @@ import {getDefaultAuthor, setDefaultAuthor} from './browser-git';
 import {getItem as getStorageItem} from '../utils/safe-storage.js';
 
 const DEFAULT_BRANCH_KEY = 'mw:git-default-branch';
-const AUTO_COMMIT_KEY = 'mw:git-autocommit';
 
 const readLocal = (key, fallback) => {
     try {
@@ -37,16 +36,11 @@ const setAuthorEmail = email => {
 const getDefaultBranch = () => readLocal(DEFAULT_BRANCH_KEY, 'main');
 const setDefaultBranch = branch => writeLocal(DEFAULT_BRANCH_KEY, branch);
 
-const getAutoCommit = () => readLocal(AUTO_COMMIT_KEY, 'false') === 'true';
-const setAutoCommit = enabled => writeLocal(AUTO_COMMIT_KEY, enabled ? 'true' : 'false');
-
 export {
     getAuthorName,
     getAuthorEmail,
     setAuthorName,
     setAuthorEmail,
     getDefaultBranch,
-    setDefaultBranch,
-    getAutoCommit,
-    setAutoCommit
+    setDefaultBranch
 };

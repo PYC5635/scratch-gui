@@ -23,45 +23,27 @@ import {
 import {openRoturLoginModal} from '../../reducers/modals.js';
 import isScratchDesktop from '../../lib/utils/isScratchDesktop.js';
 
-const logout = onLogout => {
-    if (onLogout) {
-        onLogout();
-        return;
-    }
-    const api = getRoturSessionApi();
-    if (api && api.logout) api.logout();
-};
-
 const RoturAccount = props => {
-const handleSwitchAccount = React.useCallback(() => {
-        const authUrl = buildAuthUrl();
-        props.onCloseMenu();
-        logout(props.onLogout);
-        window.location.href = authUrl;
-    }, [props.onCloseMenu, props.onLogout]);
-
-    const handleLogout = React.useCallback(() => {
-        props.onCloseMenu();
-        logout(props.onLogout);
-    }, [props.onCloseMenu, props.onLogout]);
-
     if (!props.username && !isScratchDesktop()) {
         return (
-            <button
-                type="button"
-                className={classNames(
-                    menuBarStyles.menuBarItem,
-                    menuBarStyles.hoverable,
-                    accountNavStyles.loginButton
-                )}
+            <div
+                className={classNames(menuBarStyles.menuBarItem, menuBarStyles.hoverable)}
                 onClick={props.onOpenLogin}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        props.onOpenLogin();
+                    }
+                }}
             >
                 <FormattedMessage
                     defaultMessage="Login"
                     description="Menu bar item to open Bilup Accounts login when signed out"
                     id="mw.rotur.menuBar.login"
                 />
-            </button>
+            </div>
         );
     }
 
@@ -74,9 +56,17 @@ const handleSwitchAccount = React.useCallback(() => {
         window.location.href = path;
     };
 
+    const doLogout = () => {
+        if (props.onLogout) {
+            props.onLogout();
+            return;
+        }
+        const api = getRoturSessionApi();
+        if (api && api.logout) api.logout();
+    };
+
     return (
         <MenuLabel
-            ariaLabel={props.username}
             open={props.menuOpen}
             onOpen={props.onOpenMenu}
             onClose={props.onCloseMenu}
@@ -123,7 +113,12 @@ const handleSwitchAccount = React.useCallback(() => {
                 </MenuItemContainer>
                 <MenuSection>
                     <MenuItemContainer
-                        onClick={handleSwitchAccount}
+                        onClick={() => {
+                            const authUrl = buildAuthUrl();
+                            props.onCloseMenu();
+                            doLogout();
+                            window.location.href = authUrl;
+                        }}
                     >
                         <Users />
                         <FormattedMessage
@@ -133,7 +128,10 @@ const handleSwitchAccount = React.useCallback(() => {
                         />
                     </MenuItemContainer>
                     <MenuItemContainer
-                        onClick={handleLogout}
+                        onClick={() => {
+                            props.onCloseMenu();
+                            doLogout();
+                        }}
                     >
                         <LogOut />
                         <FormattedMessage

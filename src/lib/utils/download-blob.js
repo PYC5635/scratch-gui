@@ -1,4 +1,7 @@
 export default (filename, blob) => {
+    const downloadLink = document.createElement('a');
+    document.body.appendChild(downloadLink);
+
     // Use special ms version if available to get it working on Edge.
     if (navigator.msSaveOrOpenBlob) {
         navigator.msSaveOrOpenBlob(blob, filename);
@@ -6,8 +9,6 @@ export default (filename, blob) => {
     }
 
     if ('download' in HTMLAnchorElement.prototype) {
-        const downloadLink = document.createElement('a');
-        document.body.appendChild(downloadLink);
         const url = window.URL.createObjectURL(blob);
         downloadLink.href = url;
         downloadLink.download = filename;
@@ -23,7 +24,7 @@ export default (filename, blob) => {
         let popup = window.open('', '_blank');
         const reader = new FileReader();
         reader.onloadend = function () {
-            if (popup) popup.location.href = reader.result;
+            popup.location.href = reader.result;
             popup = null;
         };
         reader.readAsDataURL(blob);

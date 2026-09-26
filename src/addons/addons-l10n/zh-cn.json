@@ -861,6 +861,7 @@
   "resize-selected-item/x": "X",
   "resize-selected-item/y": "Y",
   "resize-selected-item/position": "位置",
+  "resize-selected-item/direction": "方向",
   "resize-selected-item/@name": "造型数据调整",
   "resize-selected-item/@description": "在造型编辑器中添加一个按钮，用来调整选中素材的具体大小，位置"
 }

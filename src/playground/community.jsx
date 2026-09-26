@@ -12,7 +12,6 @@ import IntlBridge from '../lib/tw-use-intl.jsx';
 import {detectLocale} from '../lib/utils/detect-locale.js';
 
 import App from '../community/App.jsx';
-import {CommunityIntlProvider} from '../community/i18n.jsx';
 import {applyThemeVisuals, detectTheme, onSystemPreferenceChange} from '../lib/themes/themePersistance.js';
 import render from './app-target.js';
 import '!!style-loader!css-loader!../community/styles/tokens.css';
@@ -63,9 +62,7 @@ if (projectEntryMatch) {
         >
             <IntlBridge>
                 <BrowserRouter>
-                    <CommunityIntlProvider>
-                        <App />
-                    </CommunityIntlProvider>
+                    <App />
                 </BrowserRouter>
             </IntlBridge>
         </IntlProvider>

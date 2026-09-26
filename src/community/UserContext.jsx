@@ -11,23 +11,16 @@ import {
     logout as identityLogout
 } from '../lib/rotur/identity.js';
 
-const UserContext = createContext({user: null, login: () => {}, loginOrThrow: () => {}, logout: () => {}});
+const UserContext = createContext({user: null, login: () => {}, logout: () => {}});
 
 const normalizeUser = user => user && {...user, isAdmin: user.isAdmin === true};
-const signInErrorMessage = error => (
-    error && /popup|blocked|window/i.test(String(error.message || '')) ?
-        'Sign-in window was blocked. Allow popups for this site and try again.' :
-        (error && error.message) || 'Sign-in did not complete. Please try again.'
-);
 
 const UserProvider = ({children}) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [banMessage, setBanMessage] = useState(null);
-    const [signInError, setSignInError] = useState('');
     const notificationsUnsub = useRef(null);
     const removalsUnsub = useRef(null);
-    const identityVersion = useRef(0);
 
     const handleNotificationPush = useCallback(notification => {
         if (!notification || notification.read) return;
@@ -50,21 +43,19 @@ const UserProvider = ({children}) => {
         }
     }, []);
 
-    const applyLoggedIn = useCallback(async (identityUser, version) => {
+    const applyLoggedIn = useCallback(async identityUser => {
         let me = null;
         try {
             me = await api.me();
         } catch (e) {
             me = null;
         }
-        if (version !== identityVersion.current) return;
         let applied = false;
         try {
             applied = (await onRoturLogin()).applied;
         } catch (e) {
             applied = false;
         }
-        if (version !== identityVersion.current) return;
         if (applied) {
             try {
                 customThemeManager.themes.clear();
@@ -80,16 +71,13 @@ const UserProvider = ({children}) => {
     }, []);
 
     const handleIdentity = useCallback(state => {
-        const version = ++identityVersion.current;
         setBanMessage(state.banMessage || null);
         if (state.user) {
             if (!notificationsUnsub.current) {
                 notificationsUnsub.current = subscribeNotifications(handleNotificationPush);
                 removalsUnsub.current = subscribeNotificationRemovals(handleNotificationRemoved);
             }
-            applyLoggedIn(state.user, version).finally(() => {
-                if (version === identityVersion.current) setLoading(false);
-            });
+            applyLoggedIn(state.user).finally(() => setLoading(false));
         } else {
             clearNotificationSub();
             setUser(null);
@@ -110,42 +98,16 @@ const UserProvider = ({children}) => {
         clearNotificationSub();
     }, [clearNotificationSub]);
 
-    const loginOrThrow = useCallback(async () => {
-        setSignInError('');
-        try {
-            await identityLogin();
-        } catch (error) {
-            if (!error || error.code !== 'banned') setSignInError(signInErrorMessage(error));
-            throw error;
-        }
-    }, []);
-
     const login = useCallback(async () => {
-        try {
-            await loginOrThrow();
-        } catch (error) {
-            // The global banner reports the failure for page-level sign-in buttons.
-        }
-    }, [loginOrThrow]);
+        await identityLogin();
+    }, []);
 
     const logout = useCallback(async () => {
         await identityLogout();
     }, []);
 
     return (
-        <UserContext.Provider
-            value={{
-                user,
-                loading,
-                login,
-                loginOrThrow,
-                logout,
-                banMessage,
-                dismissBan: () => setBanMessage(null),
-                signInError,
-                dismissSignInError: () => setSignInError('')
-            }}
-        >
+        <UserContext.Provider value={{user, loading, login, logout, banMessage, dismissBan: () => setBanMessage(null)}}>
             {children}
         </UserContext.Provider>
     );
@@ -153,4 +115,4 @@ const UserProvider = ({children}) => {
 
 const useUser = () => useContext(UserContext);
 
-export {UserProvider, useUser, normalizeUser, signInErrorMessage};
+export {UserProvider, useUser, normalizeUser};

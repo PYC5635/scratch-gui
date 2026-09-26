@@ -89,20 +89,8 @@
     background-color: $ui-black-transparent;
 }
 
-.menu-item:focus-visible {
-    outline: 2px solid $looks-secondary;
-    outline-offset: -3px;
-}
-
 .menu-item.hoverable {
     cursor: pointer;
-}
-
-.menu-item.disabled,
-.menu-item.disabled:hover {
-    background: transparent;
-    cursor: not-allowed;
-    opacity: 0.48;
 }
 
 .menu-item:has(.shortcut) {

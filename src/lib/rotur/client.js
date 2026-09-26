@@ -21,7 +21,6 @@ const REQUIRED_PERMISSIONS = [
 ];
 const PRESENCE_PERMISSION = 'account:profile';
 const LOGIN_PERMISSIONS = [...REQUIRED_PERMISSIONS, PRESENCE_PERMISSION];
-const LOGIN_SYSTEM = 'mistwarp';
 const ACTIVITY_ID = 'Bilup';
 const APP_URL = 'https://com.bilup.org/';
 const APP_IMAGE = 'https://raw.githubusercontent.com/Bilup/desktop/master/art/icon.png';
@@ -30,7 +29,6 @@ const APP_IMAGE = 'https://raw.githubusercontent.com/Bilup/desktop/master/art/ic
 let client = null;
 const notificationListeners = new Set();
 const notificationRemovalListeners = new Set();
-const visibleNotificationIds = new Set();
 let notificationSocketListener = null;
 let notificationRemovalSocketListener = null;
 
@@ -213,7 +211,7 @@ const restoreSession = async () => {
 
 const buildAuthUrl = (returnTo = (typeof window === 'undefined' ? '' : window.location.href)) => {
     const params = new URLSearchParams({
-        system: LOGIN_SYSTEM,
+        system: 'web',
         return_to: returnTo,
         requires: LOGIN_PERMISSIONS.join(',')
     });
@@ -224,7 +222,7 @@ const buildAuthUrl = (returnTo = (typeof window === 'undefined' ? '' : window.lo
 const login = async () => {
     const rotur = getClient();
     await rotur.login({
-        system: LOGIN_SYSTEM,
+        system: 'web',
         timeout: 120000,
         requires: LOGIN_PERMISSIONS
     });
@@ -263,7 +261,6 @@ const logout = () => {
         notificationSocketListener = null;
     }
     notificationListeners.clear();
-    visibleNotificationIds.clear();
     rotur.logout();
     storeToken(null);
     writeRestoreCache(null, null);
@@ -299,9 +296,6 @@ const normalizeNotification = notification => {
         return notification;
     }
     const out = {...notification};
-    const isMistWarpRelay = String(out.platform || '').toLowerCase() === 'mistwarp' &&
-        String(out.type || '').toLowerCase() === 'notification' &&
-        String(out.actor || '').toLowerCase() === 'mistwarp';
     for (const [k, v] of Object.entries(pd)) {
         if (k === 'type' || k === 'id' || k === 'timestamp' || k === 'created' || k === 'read') {
             continue;
@@ -311,37 +305,7 @@ const normalizeNotification = notification => {
     if (out.platform === 'mistwarp' && typeof pd.type === 'string' && pd.type) {
         out.type = pd.type;
     }
-    const payloadActor = pd.actor || pd.from;
-    if (out.platform === 'mistwarp' && typeof payloadActor === 'string' && payloadActor) {
-        out.actor = payloadActor;
-    }
-    if (isMistWarpRelay && String(pd.type || '').toLowerCase() === 'follow') {
-        out.mwDiscard = true;
-    }
     return out;
-};
-
-// MistWarp only shows its own activity plus Rotur's account-level follow
-// notifications. Other apps share the same Rotur notification inbox.
-const isVisibleNotification = notification => {
-    const normalized = normalizeNotification(notification);
-    if (!normalized || typeof normalized !== 'object') {
-        return false;
-    }
-    if (normalized.mwDiscard) {
-        return false;
-    }
-    if (String(normalized.type || '').toLowerCase() === 'follow') {
-        return true;
-    }
-    const platformData = normalized.platform_data && typeof normalized.platform_data === 'object' ?
-        normalized.platform_data : {};
-    return [
-        normalized.platform,
-        normalized.source,
-        platformData.platform,
-        platformData.source
-    ].some(value => typeof value === 'string' && value.toLowerCase() === 'mistwarp');
 };
 
 const notifyNotificationListeners = notification => {
@@ -349,12 +313,6 @@ const notifyNotificationListeners = notification => {
         return;
     }
     const normalized = normalizeNotification(notification);
-    if (!isVisibleNotification(normalized)) {
-        return;
-    }
-    if (typeof normalized.id === 'string') {
-        visibleNotificationIds.add(normalized.id);
-    }
     notificationListeners.forEach(listener => {
         try {
             listener(normalized);
@@ -365,10 +323,9 @@ const notifyNotificationListeners = notification => {
 };
 
 const notifyRemovalListeners = payload => {
-    if (!payload || typeof payload.id !== 'string' || !visibleNotificationIds.has(payload.id)) {
+    if (!payload || typeof payload.id !== 'string') {
         return;
     }
-    visibleNotificationIds.delete(payload.id);
     notificationRemovalListeners.forEach(listener => {
         try {
             listener(payload);
@@ -528,16 +485,7 @@ const fetchNotifications = async afterDays => {
     }
     try {
         const list = await rotur.notifications.list(afterDays);
-        if (!Array.isArray(list)) {
-            return [];
-        }
-        const visible = list.map(normalizeNotification).filter(isVisibleNotification);
-        for (const notification of visible) {
-            if (typeof notification.id === 'string') {
-                visibleNotificationIds.add(notification.id);
-            }
-        }
-        return visible;
+        return Array.isArray(list) ? list.map(normalizeNotification) : [];
     } catch (_) {
         return [];
     }
@@ -588,7 +536,7 @@ const ensureScopes = async scopes => {
         return true;
     }
     await rotur.login({
-        system: LOGIN_SYSTEM,
+        system: 'rotur',
         timeout: 120000,
         requires: [...new Set([...LOGIN_PERMISSIONS, ...wanted])]
     });
@@ -721,7 +669,6 @@ export {
     payUser,
     claimDaily,
     ensureScopes,
-    isVisibleNotification,
     fetchNotifications,
     markNotificationsRead
 };

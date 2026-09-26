@@ -37,7 +37,7 @@ const BetaBanner = () => {
                 className={styles.icon}
             />
             <span className={styles.text}>
-<FormattedMessage
+                <FormattedMessage
                     defaultMessage="The new Bilup is a beta. Expect bugs, and please report them via {mailto}."
                     id="mw.community.betaBanner.text"
                     values={{
@@ -46,7 +46,6 @@ const BetaBanner = () => {
                 />
             </span>
             <button
-                type="button"
                 className={styles.dismiss}
                 aria-label={intl.formatMessage({id: 'mw.community.betaBanner.dismiss', defaultMessage: 'Dismiss'})}
                 onClick={dismiss}

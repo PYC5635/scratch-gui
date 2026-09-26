@@ -38,8 +38,7 @@ const UsernameModalComponent = props => (
                         id="tw.usernameModal.mustChange"
                         values={{
                             resetIt: (
-                                <button
-                                    type="button"
+                                <a
                                     className={styles.resetLink}
                                     onClick={props.onReset}
                                 >
@@ -48,7 +47,7 @@ const UsernameModalComponent = props => (
                                         description="link to reset username"
                                         id="tw.usernameModal.mustChange.resetIt"
                                     />
-                                </button>
+                                </a>
                             )
                         }}
                     />
@@ -126,7 +125,6 @@ const UsernameModalComponent = props => (
             ))}
             <Box className={styles.buttonRow}>
                 <button
-                    type="button"
                     className={styles.cancelButton}
                     onClick={props.onReset}
                 >
@@ -146,7 +144,6 @@ const UsernameModalComponent = props => (
                     )}
                 </button>
                 <button
-                    type="button"
                     className={styles.cancelButton}
                     onClick={props.onCancel}
                 >
@@ -157,7 +154,6 @@ const UsernameModalComponent = props => (
                     />
                 </button>
                 <button
-                    type="button"
                     className={styles.okButton}
                     onClick={props.onOk}
                     disabled={!props.valueValid}
@@ -187,5 +183,4 @@ UsernameModalComponent.propTypes = {
     onReset: PropTypes.func.isRequired
 };
 
-export {UsernameModalComponent};
 export default injectIntl(UsernameModalComponent);

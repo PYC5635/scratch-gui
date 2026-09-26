@@ -64,7 +64,6 @@ const SliderPromptComponent = props => (
             </Box>
             <Box className={styles.buttonRow}>
                 <button
-                    type="button"
                     className={styles.cancelButton}
                     onClick={props.onCancel}
                 >
@@ -75,7 +74,6 @@ const SliderPromptComponent = props => (
                     />
                 </button>
                 <button
-                    type="button"
                     className={styles.okButton}
                     onClick={props.onOk}
                 >

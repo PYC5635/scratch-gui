@@ -14,9 +14,7 @@ const StopAllComponent = function (props) {
         ...componentProps
     } = props;
     return (
-        <button
-            type="button"
-            aria-label={title}
+        <img
             className={classNames(
                 className,
                 styles.stopAll,
@@ -24,17 +22,12 @@ const StopAllComponent = function (props) {
                     [styles.isActive]: active
                 }
             )}
+            draggable={false}
+            src={stopAllIcon}
             title={title}
             onClick={onClick}
             {...componentProps}
-        >
-            <img
-                className={styles.icon}
-                draggable={false}
-                src={stopAllIcon}
-                alt=""
-            />
-        </button>
+        />
     );
 };
 

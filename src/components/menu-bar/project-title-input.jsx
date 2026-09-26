@@ -19,8 +19,6 @@ const messages = defineMessages({
     }
 });
 
-const normalizeProjectTitle = title => title.trim();
-
 const ProjectTitleInput = ({
     className,
     intl,
@@ -29,7 +27,6 @@ const ProjectTitleInput = ({
 }) => (
     <BufferedInput
         className={classNames(styles.titleField, className)}
-        data-project-title-input
         maxLength="100"
         placeholder={intl.formatMessage(messages.projectTitlePlaceholder)}
         tabIndex="0"
@@ -51,12 +48,10 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
-    onSubmit: title => dispatch(setProjectTitle(normalizeProjectTitle(title)))
+    onSubmit: title => dispatch(setProjectTitle(title))
 });
 
 export default injectIntl(connect(
     mapStateToProps,
     mapDispatchToProps
 )(ProjectTitleInput));
-
-export {normalizeProjectTitle};

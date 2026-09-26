@@ -2,7 +2,11 @@ const initialState = {
     visible: false,
     message: null,
     type: 'info',
-    sequence: 0
+    // Which corner the toast slides into. Errors raised by the git layer ask
+    // for 'bottom-right' (A3) — they are triggered from inside the git window,
+    // and the bottom corner keeps them clear of the window header, while the
+    // rest of the app keeps the original top-right position.
+    position: 'top-right'
 };
 
 const reducer = function (state, action) {
@@ -13,7 +17,7 @@ const reducer = function (state, action) {
             visible: true,
             message: action.message,
             type: action.toastType || 'info',
-            sequence: (state.sequence || 0) + 1
+            position: action.position || initialState.position
         });
     case 'scratch-gui/HIDE_TOAST':
         return Object.assign({}, state, {

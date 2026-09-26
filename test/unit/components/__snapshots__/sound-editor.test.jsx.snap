@@ -1,11 +1,22 @@
-﻿// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Sound Editor Component matches snapshot 1`] = `
-<div>
-  <div>
-    <div>
-      <label>
-        <span>
+<div
+  className={undefined}
+  onMouseDown={undefined}
+>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
+      <label
+        className={undefined}
+      >
+        <span
+          className={undefined}
+        >
           Sound
         </span>
         <input
@@ -13,238 +24,125 @@ exports[`Sound Editor Component matches snapshot 1`] = `
           onBlur={[Function]}
           onChange={[Function]}
           onKeyPress={[Function]}
-          onSubmit={[MockFunction]}
+          onSubmit={[Function]}
           tabIndex="1"
           type="text"
           value="sound name"
         />
       </label>
-      <div>
+      <div
+        className={undefined}
+      >
         <button
+          className={undefined}
           disabled={false}
-          onClick={[MockFunction]}
+          onClick={[Function]}
           title="Undo"
-          type="button"
         >
           <img
+            className={undefined}
             draggable={false}
             src="test-file-stub"
-            theme={
-              Theme {
-                "accent": "red",
-                "appearance": {},
-                "blocks": "three",
-                "fonts": {
-                  "google": [],
-                  "history": [],
-                  "system": [],
-                },
-                "gui": "light",
-                "id": 4,
-                "menuBarAlign": "center",
-                "name": undefined,
-                "wallpaper": {
-                  "darkness": 0,
-                  "gridVisible": true,
-                  "history": [],
-                  "opacity": 0.3,
-                  "url": "",
-                },
-              }
-            }
           />
         </button>
         <button
+          className={undefined}
           disabled={true}
-          onClick={[MockFunction]}
+          onClick={[Function]}
           title="Redo"
-          type="button"
         >
           <img
+            className={undefined}
             draggable={false}
             src="test-file-stub"
-            theme={
-              Theme {
-                "accent": "red",
-                "appearance": {},
-                "blocks": "three",
-                "fonts": {
-                  "google": [],
-                  "history": [],
-                  "system": [],
-                },
-                "gui": "light",
-                "id": 4,
-                "menuBarAlign": "center",
-                "name": undefined,
-                "wallpaper": {
-                  "darkness": 0,
-                  "gridVisible": true,
-                  "history": [],
-                  "opacity": 0.3,
-                  "url": "",
-                },
-              }
-            }
           />
         </button>
       </div>
     </div>
-    <div>
-      <button
+    <div
+      className={undefined}
+    >
+      <div
         className=""
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           Copy
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        disabled={false}
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           Paste
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           Copy to New
         </div>
-      </button>
+      </div>
     </div>
-    <button
+    <div
       className=""
-      disabled={false}
-      onClick={[MockFunction]}
-      type="button"
+      onClick={[Function]}
+      role="button"
     >
       <img
+        className={undefined}
         draggable={false}
         src="test-file-stub"
-        theme={
-          Theme {
-            "accent": "red",
-            "appearance": {},
-            "blocks": "three",
-            "fonts": {
-              "google": [],
-              "history": [],
-              "system": [],
-            },
-            "gui": "light",
-            "id": 4,
-            "menuBarAlign": "center",
-            "name": undefined,
-            "wallpaper": {
-              "darkness": 0,
-              "gridVisible": true,
-              "history": [],
-              "opacity": 0.3,
-              "url": "",
-            },
-          }
-        }
       />
-      <div>
+      <div
+        className={undefined}
+      >
         Delete
       </div>
-    </button>
+    </div>
   </div>
-  <div>
-    <div>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
       <svg
+        className={undefined}
         viewBox="0 0 600 160"
       >
         <g
           transform="scale(1, -1) translate(0, -80)"
         >
           <path
+            className={undefined}
             d="M0 0Q0 80 150 120 Q300 160 450 200 Q600 240 600 0 Q600 -240 450 -200 Q300 -160 150 -120 Q0 -80 0 0Z"
             strokeLinejoin="round"
             strokeWidth={1}
@@ -259,7 +157,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
         <div
           className=""
           style={
-            {
+            Object {
               "alignContent": undefined,
               "alignItems": undefined,
               "alignSelf": undefined,
@@ -278,7 +176,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
           <div
             className=""
             style={
-              {
+              Object {
                 "alignContent": undefined,
                 "alignItems": undefined,
                 "alignSelf": undefined,
@@ -298,7 +196,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
             onMouseDown={[Function]}
             onTouchStart={[Function]}
             style={
-              {
+              Object {
                 "alignContent": undefined,
                 "alignItems": undefined,
                 "alignSelf": undefined,
@@ -316,7 +214,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
             <div
               className=""
               style={
-                {
+                Object {
                   "alignContent": undefined,
                   "alignItems": undefined,
                   "alignSelf": undefined,
@@ -334,35 +232,12 @@ exports[`Sound Editor Component matches snapshot 1`] = `
               <img
                 draggable={false}
                 src="test-file-stub"
-                theme={
-                  Theme {
-                    "accent": "red",
-                    "appearance": {},
-                    "blocks": "three",
-                    "fonts": {
-                      "google": [],
-                      "history": [],
-                      "system": [],
-                    },
-                    "gui": "light",
-                    "id": 4,
-                    "menuBarAlign": "center",
-                    "name": undefined,
-                    "wallpaper": {
-                      "darkness": 0,
-                      "gridVisible": true,
-                      "history": [],
-                      "opacity": 0.3,
-                      "url": "",
-                    },
-                  }
-                }
               />
             </div>
             <div
               className=""
               style={
-                {
+                Object {
                   "alignContent": undefined,
                   "alignItems": undefined,
                   "alignSelf": undefined,
@@ -380,29 +255,6 @@ exports[`Sound Editor Component matches snapshot 1`] = `
               <img
                 draggable={false}
                 src="test-file-stub"
-                theme={
-                  Theme {
-                    "accent": "red",
-                    "appearance": {},
-                    "blocks": "three",
-                    "fonts": {
-                      "google": [],
-                      "history": [],
-                      "system": [],
-                    },
-                    "gui": "light",
-                    "id": 4,
-                    "menuBarAlign": "center",
-                    "name": undefined,
-                    "wallpaper": {
-                      "darkness": 0,
-                      "gridVisible": true,
-                      "history": [],
-                      "opacity": 0.3,
-                      "url": "",
-                    },
-                  }
-                }
               />
             </div>
           </div>
@@ -411,7 +263,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
             onMouseDown={[Function]}
             onTouchStart={[Function]}
             style={
-              {
+              Object {
                 "alignContent": undefined,
                 "alignItems": undefined,
                 "alignSelf": undefined,
@@ -429,7 +281,7 @@ exports[`Sound Editor Component matches snapshot 1`] = `
             <div
               className=""
               style={
-                {
+                Object {
                   "alignContent": undefined,
                   "alignItems": undefined,
                   "alignSelf": undefined,
@@ -447,35 +299,12 @@ exports[`Sound Editor Component matches snapshot 1`] = `
               <img
                 draggable={false}
                 src="test-file-stub"
-                theme={
-                  Theme {
-                    "accent": "red",
-                    "appearance": {},
-                    "blocks": "three",
-                    "fonts": {
-                      "google": [],
-                      "history": [],
-                      "system": [],
-                    },
-                    "gui": "light",
-                    "id": 4,
-                    "menuBarAlign": "center",
-                    "name": undefined,
-                    "wallpaper": {
-                      "darkness": 0,
-                      "gridVisible": true,
-                      "history": [],
-                      "opacity": 0.3,
-                      "url": "",
-                    },
-                  }
-                }
               />
             </div>
             <div
               className=""
               style={
-                {
+                Object {
                   "alignContent": undefined,
                   "alignItems": undefined,
                   "alignSelf": undefined,
@@ -493,38 +322,17 @@ exports[`Sound Editor Component matches snapshot 1`] = `
               <img
                 draggable={false}
                 src="test-file-stub"
-                theme={
-                  Theme {
-                    "accent": "red",
-                    "appearance": {},
-                    "blocks": "three",
-                    "fonts": {
-                      "google": [],
-                      "history": [],
-                      "system": [],
-                    },
-                    "gui": "light",
-                    "id": 4,
-                    "menuBarAlign": "center",
-                    "name": undefined,
-                    "wallpaper": {
-                      "darkness": 0,
-                      "gridVisible": true,
-                      "history": [],
-                      "opacity": 0.3,
-                      "url": "",
-                    },
-                  }
-                }
               />
             </div>
           </div>
         </div>
-        <div>
+        <div
+          className={undefined}
+        >
           <div
             className=""
             style={
-              {
+              Object {
                 "transform": "translateX(50%)",
               }
             }
@@ -541,9 +349,8 @@ exports[`Sound Editor Component matches snapshot 1`] = `
     >
       <button
         className=""
-        onClick={[MockFunction]}
+        onClick={[Function]}
         title="Stop"
-        type="button"
       >
         <img
           draggable={false}
@@ -551,391 +358,202 @@ exports[`Sound Editor Component matches snapshot 1`] = `
         />
       </button>
     </div>
-    <div>
-      <button
+    <div
+      className={undefined}
+    >
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Faster
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Slower
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Louder
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Softer
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Mute
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Fade in
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        type="button"
+        onClick={undefined}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Fade out
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Reverse
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Robot
           </span>
         </div>
-      </button>
-      <button
+      </div>
+      <div
         className=""
-        onClick={[MockFunction]}
-        type="button"
+        onClick={[Function]}
+        role="button"
       >
         <img
+          className={undefined}
           draggable={false}
           src="test-file-stub"
-          theme={
-            Theme {
-              "accent": "red",
-              "appearance": {},
-              "blocks": "three",
-              "fonts": {
-                "google": [],
-                "history": [],
-                "system": [],
-              },
-              "gui": "light",
-              "id": 4,
-              "menuBarAlign": "center",
-              "name": undefined,
-              "wallpaper": {
-                "darkness": 0,
-                "gridVisible": true,
-                "history": [],
-                "opacity": 0.3,
-                "url": "",
-              },
-            }
-          }
         />
-        <div>
+        <div
+          className={undefined}
+        >
           <span>
             Echo
           </span>
         </div>
-      </button>
+      </div>
     </div>
   </div>
-  <div>
-    <div>
+  <div
+    className={undefined}
+  >
+    <div
+      className={undefined}
+    >
       00:00.30 / 00:00.60
     </div>
-    <div>
+    <div
+      className={undefined}
+    >
       Hz 
       <span>
         Mono

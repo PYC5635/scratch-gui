@@ -91,3 +91,53 @@
     outline: 2px solid rgba(255, 255, 255, 0.5);
     outline-offset: 2px;
 }
+
+/* ---------------------------------------------------------------------------
+   Position variants + level icon.
+   `.toast` above pins the top-right corner; git failures (A3) ask for the
+   bottom-right one instead, so they land in the same corner whether the git
+   window is open or the action came from the File menu. Two classes beat one,
+   so these win over the base rule regardless of order.
+   --------------------------------------------------------------------------- */
+.toast.topRight {
+    top: 20px;
+    bottom: auto;
+}
+
+.toast.bottomRight {
+    top: auto;
+    bottom: 20px;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.toast.bottomRight.closing {
+    animation: slideOutDown 0.3s ease-in forwards;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutDown {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+}
+
+.icon {
+    flex-shrink: 0;
+    font-size: 15px;
+    line-height: 1;
+}

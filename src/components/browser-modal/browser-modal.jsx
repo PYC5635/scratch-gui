@@ -94,7 +94,6 @@ const BrowserModal = ({intl, ...props}) => {
                                     </p>
                                     <div className={styles.desktopSettingsOuter}>
                                         <button
-                                            type="button"
                                             onClick={props.onClickDesktopSettings}
                                             className={styles.desktopSettingsInner}
                                         >

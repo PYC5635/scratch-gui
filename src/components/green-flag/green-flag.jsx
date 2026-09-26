@@ -14,9 +14,7 @@ const GreenFlagComponent = function (props) {
         ...componentProps
     } = props;
     return (
-        <button
-            type="button"
-            aria-label={title}
+        <img
             className={classNames(
                 className,
                 styles.greenFlag,
@@ -24,19 +22,14 @@ const GreenFlagComponent = function (props) {
                     [styles.isActive]: active
                 }
             )}
+            draggable={false}
+            src={greenFlagIcon}
             title={title}
             onClick={onClick}
             // tw: also fire click when opening context menu (right click on all systems and alt+click on chromebooks)
             onContextMenu={onClick}
             {...componentProps}
-        >
-            <img
-                className={styles.icon}
-                draggable={false}
-                src={greenFlagIcon}
-                alt=""
-            />
-        </button>
+        />
     );
 };
 GreenFlagComponent.propTypes = {

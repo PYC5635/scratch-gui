@@ -27,6 +27,7 @@ import upstreamMeta from '../generated/upstream-meta.json';
 import {detectLocale} from '../../lib/utils/detect-locale';
 import SettingsStore from '../settings-store-singleton';
 import Channels from '../channels';
+import CustomPlugins, {parseCustomPlugin} from '../custom-plugins';
 import extensionImage from './icons/extension.svg';
 import brushImage from './icons/brush.svg';
 import undoImage from './icons/undo.svg';
@@ -734,6 +735,76 @@ Addon.propTypes = {
     extended: PropTypes.bool
 };
 
+// 自定义插件卡片：结构仿照 Addon，但带删除按钮、信任确认走父级 onToggle
+const CustomPluginCard = ({id, manifest, settings, onToggle, onDelete}) => (
+    <div className={classNames(styles.addon, styles['custom-addon'])}>
+        <div className={styles.addonHeader}>
+            <label className={styles.addonTitle}>
+                <div className={styles.addonSwitch}>
+                    <Switch
+                        value={settings.enabled}
+                        onChange={value => onToggle(id, value)}
+                    />
+                </div>
+                <img
+                    className={styles.extensionImage}
+                    src={extensionImage}
+                    draggable={false}
+                    alt=""
+                />
+                <div className={styles.addonTitleText}>
+                    {manifest.name}
+                </div>
+            </label>
+            <Tags manifest={manifest} />
+            <div className={styles.addonOperations}>
+                <button
+                    className={styles['custom-delete-button']}
+                    onClick={() => onDelete(id)}
+                    title={settingsTranslations.customPluginsDelete}
+                >
+                    {'×'}
+                </button>
+            </div>
+        </div>
+        {settings.enabled && (
+            <div className={styles.addonDetails}>
+                <div className={styles.description}>
+                    {manifest.description || settingsTranslations.customPluginsNoDescription}
+                </div>
+                {manifest.settings && (
+                    <div className={styles.settingContainer}>
+                        {manifest.settings.map(setting => (
+                            <Setting
+                                key={setting.id}
+                                addonId={id}
+                                setting={setting}
+                                value={settings[setting.id]}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+    </div>
+);
+CustomPluginCard.propTypes = {
+    id: PropTypes.string,
+    manifest: PropTypes.shape({
+        name: PropTypes.string,
+        description: PropTypes.string,
+        tags: PropTypes.arrayOf(PropTypes.string),
+        settings: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.string
+        }))
+    }),
+    settings: PropTypes.shape({
+        enabled: PropTypes.bool
+    }),
+    onToggle: PropTypes.func,
+    onDelete: PropTypes.func
+};
+
 const Dirty = props => (
     <div className={styles.dirtyOuter}>
         <div className={styles.dirtyInner}>
@@ -994,6 +1065,16 @@ AddonList.propTypes = {
     extended: PropTypes.bool.isRequired
 };
 
+// 某些受限环境（如沙箱 iframe）会屏蔽 confirm 并返回 false / 抛错，导致导入、删除等操作静默中断。
+// 此处兜底：confirm 不可用时放行操作（信任/删除确认由调用方的文案负责）。
+const safeConfirm = message => {
+    try {
+        return confirm(message);
+    } catch (e) {
+        return true;
+    }
+};
+
 class AddonSettingsComponent extends React.Component {
     constructor (props) {
         super(props);
@@ -1009,6 +1090,10 @@ class AddonSettingsComponent extends React.Component {
         this.searchRef = this.searchRef.bind(this);
         this.handleTagFilter = this.handleTagFilter.bind(this);
         this.handleClearAll = this.handleClearAll.bind(this);
+        this.handleImportCustomPluginFile = this.handleImportCustomPluginFile.bind(this);
+        this.handleImportCustomPluginUrl = this.handleImportCustomPluginUrl.bind(this);
+        this.handleToggleCustomPlugin = this.handleToggleCustomPlugin.bind(this);
+        this.handleDeleteCustomPlugin = this.handleDeleteCustomPlugin.bind(this);
         this.searchBar = null;
         this.state = {
             loading: false,
@@ -1016,18 +1101,33 @@ class AddonSettingsComponent extends React.Component {
             search: getInitialSearch(),
             extended: false,
             selectedTags: new Set(),
+            customPlugins: [],
             ...this.readFullAddonState()
         };
         if (Channels.changeChannel) {
             Channels.changeChannel.addEventListener('message', () => {
-                SettingsStore.readLocalStorage();
-                this.setState(this.readFullAddonState());
+                // 先同步自定义插件注册表，再重读本地存储与完整状态
+                CustomPlugins.refreshFromDB().then(() => {
+                    SettingsStore.readLocalStorage();
+                    this.setState({
+                        customPlugins: CustomPlugins.getAll(),
+                        ...this.readFullAddonState()
+                    });
+                });
             });
         }
     }
     componentDidMount () {
         SettingsStore.addEventListener('setting-changed', this.handleSettingStoreChanged);
         document.body.addEventListener('keydown', this.handleKeyDown);
+        // 启动时从 IndexedDB 恢复自定义插件列表，再重读本地存储恢复其开关状态
+        CustomPlugins.refreshFromDB().then(() => {
+            SettingsStore.readLocalStorage();
+            this.setState({
+                customPlugins: CustomPlugins.getAll(),
+                ...this.readFullAddonState()
+            });
+        });
     }
     componentDidUpdate (prevProps, prevState) {
         if (this.state.search !== prevState.search) {
@@ -1187,6 +1287,75 @@ class AddonSettingsComponent extends React.Component {
             selectedTags: new Set()
         });
     }
+    // ---- 自定义插件 ----
+    // 通用导入流程：校验代码格式 -> 信任确认 -> 注册 -> 通知主窗口
+    importCustomPlugin (code, sourceName) {
+        return (async () => {
+            if (!safeConfirm(settingsTranslations.customPluginsTrust)) {
+                return;
+            }
+            let parsed;
+            try {
+                parsed = parseCustomPlugin(code);
+            } catch (err) {
+                alert(`${settingsTranslations.customPluginsImportError} ${err.message}`);
+                return;
+            }
+            await CustomPlugins.add(parsed.manifest, code, true);
+            this.setState({customPlugins: CustomPlugins.getAll()});
+            // 通知主窗口同步（主窗口收到 changeChannel 后会自动 refreshFromDB）
+            postThrottledSettingsChange(SettingsStore.store);
+            console.info(`[Custom Plugins] 已导入自定义插件: ${sourceName}`);
+            alert(settingsTranslations.customPluginsImportSuccess);
+        })();
+    }
+    handleImportCustomPluginFile (e) {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => this.importCustomPlugin(reader.result, file.name);
+        reader.readAsText(file);
+        // 允许重复选择同一个文件
+        e.target.value = '';
+    }
+    handleImportCustomPluginUrl () {
+        const url = prompt(settingsTranslations.customPluginsUrlPrompt);
+        if (!url) {
+            return;
+        }
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(code => this.importCustomPlugin(code, url))
+            .catch(err => alert(`${settingsTranslations.customPluginsUrlError} ${err.message}`));
+    }
+    handleToggleCustomPlugin (id, enabled) {
+        // 首次启用需要用户确认信任（不信任则拒绝启用）
+        if (enabled && !CustomPlugins.isTrusted(id)) {
+            if (!safeConfirm(settingsTranslations.customPluginsTrust)) {
+                return;
+            }
+            CustomPlugins.setTrusted(id, true);
+        }
+        SettingsStore.setAddonEnabled(id, enabled);
+    }
+    handleDeleteCustomPlugin (id) {
+        if (!safeConfirm(settingsTranslations.customPluginsDeleteConfirm)) {
+            return;
+        }
+        // 先禁用再删除，避免残留运行实例
+        SettingsStore.setAddonEnabled(id, false);
+        CustomPlugins.remove(id).then(() => {
+            this.setState({customPlugins: CustomPlugins.getAll()});
+            postThrottledSettingsChange(SettingsStore.store);
+        });
+    }
     render () {
         const addonState = Object.entries(supportedAddons).map(([id, manifest]) => ({
             id,
@@ -1196,6 +1365,17 @@ class AddonSettingsComponent extends React.Component {
         const unsupported = Object.entries(unsupportedAddons).map(([id, manifest]) => ({
             id,
             manifest
+        }));
+        // 自定义插件状态（每个插件实时读取设置存储）
+        const customAddonState = this.state.customPlugins.map(plugin => ({
+            ...plugin,
+            settings: {
+                enabled: SettingsStore.getAddonEnabled(plugin.id),
+                ...(plugin.manifest.settings || []).reduce((acc, setting) => {
+                    acc[setting.id] = SettingsStore.getAddonSetting(plugin.id, setting.id);
+                    return acc;
+                }, {})
+            }
         }));
         return (
             <div className={styles.container}>
@@ -1236,6 +1416,54 @@ class AddonSettingsComponent extends React.Component {
                 <div className={styles.addons}>
                     {!this.state.loading && (
                         <div className={styles.section}>
+                            <div className={styles['custom-plugins-section']}>
+                                <div className={styles['custom-plugins-header']}>
+                                    <span className={styles['custom-plugins-title']}>
+                                        {settingsTranslations.customPlugins}
+                                    </span>
+                                    <span className={styles['custom-plugins-hint']}>
+                                        {settingsTranslations.customPluginsHint}
+                                    </span>
+                                </div>
+                                {customAddonState.length === 0 && (
+                                    <div className={styles['custom-plugins-empty']}>
+                                        {settingsTranslations.customPluginsEmpty}
+                                    </div>
+                                )}
+                                {customAddonState.map(plugin => (
+                                    <CustomPluginCard
+                                        key={plugin.id}
+                                        id={plugin.id}
+                                        manifest={plugin.manifest}
+                                        settings={plugin.settings}
+                                        onToggle={this.handleToggleCustomPlugin}
+                                        onDelete={this.handleDeleteCustomPlugin}
+                                    />
+                                ))}
+                                <div className={styles['custom-plugins-actions']}>
+                                    <button
+                                        className={classNames(styles.button, styles['custom-plugins-import-button'])}
+                                        onClick={() => this.fileInputRef.click()}
+                                    >
+                                        {settingsTranslations.customPluginsImportFile}
+                                    </button>
+                                    <button
+                                        className={classNames(styles.button, styles['custom-plugins-import-button'])}
+                                        onClick={this.handleImportCustomPluginUrl}
+                                    >
+                                        {settingsTranslations.customPluginsImportUrl}
+                                    </button>
+                                    <input
+                                        ref={el => {
+                                            this.fileInputRef = el;
+                                        }}
+                                        type="file"
+                                        accept=".js,.mjs"
+                                        hidden
+                                        onChange={this.handleImportCustomPluginFile}
+                                    />
+                                </div>
+                            </div>
                             <TagFilter
                                 tags={allTags}
                                 selectedTags={this.state.selectedTags}

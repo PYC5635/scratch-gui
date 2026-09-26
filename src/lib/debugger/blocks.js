@@ -109,19 +109,19 @@ const registerDebuggerBlocks = (vm, handlers) => {
         callback: (_, thread) => onBreakpoint(thread)
     });
     addBlock(vm, LOG, {
-        args: ['content'],
+        args: [msg('debugger/argument-content', 'value')],
         displayName: msg('debugger/block-log', 'log %s'),
-        callback: ({content}, thread) => onLog(content, thread, 'log')
+        callback: (args, thread) => onLog(Object.values(args)[0], thread, 'log')
     });
     addBlock(vm, WARN, {
-        args: ['content'],
+        args: [msg('debugger/argument-content', 'value')],
         displayName: msg('debugger/block-warn', 'warn %s'),
-        callback: ({content}, thread) => onLog(content, thread, 'warn')
+        callback: (args, thread) => onLog(Object.values(args)[0], thread, 'warn')
     });
     addBlock(vm, ERROR, {
-        args: ['content'],
+        args: [msg('debugger/argument-content', 'value')],
         displayName: msg('debugger/block-error', 'error %s'),
-        callback: ({content}, thread) => onLog(content, thread, 'error')
+        callback: (args, thread) => onLog(Object.values(args)[0], thread, 'error')
     });
 
     patchBlockly();
@@ -141,7 +141,7 @@ const registerDebuggerBlocks = (vm, handlers) => {
     vm.runtime.startHats = function (hat, optMatchFields, ...args) {
         if (getSetting('log_broadcasts') && hat === 'event_whenbroadcastreceived') {
             onLog(
-                msg('debugger/log-msg-broadcasted', 'Broadcasted {broadcast}').replace('{broadcast}', `"${optMatchFields.BROADCAST_OPTION}"`),
+                msg('debugger/log-msg-broadcasted', 'Broadcasted {broadcast}').replace('{broadcast}', optMatchFields.BROADCAST_OPTION),
                 vm.runtime.sequencer.activeThread,
                 'internal'
             );
@@ -160,7 +160,7 @@ const registerDebuggerBlocks = (vm, handlers) => {
         proto.makeClone = function (...args) {
             if (getSetting('log_failed_clone_creation') && !vm.runtime.clonesAvailable()) {
                 onLog(
-                    msg('debugger/log-msg-clone-cap', 'Failed to create clone of {sprite}, cannot create over 300 clones.').replace('{sprite}', `"${this.getName()}"`),
+                    msg('debugger/log-msg-clone-cap', 'Failed to create clone of {sprite}, cannot create over 300 clones.').replace('{sprite}', this.getName()),
                     vm.runtime.sequencer.activeThread,
                     'internal-warn'
                 );
@@ -168,7 +168,7 @@ const registerDebuggerBlocks = (vm, handlers) => {
             const clone = ogMakeClone.call(this, ...args);
             if (getSetting('log_clone_create') && clone) {
                 onLog(
-                    msg('debugger/log-msg-clone-created', 'Created clone of {sprite}.').replace('{sprite}', `"${this.getName()}"`),
+                    msg('debugger/log-msg-clone-created', 'Created clone of {sprite}.').replace('{sprite}', this.getName()),
                     vm.runtime.sequencer.activeThread,
                     'internal'
                 );
@@ -180,4 +180,42 @@ const registerDebuggerBlocks = (vm, handlers) => {
     vm.runtime.on('PROJECT_LOADED', installCloneHook);
 };
 
+// Re-apply the block display names for the injected debugger blocks using the
+// current locale. The block text is captured from msg() at registration time,
+// so it would otherwise stay in whatever language was active at that moment.
+// This only updates the stored displayName on the already-registered addon
+// blocks (no new palette entries are added) and triggers a workspace redraw.
+const BLOCK_TEXT = [
+    [BREAKPOINT, 'debugger/block-breakpoint', 'breakpoint'],
+    [LOG, 'debugger/block-log', 'log %s'],
+    [WARN, 'debugger/block-warn', 'warn %s'],
+    [ERROR, 'debugger/block-error', 'error %s']
+];
+
+const relocalizeDebuggerBlocks = (vm, handlers) => {
+    const addonBlocks = vm.runtime && vm.runtime.addonBlocks;
+    if (!addonBlocks) return;
+    const {msg} = handlers;
+    for (const [code, key, fallback] of BLOCK_TEXT) {
+        if (addonBlocks[code]) {
+            addonBlocks[code].displayName = msg(key, fallback);
+            // Keep the %s input's shadow label localized. The callback reads the
+            // value positionally, so the name can safely change with the locale.
+            const {arguments: argNames} = addonBlocks[code];
+            if (Array.isArray(argNames) && argNames.length > 0) {
+                const localizedArg = msg('debugger/argument-content', 'value');
+                addonBlocks[code].arguments = argNames.map(() => localizedArg);
+                const nids = addonBlocks[code].namesIdsDefaults;
+                if (Array.isArray(nids) && nids[0]) {
+                    nids[0] = addonBlocks[code].arguments.slice();
+                }
+            }
+        }
+    }
+    if (vm.editingTarget && vm.emitWorkspaceUpdate) {
+        vm.emitWorkspaceUpdate();
+    }
+};
+
 export default registerDebuggerBlocks;
+export {relocalizeDebuggerBlocks};

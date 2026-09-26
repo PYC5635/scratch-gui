@@ -26,36 +26,23 @@ const ReportModal = ({type, target, context, onClose}) => {
     const [error, setError] = useState('');
     const [sent, setSent] = useState(false);
     const firstRef = useRef(null);
-    const submitLocks = useRef(new Set());
-    const requestKey = `${type}\u0000${target}\u0000${context || ''}`;
-    const currentRequestKey = useRef(requestKey);
-    currentRequestKey.current = requestKey;
 
     useEffect(() => {
         if (firstRef.current) firstRef.current.focus();
-        setCategory(REASONS[0]);
-        setDetails('');
-        setBusy(false);
-        setError('');
-        setSent(false);
-    }, [requestKey]);
+    }, []);
 
     const submit = async () => {
-        if (submitLocks.current.has(requestKey)) return;
-        submitLocks.current.add(requestKey);
+        if (busy) return;
         setBusy(true);
         setError('');
         const reason = details.trim() ? `${category}: ${details.trim()}` : category;
         try {
             await api.report(type, target, reason, context);
-            if (currentRequestKey.current === requestKey) setSent(true);
+            setSent(true);
         } catch (e) {
-if (currentRequestKey.current === requestKey) {
-                setError(e.message || t('mw.community.report.couldNotSend', 'Could not send the report.'));
-            }
+            setError(e.message || t('mw.community.report.couldNotSend', 'Could not send the report.'));
         } finally {
-            submitLocks.current.delete(requestKey);
-            if (currentRequestKey.current === requestKey) setBusy(false);
+            setBusy(false);
         }
     };
 
@@ -72,7 +59,6 @@ if (currentRequestKey.current === requestKey) {
             icon={Flag}
             title={t('mw.community.report.title', 'Report this {noun}', {noun})}
             onClose={onClose}
-            dismissDisabled={busy}
             actions={sent ? (
                 <Button
                     variant="primary"
@@ -80,11 +66,10 @@ if (currentRequestKey.current === requestKey) {
                 >{t('mw.community.report.done', 'Done')}</Button>
             ) : (
                 <React.Fragment>
-<Button onClick={onClose} disabled={busy}>{t('mw.community.report.cancel', 'Cancel')}</Button>
+                    <Button onClick={onClose}>{t('mw.community.report.cancel', 'Cancel')}</Button>
                     <Button
                         variant="primary"
-                        busy={busy}
-                        busyLabel="Sending…"
+                        disabled={busy}
                         onClick={submit}
                     >{busy ?
                         t('mw.community.report.sending', 'Sending…') :
@@ -101,7 +86,6 @@ if (currentRequestKey.current === requestKey) {
                         ref={firstRef}
                         className={styles.select}
                         value={category}
-                        disabled={busy}
                         onChange={e => setCategory(e.target.value)}
                     >
                         {reasons.map(reason => (
@@ -115,7 +99,6 @@ if (currentRequestKey.current === requestKey) {
                     <textarea
                         className={styles.textarea}
                         value={details}
-                        disabled={busy}
                         maxLength={1000}
                         placeholder={t('mw.community.report.detailsPlaceholder', 'Add anything that helps a moderator understand the problem.')}
                         onChange={e => setDetails(e.target.value)}

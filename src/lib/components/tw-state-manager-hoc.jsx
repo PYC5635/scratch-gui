@@ -5,6 +5,7 @@ import {connect} from 'react-redux';
 import bindAll from 'lodash.bindall';
 import VM from 'scratch-vm';
 import log from '../utils/log';
+import {defineMessages, intlShape, injectIntl} from 'react-intl';
 import {initAppearanceSettings} from '../mw-appearance-settings';
 import {initStyleSettings} from '../mw-style-settings';
 import {initMenuBarLayout} from '../mw-menu-bar-layout';
@@ -28,36 +29,23 @@ import {generateRandomUsername} from '../utils/tw-username';
 import CollaborationService from '../collaboration/index.js';
 import {setSearchParams} from '../utils/navigation';
 import {defaultStageSize} from '../../reducers/custom-stage-size';
-import {openSimpleDialog} from '../../reducers/modals';
+
+/* eslint-disable no-alert */
+
+const messages = defineMessages({
+    invalidFPS: {
+        defaultMessage: '"fps" URL parameter is invalid',
+        description: 'Alert displayed when fps URL parameter is invalid',
+        id: 'tw.invalidParameters.fps'
+    },
+    invalidClones: {
+        defaultMessage: '"clone" URL parameter is invalid',
+        description: 'Alert displayed when clones URL parameter is invalid',
+        id: 'tw.invalidParameters.clones'
+    }
+});
 
 const USERNAME_KEY = 'tw:username';
-
-const parseNonNegativeURLNumber = value => {
-    const number = Number(value);
-    return Number.isFinite(number) && number >= 0 ? number : null;
-};
-
-const confirmProjectSwitch = ({confirmWithMessage, openDialog, message}) => {
-    if (confirmWithMessage) return Promise.resolve(confirmWithMessage(message)).then(Boolean);
-    return new Promise(resolve => {
-        openDialog({
-            type: 'confirm',
-            title: 'Switch projects?',
-            message,
-            onOk: () => resolve(true),
-            onCancel: () => resolve(false)
-        });
-    });
-};
-
-const restoreRouterURL = (router, routerState) => {
-    if (!router) return false;
-    const currentPath = `${location.pathname}${location.search}${location.hash}`;
-    const expectedPath = router.generateURL(routerState);
-    if (!expectedPath || expectedPath === currentPath) return false;
-    history.replaceState(null, null, expectedPath);
-    return true;
-};
 
 /**
  * The State Manager is responsible for managing persistent state and the URL.
@@ -107,7 +95,7 @@ class Router {
 
 class HashRouter extends Router {
     onhashchange () {
-        return this.onSetProjectId(readHashProjectId() || defaultProjectId);
+        this.onSetProjectId(readHashProjectId() || defaultProjectId);
     }
 
     generateURL ({projectId}) {
@@ -178,34 +166,33 @@ class WildcardRouter extends Router {
         this.root = process.env.ROOT;
     }
 
-    async onhashchange () {
+    onhashchange () {
         const hashProjectId = readHashProjectId();
         if (hashProjectId) {
-            const ok = await this.onSetProjectId(hashProjectId);
+            const ok = this.onSetProjectId(hashProjectId);
             if (ok) {
                 // Completely remove the hash
                 history.replaceState(null, null, `${location.pathname}${location.search}`);
             }
         } else {
-            // Do not detect page type here as it is already setup by index.html, editor.html, etc.
-            return this.parseURL(false);
+            this.parseURL(true);
         }
-        return true;
     }
 
     onpathchange () {
-        return this.parseURL(true);
+        this.parseURL(true);
     }
 
-    async parseURL (detectPageType) {
+    parseURL (detectPageType) {
         const path = location.pathname.substr(this.root.length);
         const parts = path.split('/');
 
         const parseProjectId = id => {
             if (id) {
-                return this.onSetProjectId(id);
+                this.onSetProjectId(id);
+            } else {
+                this.onSetProjectId(defaultProjectId);
             }
-            return this.onSetProjectId(defaultProjectId);
         };
 
         const parsePageType = type => {
@@ -224,13 +211,12 @@ class WildcardRouter extends Router {
         };
 
         if (+parts[0] && Number.isFinite(+parts[0])) {
-            if (!await parseProjectId(parts[0])) return false;
+            parseProjectId(parts[0]);
             parsePageType(parts[1]);
         } else {
-            if (!await this.onSetProjectId(defaultProjectId)) return false;
+            this.onSetProjectId(defaultProjectId);
             parsePageType(parts[0]);
         }
-        return true;
     }
 
     generateURL ({projectId, isPlayerOnly, isFullScreen}) {
@@ -329,9 +315,9 @@ const TWStateManager = function (WrappedComponent) {
             initMenuBarLayout();
 
             if (urlParams.has('fps')) {
-                const fps = parseNonNegativeURLNumber(urlParams.get('fps'));
-                if (fps === null) {
-                    log.warn('Ignoring invalid "fps" URL parameter');
+                const fps = +urlParams.get('fps');
+                if (Number.isNaN(fps) || fps < 0) {
+                    alert(this.props.intl.formatMessage(messages.invalidFPS));
                 } else {
                     this.props.vm.setFramerate(fps);
                 }
@@ -387,9 +373,9 @@ const TWStateManager = function (WrappedComponent) {
 
             if (urlParams.has('clones')) {
                 if (this.props.vm) {
-                    const clones = parseNonNegativeURLNumber(urlParams.get('clones'));
-                    if (clones === null) {
-                        log.warn('Ignoring invalid "clones" URL parameter');
+                    const clones = +urlParams.get('clones');
+                    if (Number.isNaN(clones) || clones < 0) {
+                        alert(this.props.intl.formatMessage(messages.invalidClones));
                     } else {
                         this.props.vm.setRuntimeOptions({
                             maxClones: clones
@@ -672,25 +658,18 @@ const TWStateManager = function (WrappedComponent) {
         handlePopState () {
             this.router.onpathchange();
         }
-        restoreCurrentRoute () {
-            restoreRouterURL(this.router, {
-                projectId: this.props.reduxProjectId,
-                isPlayerOnly: this.props.isPlayerOnly,
-                isFullScreen: this.props.isFullScreen
-            });
-        }
-        async onSetProjectId (id) {
+        onSetProjectId (id) {
             if (`${id}` === `${this.props.reduxProjectId}`) {
                 return true;
             }
             if (this.props.projectChanged) {
-                const confirmed = await confirmProjectSwitch({
-                    confirmWithMessage: this.props.confirmWithMessage,
-                    openDialog: this.props.openSimpleDialog,
-                    message: 'Your unsaved changes will be lost. Switch projects?'
-                });
+                let confirmed = false;
+                if (this.props.confirmWithMessage) {
+                    confirmed = this.props.confirmWithMessage('Are you sure you want to switch project?');
+                } else {
+                    confirmed = window.confirm('Are you sure you want to switch project?');
+                }
                 if (!confirmed) {
-                    this.restoreCurrentRoute();
                     return false;
                 }
             }
@@ -729,6 +708,7 @@ const TWStateManager = function (WrappedComponent) {
         render () {
             const {
                 /* eslint-disable no-unused-vars */
+                intl,
                 customStageSize,
                 isFullScreen,
                 isPlayerOnly,
@@ -763,6 +743,7 @@ const TWStateManager = function (WrappedComponent) {
         }
     }
     StateManagerComponent.propTypes = {
+        intl: intlShape,
         customStageSize: PropTypes.shape({
             width: PropTypes.number,
             height: PropTypes.number
@@ -793,7 +774,6 @@ const TWStateManager = function (WrappedComponent) {
         usernameOverride: PropTypes.string,
         onSetCollaborationRoomId: PropTypes.func,
         onOpenCollaborationModal: PropTypes.func,
-        openSimpleDialog: PropTypes.func.isRequired,
         confirmWithMessage: PropTypes.func,
         reduxProjectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         routingStyle: PropTypes.oneOf(Object.keys(routers)),
@@ -827,18 +807,14 @@ const TWStateManager = function (WrappedComponent) {
         onSetProjectId: projectId => dispatch(setProjectId(projectId)),
         onSetUsername: username => dispatch(setUsername(username)),
         onSetCollaborationRoomId: roomId => dispatch(setCollaborationRoomId(roomId)),
-        onOpenCollaborationModal: () => dispatch(openCollaborationModal()),
-        openSimpleDialog: config => dispatch(openSimpleDialog(config))
+        onOpenCollaborationModal: () => dispatch(openCollaborationModal())
     });
-    return connect(
+    return injectIntl(connect(
         mapStateToProps,
         mapDispatchToProps
-    )(StateManagerComponent);
+    )(StateManagerComponent));
 };
 
 export {
-    confirmProjectSwitch,
-    parseNonNegativeURLNumber,
-    restoreRouterURL,
     TWStateManager as default
 };

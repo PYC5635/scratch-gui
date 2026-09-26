@@ -142,7 +142,6 @@ class ShortcutItem extends React.Component {
                             </div>
                         )}
                         <button
-                            type="button"
                             className={styles.iconButton}
                             onClick={this.handleStopRecording}
                             title={intl.formatMessage(messages.cancel)}
@@ -161,7 +160,6 @@ class ShortcutItem extends React.Component {
                     <KeyCombo keyCombo={shortcut.key} />
                     {isCustom && (
                         <button
-                            type="button"
                             className={styles.iconButton}
                             onClick={this.handleReset}
                             title={intl.formatMessage(messages.reset)}
@@ -170,7 +168,6 @@ class ShortcutItem extends React.Component {
                         </button>
                     )}
                     <button
-                        type="button"
                         className={styles.iconButton}
                         onClick={this.handleStartRecording}
                         title={intl.formatMessage(messages.edit)}

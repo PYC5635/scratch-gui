@@ -9,11 +9,8 @@ import {addMonitorRect, getInitialPosition, resizeMonitorRect, removeMonitorRect
 import {getVariable, setVariableValue} from '../lib/utils/variables';
 import importCSV from '../lib/utils/import-csv.js';
 import downloadBlob from '../lib/utils/download-blob';
-import {projectFilename} from '../lib/utils/safe-filename.js';
 import {Theme} from '../lib/themes';
 import SliderPrompt from './slider-prompt.jsx';
-import {showStandardAlert} from '../reducers/alerts';
-import {openSimpleDialog} from '../reducers/modals';
 
 import {connect} from 'react-redux';
 import {Map} from 'immutable';
@@ -38,7 +35,7 @@ const messages = defineMessages({
     }
 });
 
-export class Monitor extends React.Component {
+class Monitor extends React.Component {
     constructor (props) {
         super(props);
         bindAll(this, [
@@ -58,11 +55,8 @@ export class Monitor extends React.Component {
         this.state = {
             sliderPrompt: false
         };
-        this.importing = false;
-        this.unmounted = false;
     }
     componentDidMount () {
-        this.unmounted = false;
         let rect;
 
         const isNum = num => typeof num === 'number' && !isNaN(num);
@@ -111,7 +105,6 @@ export class Monitor extends React.Component {
         this.props.resizeMonitorRect(this.props.id, this.element.offsetWidth, this.element.offsetHeight);
     }
     componentWillUnmount () {
-        this.unmounted = true;
         this.props.removeMonitorRect(this.props.id);
     }
     handleDragEnd (e, {x, y}) {
@@ -181,37 +174,17 @@ export class Monitor extends React.Component {
     setElement (monitorElt) {
         this.element = monitorElt;
     }
-    async handleImport () {
-        if (this.importing) return false;
-        this.importing = true;
-        try {
-            const {rows, text} = await importCSV();
-            if (this.unmounted) return false;
-            if (!Array.isArray(rows) || rows.length === 0 || !Array.isArray(rows[0])) {
-                throw new Error('The selected file has no rows');
-            }
+    handleImport () {
+        importCSV().then(async ({rows, text}) => {
             const numberOfColumns = rows[0].length;
             let columnNumber = 1;
             if (numberOfColumns > 1) {
                 const msg = this.props.intl.formatMessage(messages.columnPrompt, {numberOfColumns});
-                const response = await new Promise(resolve => {
-                    this.props.openSimpleDialog({
-                        type: 'prompt',
-                        title: 'Choose a list column',
-                        message: msg,
-                        defaultValue: '1',
-                        onOk: resolve,
-                        onCancel: () => resolve(null)
-                    });
-                });
-                if (response === null || this.unmounted) return false;
-                columnNumber = Number(response);
-                if (!Number.isInteger(columnNumber) || columnNumber < 1 || columnNumber > numberOfColumns) {
-                    throw new Error('Invalid column number');
-                }
+                // prompt() returns Promise in desktop app
+                columnNumber = parseInt(await prompt(msg), 10); // eslint-disable-line no-alert
             }
             let newListValue;
-            if (numberOfColumns === 1) {
+            if (isNaN(columnNumber) || numberOfColumns === 1) {
                 newListValue = text.replace(/\r/g, '').split('\n');
             } else {
                 newListValue = rows.map(row => row[columnNumber - 1])
@@ -219,22 +192,14 @@ export class Monitor extends React.Component {
             }
             const {vm, targetId, id: variableId} = this.props;
             setVariableValue(vm, targetId, variableId, newListValue);
-            return true;
-        } catch (error) {
-            if (!error || error.name !== 'AbortError') {
-                this.props.onShowImportError();
-            }
-            return false;
-        } finally {
-            this.importing = false;
-        }
+        });
     }
     handleExport () {
         const {vm, targetId, id: variableId} = this.props;
         const variable = getVariable(vm, targetId, variableId);
         const text = variable.value.join('\r\n');
         const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
-        downloadBlob(projectFilename(variable.name, 'variable', 'txt'), blob);
+        downloadBlob(`${variable.name}.txt`, blob);
     }
     render () {
         const monitorProps = monitorAdapter(this.props);
@@ -292,8 +257,6 @@ Monitor.propTypes = {
         savedMonitorPositions: PropTypes.object // eslint-disable-line react/forbid-prop-types
     }).isRequired,
     onDragEnd: PropTypes.func.isRequired,
-    onShowImportError: PropTypes.func.isRequired,
-    openSimpleDialog: PropTypes.func.isRequired,
     opcode: PropTypes.string.isRequired, // eslint-disable-line react/no-unused-prop-types
     params: PropTypes.object, // eslint-disable-line react/no-unused-prop-types, react/forbid-prop-types
     removeMonitorRect: PropTypes.func.isRequired,
@@ -324,9 +287,7 @@ const mapDispatchToProps = dispatch => ({
     addMonitorRect: (id, rect, savePosition) =>
         dispatch(addMonitorRect(id, rect.upperStart, rect.lowerEnd, savePosition)),
     resizeMonitorRect: (id, newWidth, newHeight) => dispatch(resizeMonitorRect(id, newWidth, newHeight)),
-    removeMonitorRect: id => dispatch(removeMonitorRect(id)),
-    onShowImportError: () => dispatch(showStandardAlert('listImportError')),
-    openSimpleDialog: config => dispatch(openSimpleDialog(config))
+    removeMonitorRect: id => dispatch(removeMonitorRect(id))
 });
 
 export default injectIntl(connect(

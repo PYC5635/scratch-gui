@@ -1,29 +1,28 @@
-import React, {useEffect, useState, useCallback, useMemo, useRef} from 'react';
+import React, {useEffect, useState, useCallback, useMemo} from 'react';
 import {Link} from 'react-router-dom';
 import {useIntl} from '../../lib/tw-use-intl.jsx';
 import {Trash2, Reply, Flag} from 'lucide-react';
 import {useUser} from '../UserContext.jsx';
-import {timeAgo, sameUser, formatPlaytime} from '../format';
 import Avatar from './Avatar.jsx';
 import ReactionButtons from './ReactionButtons.jsx';
 import ReportModal from './ReportModal.jsx';
-import Modal from './ui/Modal.jsx';
 import RichText from './RichText.jsx';
+import {sameUser} from '../format';
+
+// Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).
+// Defined locally (rather than imported) to avoid depending on a newly-added
+// named export in a shared chunk, which browsers may cache as an older version.
+const formatDateTime = ms => {
+    if (!ms) return '';
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 import useLatest from '../use-latest.js';
 import styles from './CommentThread.module.css';
 
-const COMMENT_KINDS = [
-    {value: 'comment', label: 'Comment'},
-    {value: 'bug', label: 'Bug report'},
-    {value: 'suggestion', label: 'Suggestion'},
-    {value: 'question', label: 'Question'}
-];
-const kindLabel = kind => COMMENT_KINDS.find(item => item.value === kind)?.label || 'Comment';
-
-const CommentRow = ({
-    comment, onReply, onDelete, onReact, onReport, canReply, canDelete, canReport,
-    deleting, reacting, isReply, id
-}) => {
+const CommentRow = ({comment, onReply, onDelete, onReact, onReport, canReply, canDelete, canReport, isReply, id}) => {
     const intl = useIntl();
     const t = (id, defaultMessage, values) => intl.formatMessage({id, defaultMessage}, values);
     return (
@@ -40,23 +39,13 @@ const CommentRow = ({
                         to={`/users/${comment.author}`}
                         className={styles.author}
                     >{comment.author}</Link>
-                    {!isReply && comment.kind && comment.kind !== 'comment' ? (
-                        <span className={`${styles.kind} ${styles[`kind-${comment.kind}`] || ''}`}>
-                            {kindLabel(comment.kind)}
-                        </span>
-                    ) : null}
-                    {Number.isFinite(comment.playtimeMs) ? (
-                        <span className={styles.playtime}>{formatPlaytime(comment.playtimeMs)}</span>
-                    ) : null}
                     {comment.created ? (
-                        <span className={styles.time}>{timeAgo(comment.created)}</span>
+                        <span className={styles.time}>{formatDateTime(comment.created)}</span>
                     ) : null}
                     <span className={styles.headSpacer} />
                     {canReply ? (
                         <button
-                            type="button"
                             className={styles.iconAction}
-                            aria-label={t('mw.community.comments.reply', 'Reply')}
                             title={t('mw.community.comments.reply', 'Reply')}
                             onClick={onReply}
                         >
@@ -65,9 +54,7 @@ const CommentRow = ({
                     ) : null}
                     {canReport ? (
                         <button
-                            type="button"
                             className={styles.iconAction}
-                            aria-label={t('mw.community.comments.reportComment', 'Report comment')}
                             title={t('mw.community.comments.reportComment', 'Report comment')}
                             onClick={onReport}
                         >
@@ -76,11 +63,8 @@ const CommentRow = ({
                     ) : null}
                     {canDelete ? (
                         <button
-                            type="button"
                             className={styles.iconAction}
-                            aria-label={t('mw.community.comments.deleteComment', 'Delete comment')}
                             title={t('mw.community.comments.deleteComment', 'Delete comment')}
-                            disabled={deleting}
                             onClick={onDelete}
                         >
                             <Trash2 size={13} />
@@ -93,8 +77,6 @@ const CommentRow = ({
                         small
                         reactions={comment.reactions}
                         onReact={onReact}
-                        disabled={reacting}
-                        disabledTitle="Saving…"
                     />
                 </div>
             </div>
@@ -102,10 +84,7 @@ const CommentRow = ({
     );
 };
 
-const InlineComposer = ({
-    user, value, onChange, onSubmit, onCancel, placeholder, busy, error, small, kind, onKindChange,
-    composerAction
-}) => {
+const InlineComposer = ({user, value, onChange, onSubmit, onCancel, placeholder, busy, error, small}) => {
     const intl = useIntl();
     const t = (id, defaultMessage, values) => intl.formatMessage({id, defaultMessage}, values);
     return (
@@ -115,36 +94,16 @@ const InlineComposer = ({
                 size={small ? 28 : 36}
             />
             <div className={styles.composerBody}>
-                {!small && (onKindChange || composerAction) ? (
-                    <div className={styles.composerToolbar}>
-                        {onKindChange ? (
-                            <select
-                                className={styles.kindSelect}
-                                value={kind}
-                                disabled={busy}
-                                onChange={event => onKindChange(event.target.value)}
-                                aria-label="Comment type"
-                            >
-                                {COMMENT_KINDS.map(item => (
-                                    <option key={item.value} value={item.value}>{item.label}</option>
-                                ))}
-                            </select>
-                        ) : null}
-                        {composerAction ? <div className={styles.composerAction}>{composerAction}</div> : null}
-                    </div>
-                ) : null}
                 <textarea
                     className={styles.input}
                     placeholder={placeholder}
                     value={value}
                     maxLength={500}
-                    disabled={busy}
                     onChange={e => onChange(e.target.value)}
                 />
                 {error ? <div className={styles.error}>{error}</div> : null}
                 <div className={styles.composerButtons}>
                     <button
-                        type="button"
                         className={styles.post}
                         disabled={busy || !value.trim()}
                         onClick={onSubmit}
@@ -153,9 +112,7 @@ const InlineComposer = ({
                         t('mw.community.comments.post', 'Post')}</button>
                     {onCancel ? (
                         <button
-                            type="button"
                             className={styles.cancel}
-                            disabled={busy}
                             onClick={onCancel}
                         >{t('mw.community.comments.cancel', 'Cancel')}</button>
                     ) : null}
@@ -165,49 +122,19 @@ const InlineComposer = ({
     );
 };
 
-const CommentThread = ({
-    source, canModerate, disabled, disabledReason, reportContext, projectComments = false, composerAction
-}) => {
+const CommentThread = ({source, canModerate, disabled, disabledReason, reportContext}) => {
     const intl = useIntl();
     const t = (id, defaultMessage, values) => intl.formatMessage({id, defaultMessage}, values);
-    const {user, login} = useUser();
-    const viewerName = (user && user.username) || '';
+    const {user} = useUser();
     const [comments, setComments] = useState([]);
     const [content, setContent] = useState('');
-    const [kind, setKind] = useState('comment');
-    const [kindFilter, setKindFilter] = useState('all');
-    const [search, setSearch] = useState('');
     const [replyTo, setReplyTo] = useState(null);
     const [replyText, setReplyText] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
-    const [loadingComments, setLoadingComments] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
     const [reportId, setReportId] = useState(null);
     const [replyLimits, setReplyLimits] = useState({});
-    const [removingId, setRemovingId] = useState(null);
-    const [deleteId, setDeleteId] = useState(null);
-    const [reactingId, setReactingId] = useState(null);
-    const sourceRef = useRef(source);
-    const viewerRef = useRef(viewerName);
-    const actionLocks = useRef(new Map());
-    sourceRef.current = source;
-    viewerRef.current = viewerName;
-
-    const beginAction = (actionSource, actionViewer, name) => {
-        let locks = actionLocks.current.get(actionSource);
-        if (!locks) {
-            locks = new Set();
-            actionLocks.current.set(actionSource, locks);
-        }
-        const key = `${actionViewer}\u0000${name}`;
-        if (locks.has(key)) return null;
-        locks.add(key);
-        return () => {
-            locks.delete(key);
-            if (!locks.size) actionLocks.current.delete(actionSource);
-        };
-    };
 
     const beginLoad = useLatest();
 
@@ -231,36 +158,16 @@ const CommentThread = ({
 
     const load = useCallback(() => {
         const fresh = beginLoad();
-        setLoadingComments(true);
-        setLoadFailed(false);
-        Promise.resolve()
-            .then(() => source.list())
+        source.list()
             .then(fresh(d => {
                 setComments((d.comments || []).sort((a, b) => (b.created || 0) - (a.created || 0)));
-                setLoadingComments(false);
+                setLoadFailed(false);
             }))
-            .catch(fresh(() => {
-                setLoadFailed(true);
-                setLoadingComments(false);
-            }));
-    }, [source, beginLoad, viewerName]);
+            .catch(fresh(() => setLoadFailed(true)));
+    }, [source, beginLoad]);
 
     useEffect(() => {
         setComments([]);
-        setContent('');
-        setKind('comment');
-        setKindFilter('all');
-        setSearch('');
-        setReplyTo(null);
-        setReplyText('');
-        setBusy(false);
-        setError(null);
-        setReportId(null);
-        setReplyLimits({});
-        setRemovingId(null);
-        setDeleteId(null);
-        setReactingId(null);
-        setLoadingComments(true);
         setLoadFailed(false);
         load();
     }, [load]);
@@ -278,50 +185,30 @@ const CommentThread = ({
         }
     }, [comments]);
 
-    const submit = async (text, parent, commentKind = 'comment') => {
-        if (!text.trim()) return;
-        const actionSource = source;
-        const actionViewer = viewerName;
-        const releaseAction = beginAction(actionSource, actionViewer, 'submit');
-        if (!releaseAction) return;
+    const submit = async (text, parent) => {
+        if (!text.trim() || busy) return;
         setBusy(true);
         setError(null);
         try {
-            await actionSource.add(text.trim(), parent, commentKind);
-            if (sourceRef.current !== actionSource || viewerRef.current !== actionViewer) return;
+            await source.add(text.trim(), parent);
             setContent('');
-            setKind('comment');
             setReplyText('');
             setReplyTo(null);
             load();
         } catch (e) {
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) {
-                setError(e.message || t('mw.community.comments.postFailed', 'Could not post comment.'));
-            }
+            setError(e.message || t('mw.community.comments.postFailed', 'Could not post comment.'));
         } finally {
-            releaseAction();
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) setBusy(false);
+            setBusy(false);
         }
     };
 
     const remove = async commentId => {
-        const actionSource = source;
-        const actionViewer = viewerName;
-        const releaseAction = beginAction(actionSource, actionViewer, 'remove');
-        if (!releaseAction) return;
-        setRemovingId(commentId);
+        if (!window.confirm(t('mw.community.comments.deleteConfirm', 'Delete this comment?'))) return;
         try {
-            await actionSource.remove(commentId);
-            if (sourceRef.current !== actionSource || viewerRef.current !== actionViewer) return;
+            await source.remove(commentId);
             setComments(cs => cs.filter(c => c.id !== commentId && c.parent !== commentId));
-            setDeleteId(null);
         } catch (e) {
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) {
-                setError(e.message || t('mw.community.comments.deleteFailed', 'Could not delete comment.'));
-            }
-        } finally {
-            releaseAction();
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) setRemovingId(null);
+            setError(e.message || t('mw.community.comments.deleteFailed', 'Could not delete comment.'));
         }
     };
 
@@ -337,24 +224,13 @@ const CommentThread = ({
 
     const react = async (commentId, type) => {
         if (!source.react || !user) return;
-        const actionSource = source;
-        const actionViewer = viewerName;
-        const releaseAction = beginAction(actionSource, actionViewer, 'react');
-        if (!releaseAction) return;
-        setReactingId(commentId);
         try {
-            await actionSource.react(commentId, type);
-            if (sourceRef.current !== actionSource || viewerRef.current !== actionViewer) return;
+            await source.react(commentId, type);
             setComments(cs => cs.map(c => (c.id === commentId ?
-                {...c, reactions: toggleReaction(c.reactions || {}, type, actionViewer)} :
+                {...c, reactions: toggleReaction(c.reactions || {}, type, user.username)} :
                 c)));
         } catch (e) {
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) {
-                setError(e.message || t('mw.community.comments.reactFailed', 'Could not react.'));
-            }
-        } finally {
-            releaseAction();
-            if (sourceRef.current === actionSource && viewerRef.current === actionViewer) setReactingId(null);
+            setError(e.message || t('mw.community.comments.reactFailed', 'Could not react.'));
         }
     };
 
@@ -382,69 +258,26 @@ const CommentThread = ({
         return {roots: comments.filter(c => !c.parent), replyMap: map};
     }, [comments]);
     const repliesOf = parentId => replyMap.get(parentId) || [];
-    const deleteComment = comments.find(comment => comment.id === deleteId);
-    const filteredRoots = useMemo(() => {
-        const query = search.trim().toLowerCase();
-        return roots.filter(comment => {
-            const commentKind = comment.kind || 'comment';
-            if (projectComments && kindFilter !== 'all' && commentKind !== kindFilter) return false;
-            if (!projectComments || !query) return true;
-            const matches = item => `${item.author || ''}\n${item.content || ''}`.toLowerCase().includes(query);
-            return matches(comment) || (replyMap.get(comment.id) || []).some(matches);
-        });
-    }, [roots, replyMap, kindFilter, search, projectComments]);
 
     return (
         <div className={styles.thread}>
             {disabled ? (
-                <>
-                    {composerAction ? (
-                        <div className={styles.disabledComposerAction}>{composerAction}</div>
-                    ) : null}
-                    <p className={styles.signedOut}>{disabledReason || t('mw.community.comments.off', 'Comments are turned off.')}</p>
-                </>
+                <p className={styles.signedOut}>{disabledReason || t('mw.community.comments.off', 'Comments are turned off.')}</p>
             ) : user ? (
                 <InlineComposer
                     user={user}
                     value={content}
                     onChange={setContent}
-                    onSubmit={() => submit(content, null, kind)}
+                    onSubmit={() => submit(content, null)}
                     placeholder={t('mw.community.comments.placeholder', 'Add a comment')}
                     busy={busy}
                     error={replyTo === null ? error : null}
-                    kind={projectComments ? kind : null}
-                    onKindChange={projectComments ? setKind : null}
-                    composerAction={composerAction}
                 />
             ) : (
-                <p className={styles.signedOut}>
-                    {t('mw.community.comments.signIn', 'Sign in to comment.')} <button type="button" onClick={login}>{t('mw.community.comments.signInCta', 'Sign in')}</button>
-                </p>
+                <p className={styles.signedOut}>{t('mw.community.comments.signIn', 'Sign in to comment.')}</p>
             )}
 
-            {projectComments && comments.length ? (
-                <div className={styles.commentTools}>
-                    <input
-                        type="search"
-                        value={search}
-                        placeholder={t('mw.community.comments.search', 'Search comments')}
-                        aria-label={t('mw.community.comments.search', 'Search comments')}
-                        onChange={event => setSearch(event.target.value)}
-                    />
-                    <select
-                        value={kindFilter}
-                        aria-label={t('mw.community.comments.filterTypes', 'Filter comments by type')}
-                        onChange={event => setKindFilter(event.target.value)}
-                    >
-                        <option value="all">{t('mw.community.comments.allTypes', 'All types')}</option>
-                        {COMMENT_KINDS.map(item => (
-                            <option key={item.value} value={item.value}>{item.label}</option>
-                        ))}
-                    </select>
-                </div>
-            ) : null}
-
-            {filteredRoots.length ? filteredRoots.map(comment => (
+            {roots.length ? roots.map(comment => (
                 <div
                     key={comment.id}
                     id={`comment-group-${comment.id}`}
@@ -454,17 +287,12 @@ const CommentThread = ({
                         comment={comment}
                         id={`comment-id-${comment.id}`}
                         onReply={() => openReply(comment.id)}
-                        onDelete={() => {
-                            setError(null);
-                            setDeleteId(comment.id);
-                        }}
+                        onDelete={() => remove(comment.id)}
                         onReact={type => react(comment.id, type)}
                         onReport={() => setReportId(comment.id)}
                         canReply={canReply}
                         canDelete={canDelete(comment)}
                         canReport={canReport(comment)}
-                        deleting={removingId !== null}
-                        reacting={reactingId !== null}
                     />
                     <div className={styles.replies}>
                         {(() => {
@@ -483,20 +311,14 @@ const CommentThread = ({
                                             canReply={canReply}
                                             canDelete={canDelete(reply)}
                                             canReport={canReport(reply)}
-                                            deleting={removingId !== null}
-                                            reacting={reactingId !== null}
                                             onReply={() => openReply(comment.id, `@${reply.author} `)}
-                                            onDelete={() => {
-                                                setError(null);
-                                                setDeleteId(reply.id);
-                                            }}
+                                            onDelete={() => remove(reply.id)}
                                             onReact={type => react(reply.id, type)}
                                             onReport={() => setReportId(reply.id)}
                                         />
                                     ))}
                                     {hidden > 0 ? (
                                         <button
-                                            type="button"
                                             className={styles.showMore}
                                             onClick={() => showMoreReplies(comment.id)}
                                         >
@@ -506,7 +328,6 @@ const CommentThread = ({
                                         </button>
                                     ) : all.length > INITIAL_LIMIT ? (
                                         <button
-                                            type="button"
                                             className={styles.showMore}
                                             onClick={() => hideReplies(comment.id)}
                                         >
@@ -535,12 +356,9 @@ const CommentThread = ({
                 </div>
             )) : (
                 <p className={styles.empty}>
-                    {loadingComments ? t('mw.community.comments.loading', 'Loading comments…') : loadFailed ? (
-                        <>
-                            {t('mw.community.comments.loadFailed', 'Comments could not be loaded right now.')}{' '}
-                            <button type="button" className={styles.showMore} onClick={load}>{t('mw.community.comments.retry', 'Try again')}</button>
-                        </>
-                    ) : comments.length ? t('mw.community.comments.noMatch', 'No comments match those filters.') : t('mw.community.comments.none', 'No comments yet.')}
+                    {loadFailed ?
+                        t('mw.community.comments.loadFailed', 'Comments could not be loaded right now.') :
+                        t('mw.community.comments.none', 'No comments yet.')}
                 </p>
             )}
             {reportId ? (
@@ -550,37 +368,6 @@ const CommentThread = ({
                     context={reportContext}
                     onClose={() => setReportId(null)}
                 />
-            ) : null}
-            {deleteComment ? (
-                <Modal
-                    icon={Trash2}
-                    title={t('mw.community.comments.deleteConfirm', 'Delete this comment?')}
-                    onClose={() => setDeleteId(null)}
-                    dismissDisabled={removingId !== null}
-                    actions={(
-                        <React.Fragment>
-                            <button
-                                type="button"
-                                className={styles.cancel}
-                                disabled={removingId !== null}
-                                onClick={() => setDeleteId(null)}
-                            >{t('mw.community.comments.cancel', 'Cancel')}</button>
-                            <button
-                                type="button"
-                                className={styles.deleteConfirm}
-                                disabled={removingId !== null}
-                                onClick={() => remove(deleteComment.id)}
-                            >{removingId !== null ? t('mw.community.comments.deleting', 'Deleting…') : t('mw.community.comments.deleteComment', 'Delete comment')}</button>
-                        </React.Fragment>
-                    )}
-                >
-                    <p className={styles.modalText}>
-                        {t('mw.community.comments.deleteConfirmDetail', 'This comment will be deleted permanently.')}
-                        {deleteComment.parent ? '' : t('mw.community.comments.deleteReplies', ' Its replies will also be removed.')}
-                    </p>
-                    <p className={styles.commentPreview}>{deleteComment.content}</p>
-                    {error ? <p className={styles.error}>{error}</p> : null}
-                </Modal>
             ) : null}
         </div>
     );

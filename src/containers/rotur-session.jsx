@@ -33,7 +33,11 @@ import {setTheme} from '../reducers/theme.js';
 import {detectTheme, applyThemeVisuals} from '../lib/themes/themePersistance.js';
 import {customThemeManager} from '../lib/themes/custom-themes.js';
 import {applyLayout} from '../lib/mw-menu-bar-layout.js';
-import {setShellUser} from '../lib/git/browser-terminal';
+// Imported from the leaf module rather than from ../lib/git/browser-terminal:
+// browser-terminal pulls in just-bash and browser-git (isomorphic-git +
+// lightning-fs + JSZip), and this container is in the initial bundle, so doing
+// so forced every user to download and parse those megabytes at startup.
+import {setShellUser} from '../lib/git/shell-user';
 import describeActivity from '../lib/collaboration/describe-activity.js';
 import {setProjectAuthor} from '../lib/mw-project-metadata.js';
 

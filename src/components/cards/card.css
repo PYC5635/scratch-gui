@@ -53,7 +53,6 @@
 }
 
 .left-button, .right-button {
-    appearance: none;
     position: absolute;
     top: 50%;
     margin-top: -15px;
@@ -61,8 +60,6 @@
     user-select: none;
     cursor: pointer;
     background: $extensions-primary;
-    border: 0;
-    padding: 0;
     box-shadow: 0 0 0 4px $extensions-transparent;
     height: 44px;
     width: 44px;
@@ -129,10 +126,6 @@
 }
 
 .shrink-expand-button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    font: inherit;
     cursor: pointer;
     color: white;
     display: flex;
@@ -147,10 +140,6 @@
 }
 
 .remove-button, .all-button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    font: inherit;
     cursor: pointer;
     color: white;
     display: flex;
@@ -209,16 +198,12 @@
 }
 
 .deck {
-    appearance: none;
     display: flex;
     flex-direction: column;
     margin: 0 8px 8px;
-    padding: 0;
     cursor: pointer;
     border: 1px solid $ui-black-transparent;
     border-radius: 0.25rem;
-    background: $ui-white;
-    font: inherit;
     overflow: hidden;
 }
 
@@ -273,11 +258,9 @@
 }
 
 .see-all-button {
-    appearance: none;
     cursor: pointer;
     padding: 0.5rem 1rem;
     background-color: $looks-secondary;
-    border: 0;
     color: white;
     font-weight: bold;
     border-radius: 0.25rem;
@@ -288,17 +271,6 @@
     font-weight: bold;
     line-height: 1rem;
     text-align: center;
-}
-
-.all-button:focus-visible,
-.shrink-expand-button:focus-visible,
-.remove-button:focus-visible,
-.left-button:focus-visible,
-.right-button:focus-visible,
-.deck:focus-visible,
-.see-all-button:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: -3px;
 }
 
 [dir="ltr"] .see-all-button img {

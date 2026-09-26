@@ -17,6 +17,7 @@
 import addons from './generated/addon-manifests';
 import upstreamMeta from './generated/upstream-meta.json';
 import EventTargetShim from './event-target';
+import CustomPlugins from './custom-plugins';
 
 const NARROW_SCREEN_WIDTH = 900;
 
@@ -145,7 +146,11 @@ class SettingsStore extends EventTargetShim {
                 if (result && typeof result === 'object') {
                     result = migrateSettings(result);
                     for (const key of Object.keys(result)) {
-                        if (Object.prototype.hasOwnProperty.call(base, key)) {
+                        // 忽略元数据键；同时接受自定义插件的 id（内置插件都在 base 里）
+                        if (key === '_' || key === 'version') {
+                            continue;
+                        }
+                        if (Object.prototype.hasOwnProperty.call(base, key) || CustomPlugins.isCustom(key)) {
                             const value = result[key];
                             if (value && typeof value === 'object') {
                                 base[key] = value;
@@ -171,7 +176,9 @@ class SettingsStore extends EventTargetShim {
             const result = {
                 _: VERSION
             };
-            for (const addonId of Object.keys(addons)) {
+            // 内置插件 + 自定义插件一起保存
+            const allAddonIds = [...Object.keys(addons), ...CustomPlugins.getIds()];
+            for (const addonId of allAddonIds) {
                 const data = this.getAddonStorage(addonId);
                 if (Object.keys(data).length > 0) {
                     result[addonId] = data;
@@ -192,6 +199,11 @@ class SettingsStore extends EventTargetShim {
         if (this.store[addonId]) {
             return this.store[addonId];
         }
+        // 自定义插件首次访问时懒创建存储对象
+        if (CustomPlugins.isCustom(addonId)) {
+            this.store[addonId] = Object.create(null);
+            return this.store[addonId];
+        }
         throw new Error(`Unknown addon store: ${addonId}`);
     }
 
@@ -204,7 +216,13 @@ class SettingsStore extends EventTargetShim {
         if (addons[addonId]) {
             return addons[addonId];
         }
-        throw new Error(`Unknown addon: ${addonId}`);
+        // 自定义插件从登记处取清单
+        const customManifest = CustomPlugins.getManifest(addonId);
+        if (customManifest) {
+            return customManifest;
+        }
+        // 插件可能刚被删除（跨窗口同步竞态），兜底返回空清单，避免调用方崩溃
+        return {};
     }
 
     /**
@@ -276,7 +294,7 @@ class SettingsStore extends EventTargetShim {
     getDefaultSettings (addonId) {
         const manifest = this.getAddonManifest(addonId);
         const result = {};
-        for (const {id, default: value} of manifest.settings) {
+        for (const {id, default: value} of (manifest.settings || [])) {
             result[id] = value;
         }
         return result;
@@ -366,6 +384,9 @@ class SettingsStore extends EventTargetShim {
 
     applyAddonPreset (addonId, presetId) {
         const manifest = this.getAddonManifest(addonId);
+        if (!manifest.presets) {
+            throw new Error(`Unknown preset: ${presetId}`);
+        }
         for (const {id, values} of manifest.presets) {
             if (id !== presetId) {
                 continue;
@@ -470,18 +491,32 @@ class SettingsStore extends EventTargetShim {
 
     setStore (newStore) {
         const oldStore = this.store;
-        for (const addonId of Object.keys(oldStore)) {
+        // 内置插件 + 自定义插件一起比对（自定义插件是懒创建的，不在 oldStore 里，需单独遍历）
+        const allAddonIds = [...Object.keys(oldStore), ...CustomPlugins.getIds()];
+        for (const addonId of allAddonIds) {
+            // 跳过已被删除的自定义插件
+            if (!addons[addonId] && !CustomPlugins.isCustom(addonId)) {
+                continue;
+            }
+            // 自定义插件已从登记处删除：清理本窗口残留状态、通知停止运行实例并跳过
+            if (CustomPlugins.isCustom(addonId) && !CustomPlugins.getManifest(addonId)) {
+                delete this.store[addonId];
+                this.dispatchEvent(new CustomEvent('addon-changed', {
+                    detail: {addonId, dynamicEnable: false, dynamicDisable: true}
+                }));
+                continue;
+            }
             const oldSettings = oldStore[addonId];
             const newSettings = newStore[addonId];
             if (!newSettings || typeof newSettings !== 'object') {
                 continue;
             }
-            if (JSON.stringify(oldSettings) !== JSON.stringify(newSettings)) {
+            if (JSON.stringify(oldSettings || null) !== JSON.stringify(newSettings)) {
                 const manifest = this.getAddonManifest(addonId);
                 // Dynamic enable is always supported.
-                const dynamicEnable = !oldSettings.enabled && newSettings.enabled;
+                const dynamicEnable = !(oldSettings && oldSettings.enabled) && newSettings.enabled;
                 // Dynamic disable requires addon support.
-                const dynamicDisable = !!manifest.dynamicDisable && oldSettings.enabled && !newSettings.enabled;
+                const dynamicDisable = !!manifest.dynamicDisable && (oldSettings && oldSettings.enabled) && !newSettings.enabled;
                 // Clone to avoid pass-by-reference issues
                 this.store[addonId] = JSON.parse(JSON.stringify(newSettings));
                 this.dispatchEvent(new CustomEvent('addon-changed', {

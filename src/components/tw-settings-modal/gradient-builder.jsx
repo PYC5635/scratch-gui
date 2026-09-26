@@ -343,7 +343,6 @@ const GradientBuilder = props => {
             <div className={styles.gcFooter}>
                 {props.onPreview && (
                     <button
-                        type="button"
                         className={classNames(styles.gcBtn, isPreviewActive && styles.gcBtnActive)}
                         onClick={handlePreview}
                         disabled={!name.trim()}
@@ -367,7 +366,6 @@ const GradientBuilder = props => {
                 )}
                 <div className={styles.gcFooterSpacer} />
                 <button
-                    type="button"
                     className={styles.gcBtn}
                     onClick={() => {
                         if (props.onCancel) props.onCancel();
@@ -379,7 +377,6 @@ const GradientBuilder = props => {
                     />
                 </button>
                 <button
-                    type="button"
                     className={classNames(styles.gcBtn, styles.gcBtnPrimary)}
                     onClick={handleSubmit}
                     disabled={!name.trim()}

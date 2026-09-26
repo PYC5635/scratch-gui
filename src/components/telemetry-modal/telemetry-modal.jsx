@@ -187,7 +187,6 @@ class TelemetryModal extends React.PureComponent {
                             key={this.state.settingWasUpdatedTimer} // restart CSS fade when timer changes
                         >{settingWasUpdated}</span>
                         <button
-                            type="button"
                             className={styles.optIn}
                             onClick={this.props.onRequestClose}
                             disabled={isUndecided}

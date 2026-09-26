@@ -93,7 +93,6 @@ const ScanningStep = props => {
             />
             <Box className={classNames(styles.bottomAreaItem, styles.buttonRow)}>
                 <button
-                    type="button"
                     className={styles.connectionButton}
                     onClick={props.onRefresh}
                 >
@@ -110,7 +109,6 @@ const ScanningStep = props => {
                 </button>
                 {showUpdate && (
                     <button
-                        type="button"
                         className={styles.connectionButton}
                         onClick={props.onUpdatePeripheral}
                     >

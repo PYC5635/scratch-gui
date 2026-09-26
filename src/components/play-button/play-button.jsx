@@ -22,7 +22,7 @@ const messages = defineMessages({
     }
 });
 
-export const PlayButtonComponent = ({
+const PlayButtonComponent = ({
     className,
     intl,
     isPlaying,
@@ -38,8 +38,7 @@ export const PlayButtonComponent = ({
         intl.formatMessage(messages.play);
 
     return (
-        <button
-            type="button"
+        <div
             aria-label={label}
             className={classNames(styles.playButton, className, {
                 [styles.playing]: isPlaying
@@ -55,9 +54,8 @@ export const PlayButtonComponent = ({
                 className={styles.playIcon}
                 draggable={false}
                 src={isPlaying ? stopIcon : playIcon}
-                alt=""
             />
-        </button>
+        </div>
     );
 };
 

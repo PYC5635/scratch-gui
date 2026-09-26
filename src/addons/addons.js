@@ -77,7 +77,9 @@ const addons = [
     'green-flag-order',
     'remove-extension-button',
     'project-size-display',
-    'merge-operators'
+    'merge-operators',
+    // Bilup 本地插件源（位于 bilup-addons/ 目录，由 pull.js 一并处理）
+    'bilup-sample'
 ];
 
 const newAddons = [

@@ -38,7 +38,6 @@ const ErrorStep = props => (
             />
             <Box className={classNames(styles.bottomAreaItem, styles.buttonRow)}>
                 <button
-                    type="button"
                     className={styles.connectionButton}
                     onClick={props.onScanning}
                 >
@@ -54,7 +53,6 @@ const ErrorStep = props => (
                     />
                 </button>
                 <button
-                    type="button"
                     className={styles.connectionButton}
                     onClick={props.onHelp}
                 >

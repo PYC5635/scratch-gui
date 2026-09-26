@@ -1,35 +1,8 @@
-﻿import openMistWarpShareWindow from './open-mw-share-window.js';
+import openMistWarpShareWindow from './open-mw-share-window.js';
 import {getRememberedPlatformProjectState, publishToMistWarp} from '../community/publish.js';
 import {request} from '../community/api.js';
 import communityEnabled from '../community/enabled.js';
 import downloadBlob from '../utils/download-blob';
-import {createMwp} from '../git/mwp.js';
-import {projectFilename} from '../utils/safe-filename.js';
-
-const projectChangeStates = new WeakMap();
-
-const getProjectChangeState = vm => {
-    if (!vm || (typeof vm !== 'object' && typeof vm !== 'function')) return null;
-    let state = projectChangeStates.get(vm);
-    if (!state) {
-        state = {sequence: 0};
-        projectChangeStates.set(vm, state);
-        if (typeof vm.on === 'function') {
-            vm.on('PROJECT_CHANGED', () => {
-                state.sequence++;
-            });
-        }
-    }
-    return state;
-};
-
-const guardSavedCallback = (vm, onSaved) => {
-    const state = getProjectChangeState(vm);
-    const sequence = state && state.sequence;
-    return result => {
-        if (!state || state.sequence === sequence) onSaved(result);
-    };
-};
 
 const agreementAccepted = async () => {
     try {
@@ -40,48 +13,41 @@ const agreementAccepted = async () => {
     }
 };
 
-// Ctrl+S / save button. Own project already on MistWarp -> upload the current
+// Ctrl+S / save button. Own project already on Bilup -> upload the current
 // version silently. Someone else's project -> the window (remix makes a copy).
-// Not on MistWarp yet -> download the native .mwp. The window only reappears for an
+// Not on Bilup yet -> download an sb3. The window only reappears for an
 // update when a new upload agreement needs accepting, or the silent upload fails.
 const smartSave = async ({vm, title, onSaved = () => {}}) => {
-    const onSavedIfCurrent = guardSavedCallback(vm, onSaved);
     const platform = communityEnabled ? getRememberedPlatformProjectState() : null;
 
     if (!platform) {
-        const {blob} = await createMwp({vm, message: 'Save MistWarp project'});
-        downloadBlob(projectFilename(title, 'project', 'mwp'), blob);
-        onSavedIfCurrent();
-        return true;
+        const {embedRepoIntoSb3Blob} = await import('../git/browser-git.js');
+        const blob = await embedRepoIntoSb3Blob(await vm.saveProjectSb3());
+        downloadBlob(`${title || 'project'}.sb3`, blob);
+        return;
     }
 
     if (platform.isOwner === false) {
-        openMistWarpShareWindow({vm, initialTitle: title, action: 'remix', onPublished: onSavedIfCurrent});
-        return false;
+        openMistWarpShareWindow({vm, initialTitle: title, action: 'remix', onPublished: onSaved});
+        return;
     }
 
     if (!(await agreementAccepted())) {
-        openMistWarpShareWindow({vm, initialTitle: title, action: 'update', onPublished: onSavedIfCurrent});
-        return false;
+        openMistWarpShareWindow({vm, initialTitle: title, action: 'update', onPublished: onSaved});
+        return;
     }
 
     try {
-        onSavedIfCurrent(await publishToMistWarp({vm, title: null, updateOnly: true}));
-        return true;
+        onSaved(await publishToMistWarp({vm, title: null, updateOnly: true}));
     } catch (e) {
         openMistWarpShareWindow({
             vm,
             initialTitle: title,
             initialError: e,
             action: 'update',
-            onPublished: onSavedIfCurrent
+            onPublished: onSaved
         });
-        return false;
     }
-};
-
-export {
-    guardSavedCallback
 };
 
 export default smartSave;

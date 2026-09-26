@@ -35,11 +35,6 @@ const messages = defineMessages({
         id: 'gui.library.allTag',
         defaultMessage: 'All',
         description: 'Label for library tag to revert to all items after filtering by tag.'
-    },
-    noMatches: {
-        id: 'gui.library.noMatches',
-        defaultMessage: 'No matches found.',
-        description: 'Message shown when a library search or tag has no matching items'
     }
 });
 
@@ -85,6 +80,9 @@ class LibraryComponent extends React.Component {
         });
         if (this.props.setStopHandler) this.props.setStopHandler(this.handlePlayingEnd);
     }
+    componentWillUnmount () {
+        this._isMounted = false;
+    }
     componentDidUpdate (prevProps, prevState) {
         if (prevState.filterQuery !== this.state.filterQuery ||
             prevState.selectedTag !== this.state.selectedTag) {
@@ -98,9 +96,6 @@ class LibraryComponent extends React.Component {
                 // ignore
             }
         }
-    }
-    componentWillUnmount () {
-        this._isMounted = false;
     }
     handleSelect (id) {
         this.handleClose();
@@ -264,7 +259,7 @@ class LibraryComponent extends React.Component {
         return filteredItems;
     }
     scrollToTop () {
-        if (this.filteredDataRef) this.filteredDataRef.scrollTop = 0;
+        this.filteredDataRef.scrollTop = 0;
     }
     setFilteredDataRef (ref) {
         this.filteredDataRef = ref;
@@ -275,8 +270,6 @@ class LibraryComponent extends React.Component {
     }
     render () {
         const filteredData = this.state.canDisplay && this.props.data && this.getFilteredData();
-        const showRemovedTrademarks = this.props.removedTrademarks &&
-            this.state.selectedTag === ALL_TAG.tag && !this.state.filterQuery;
         const sidebarTags = [ALL_TAG, ...(this.props.tags || [])];
         return (
             <Modal
@@ -369,12 +362,7 @@ class LibraryComponent extends React.Component {
                                     />
                                 )
                             ))}
-                            {filteredData && filteredData.length === 0 && (
-                                <div className={styles.emptyState}>
-                                    {this.props.intl.formatMessage(messages.noMatches)}
-                                </div>
-                            )}
-                            {filteredData && showRemovedTrademarks && (
+                            {filteredData && this.props.removedTrademarks && (
                                 <React.Fragment>
                                     {filteredData.length > 0 && (
                                         <Separator />

@@ -45,11 +45,8 @@ class CustomExtensionModal extends React.Component {
             text: '',
             // 非沙盒运行开关：默认关闭（沙盒开启）。
             // 官方域名扩展不受此开关影响，始终自动非沙盒运行。
-            unsandboxed: false,
-            loading: false,
-            error: null
+            unsandboxed: false
         };
-        this.loadPromise = null;
     }
 
     /**
@@ -58,7 +55,7 @@ class CustomExtensionModal extends React.Component {
     getExtensionURLs () {
         if (this.state.type === 'url') {
             return Promise.resolve([
-                this.state.url.trim()
+                this.state.url
             ]);
         }
 
@@ -91,11 +88,11 @@ class CustomExtensionModal extends React.Component {
         }
 
         if (this.state.type === 'file') {
-            return !!(this.state.files && this.state.files.length);
+            return !!this.state.files;
         }
 
         if (this.state.type === 'text') {
-            return !!this.state.text.trim();
+            return !!this.state.text;
         }
 
         return false;
@@ -103,20 +100,17 @@ class CustomExtensionModal extends React.Component {
 
     handleChangeFiles (files) {
         this.setState({
-            files,
-            error: null
+            files
         });
     }
 
     handleChangeURL (e) {
         this.setState({
-            url: e.target.value,
-            error: null
+            url: e.target.value
         });
     }
 
     handleClose () {
-        if (this.loadPromise) return;
         this.props.onClose();
     }
 
@@ -127,46 +121,34 @@ class CustomExtensionModal extends React.Component {
         }
     }
 
-    handleLoadExtension () {
-        if (this.loadPromise || !this.hasValidInput()) return this.loadPromise;
-        this.setState({loading: true, error: null});
+    async handleLoadExtension () {
+        this.handleClose();
+        try {
+            const urls = await this.getExtensionURLs();
 
-        this.loadPromise = (async () => {
-            try {
-                const urls = await this.getExtensionURLs();
-
-                // Mark all URLs as custom extensions so the security manager
-                // will always show a sandbox permission modal, even if the URL
-                // matches a trusted domain (e.g., gallery URLs).
-                for (const url of urls) {
-                    markExtensionAsCustom(url);
-                }
-
-                // 用户勾选了"非沙盒运行"时才手动信任；
-                // 官方域名扩展由 isTrustedExtensionUrl 自动信任，不受此开关影响
-                if (this.state.unsandboxed) {
-                    for (const url of urls) {
-                        manuallyTrustExtension(url);
-                    }
-                }
-
-                for (const url of urls) {
-                    await this.props.vm.extensionManager.loadExtensionURL(url);
-                }
-                this.props.onClose();
-                return true;
-            } catch (err) {
-                log.error(err);
-                this.setState({
-                    loading: false,
-                    error: err && err.message ? err.message : String(err)
-                });
-                return false;
+            // Mark all URLs as custom extensions so the security manager
+            // will always show a sandbox permission modal, even if the URL
+            // matches a trusted domain (e.g., gallery URLs).
+            for (const url of urls) {
+                markExtensionAsCustom(url);
             }
-        })().finally(() => {
-            this.loadPromise = null;
-        });
-        return this.loadPromise;
+
+            // 用户勾选了"非沙盒运行"时才手动信任；
+            // 官方域名扩展由 isTrustedExtensionUrl 自动信任，不受此开关影响
+            if (this.state.unsandboxed) {
+                for (const url of urls) {
+                    manuallyTrustExtension(url);
+                }
+            }
+
+            for (const url of urls) {
+                await this.props.vm.extensionManager.loadExtensionURL(url);
+            }
+        } catch (err) {
+            log.error(err);
+            // eslint-disable-next-line no-alert
+            alert(err);
+        }
     }
 
     handleChangeUnsandboxed (e) {
@@ -177,34 +159,29 @@ class CustomExtensionModal extends React.Component {
 
     handleSwitchToFile () {
         this.setState({
-            type: 'file',
-            error: null
+            type: 'file'
         });
     }
 
     handleSwitchToURL () {
         this.setState({
-            type: 'url',
-            error: null
+            type: 'url'
         });
     }
 
     handleSwitchToText () {
         this.setState({
-            type: 'text',
-            error: null
+            type: 'text'
         });
     }
 
     handleChangeText (e) {
         this.setState({
-            text: e.target.value,
-            error: null
+            text: e.target.value
         });
     }
 
     handleDragOver (e) {
-        if (this.loadPromise) return;
         if (e.dataTransfer.types.includes('Files')) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
@@ -216,14 +193,12 @@ class CustomExtensionModal extends React.Component {
     }
 
     handleDrop (e) {
-        if (this.loadPromise) return;
         const files = e.dataTransfer.files;
         if (files.length) {
             e.preventDefault();
             this.setState({
                 type: 'file',
-                files,
-                error: null
+                files
             });
         }
     }
@@ -232,8 +207,6 @@ class CustomExtensionModal extends React.Component {
         return (
             <CustomExtensionModalComponent
                 canLoadExtension={this.hasValidInput()}
-                error={this.state.error}
-                loading={this.state.loading}
                 type={this.state.type}
                 onSwitchToFile={this.handleSwitchToFile}
                 onSwitchToURL={this.handleSwitchToURL}

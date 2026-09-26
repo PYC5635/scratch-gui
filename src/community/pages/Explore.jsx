@@ -1,106 +1,39 @@
-/* eslint-disable max-len */
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {useSearchParams, Link} from 'react-router-dom';
 import {FormattedMessage} from 'react-intl';
+import {useIntl} from '../../lib/tw-use-intl.jsx';
 import api from '../api';
 import useLatest from '../use-latest.js';
 import ProjectCard from '../components/ProjectCard.jsx';
 import Avatar from '../components/Avatar.jsx';
 import Button from '../components/ui/Button.jsx';
-import SectionTabs from '../components/SectionTabs.jsx';
-import {useUser} from '../UserContext.jsx';
-import {useCommunityIntl} from '../i18n.jsx';
 import styles from './Explore.module.css';
 
-const SORTS = [
-    {key: 'trending', labelKey: 'explore.sortTrending'},
-    {key: 'recent', labelKey: 'explore.sortRecent'},
-    {key: 'loved', labelKey: 'explore.sortLoved'},
-    {key: 'undiscovered', labelKey: 'explore.sortUndiscovered'}
+const SORT_KEYS = [
+    {key: 'trending', id: 'mw.community.explore.trending', default: 'Trending'},
+    {key: 'recent', id: 'mw.community.explore.recent', default: 'Recent'},
+    {key: 'loved', id: 'mw.community.explore.mostLoved', default: 'Most loved'}
 ];
 
-const CATEGORY_LABELS = {
-    games: 'explore.catGames',
-    animation: 'explore.catAnimation',
-    art: 'explore.catArt',
-    music: 'explore.catMusic',
-    tools: 'explore.catTools',
-    tutorial: 'explore.catTutorial',
-    multiplayer: 'explore.catMultiplayer',
-    mobile: 'explore.catMobile'
-};
-
-const CATEGORIES = ['games', 'animation', 'art', 'music', 'tools', 'tutorial', 'multiplayer', 'mobile'];
-const PAGE_SIZE = 24;
-const MAX_RESTORED_PAGES = 10;
-
-const getPageDepth = value => {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? Math.min(MAX_RESTORED_PAGES, Math.max(1, parsed)) : 1;
-};
-
-const mergeProjects = pages => {
-    const seen = new Set();
-    const merged = [];
-    for (const page of pages) {
-        for (const project of page || []) {
-            if (!project || seen.has(project.id)) continue;
-            seen.add(project.id);
-            merged.push(project);
-        }
-    }
-    return merged;
-};
-
-const shouldSkipPageRestore = (expectedParams, currentParams) => (
-    Boolean(expectedParams) && expectedParams === currentParams
-);
-
 const Explore = () => {
-    const {user} = useUser();
-    const {t} = useCommunityIntl();
-    const viewerName = (user && user.username) || '';
+    const intl = useIntl();
     const [params, setParams] = useSearchParams();
-    const requestedSort = params.get('sort') || 'trending';
-    const sort = SORTS.some(option => option.key === requestedSort) ? requestedSort : 'trending';
+    const sort = params.get('sort') || 'trending';
     const q = params.get('q') || '';
-    const tag = params.get('tag') || '';
-    const pageDepth = getPageDepth(params.get('page'));
     const [projects, setProjects] = useState([]);
     const [people, setPeople] = useState([]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
-    const [total, setTotal] = useState(0);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [loadMoreError, setLoadMoreError] = useState('');
-    const loadMoreVersion = useRef(0);
-    const loadMoreLocks = useRef(new Set());
-    const skipNextPageRestore = useRef('');
-    const paramsKey = params.toString();
 
     const beginLoad = useLatest();
 
     useEffect(() => {
-        if (shouldSkipPageRestore(skipNextPageRestore.current, paramsKey)) {
-            skipNextPageRestore.current = '';
-            return;
-        }
-        skipNextPageRestore.current = '';
-        loadMoreVersion.current += 1;
-        setLoadingMore(false);
-        setLoadMoreError('');
         const fresh = beginLoad();
         setLoading(true);
         setFailed(false);
-        const pageRequests = Array.from({length: pageDepth}, (_, pageIndex) => (
-            api.explore({sort, q, tag, offset: pageIndex * PAGE_SIZE, limit: PAGE_SIZE})
-        ));
-        Promise.all(pageRequests)
-            .then(fresh(pages => {
-                setProjects(mergeProjects(pages.map(page => page.projects)));
-                setTotal(pages.length ? pages[0].total || 0 : 0);
-            }))
+        api.explore({sort, q, limit: 48})
+            .then(fresh(data => setProjects(data.projects || [])))
             .catch(fresh(() => setFailed(true)))
             .finally(fresh(() => setLoading(false)));
         if (q.trim()) {
@@ -110,74 +43,42 @@ const Explore = () => {
         } else {
             setPeople([]);
         }
-    }, [sort, q, tag, pageDepth, paramsKey, beginLoad, attempt, viewerName]);
+    }, [sort, q, beginLoad, attempt]);
 
     const setSort = key => {
         const next = new URLSearchParams(params);
         next.set('sort', key);
-        next.delete('page');
         setParams(next);
     };
 
-    const setTag = value => {
-        const next = new URLSearchParams(params);
-        if (value) next.set('tag', value);
-        else next.delete('tag');
-        next.delete('page');
-        setParams(next);
-    };
-
-    const loadMore = async () => {
-        const version = loadMoreVersion.current;
-        if (loadMoreLocks.current.has(version)) return;
-        loadMoreLocks.current.add(version);
-        setLoadingMore(true);
-        setLoadMoreError('');
-        try {
-            const data = await api.explore({
-                sort,
-                q,
-                tag,
-                offset: pageDepth * PAGE_SIZE,
-                limit: PAGE_SIZE
-            });
-            if (loadMoreVersion.current !== version) return;
-            const incoming = data.projects || [];
-            if (incoming.length) {
-                setProjects(current => mergeProjects([current, incoming]));
-                const next = new URLSearchParams(params);
-                next.set('page', String(pageDepth + 1));
-                skipNextPageRestore.current = next.toString();
-                setParams(next, {replace: true});
-            }
-            setTotal(data.total || 0);
-        } catch (requestError) {
-            if (loadMoreVersion.current === version) setLoadMoreError(requestError.message || t('explore.failedLoadMore'));
-        } finally {
-            loadMoreLocks.current.delete(version);
-            if (loadMoreVersion.current === version) setLoadingMore(false);
-        }
-    };
+    const sorts = SORT_KEYS.map(option => ({
+        key: option.key,
+        label: intl.formatMessage({id: option.id, defaultMessage: option.default})
+    }));
 
     return (
         <main className={styles.page}>
             <div className={styles.head}>
-                <h1>{q ? `${t('explore.resultsFor')} "${q}"` : t('explore.title')}</h1>
-                <SectionTabs
-                    items={SORTS.map(option => ({key: option.key, label: t(option.labelKey)}))}
-                    value={sort}
-                    onChange={setSort}
-                    className={styles.tabs}
-                    itemClassName={styles.tab}
-                    activeClassName={styles.tabActive}
-                    ariaLabel={t('explore.sortAria')}
-                />
-            </div>
-            <div className={styles.categories}>
-                <button type="button" className={!tag ? styles.categoryActive : styles.category} onClick={() => setTag('')}>{t('explore.all')}</button>
-                {CATEGORIES.map(category => (
-                    <button type="button" key={category} className={tag === category ? styles.categoryActive : styles.category} onClick={() => setTag(category)}>#{t(CATEGORY_LABELS[category])}</button>
-                ))}
+                <h1>
+                    {q ?
+                        intl.formatMessage({
+                            id: 'mw.community.explore.resultsFor',
+                            defaultMessage: 'Results for "{q}"'
+                        }, {q}) :
+                        intl.formatMessage({
+                            id: 'mw.community.explore.title',
+                            defaultMessage: 'Explore'
+                        })}
+                </h1>
+                <div className={styles.tabs}>
+                    {sorts.map(option => (
+                        <button
+                            key={option.key}
+                            className={option.key === sort ? styles.tabActive : styles.tab}
+                            onClick={() => setSort(option.key)}
+                        >{option.label}</button>
+                    ))}
+                </div>
             </div>
             {people.length ? (
                 <div className={styles.people}>
@@ -242,7 +143,6 @@ const Explore = () => {
                         <ProjectCard
                             key={project.id}
                             project={project}
-                            showTrend={sort === 'trending'}
                         />
                     ))}
                 </div>
@@ -255,17 +155,8 @@ const Explore = () => {
                     />
                 </p>
             )}
-            {!loading && !failed && projects.length < total ? (
-                <div className={styles.more}>
-                    <Button busy={loadingMore} busyLabel={t('common.loading')} onClick={loadMore}>
-                        {`${t('explore.loadMore')} (${total - projects.length} ${t('explore.left')})`}
-                    </Button>
-                    {loadMoreError ? <span role="alert">{loadMoreError}</span> : null}
-                </div>
-            ) : null}
         </main>
     );
 };
 
-export {getPageDepth, mergeProjects, shouldSkipPageRestore};
 export default Explore;

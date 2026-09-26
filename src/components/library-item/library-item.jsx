@@ -47,7 +47,6 @@ class LibraryItemComponent extends React.PureComponent {
         );
         const favorite = (
             <button
-                type="button"
                 className={classNames(styles.favoriteContainer, {[styles.active]: this.props.favorite})}
                 onClick={this.props.onFavorite}
             >
@@ -72,11 +71,7 @@ class LibraryItemComponent extends React.PureComponent {
                     typeof this.props.extensionId === 'string' ? styles.libraryItemExtension : null,
                     this.props.hidden ? styles.hidden : null
                 )}
-                role="button"
-                tabIndex={this.props.disabled ? -1 : 0}
-                aria-disabled={this.props.disabled}
                 onClick={this.props.onClick}
-                onKeyDown={this.props.onKeyDown}
             >
                 <div className={styles.featuredImageContainer}>
                     {this.props.disabled ? (
@@ -234,12 +229,11 @@ class LibraryItemComponent extends React.PureComponent {
                     }
                 )}
                 role="button"
-                tabIndex={this.props.disabled ? -1 : 0}
-                aria-disabled={this.props.disabled}
+                tabIndex="0"
                 onBlur={this.props.onBlur}
                 onClick={this.props.onClick}
                 onFocus={this.props.onFocus}
-                onKeyDown={this.props.onKeyDown}
+                onKeyPress={this.props.onKeyPress}
                 onMouseEnter={this.props.showPlayButton ? null : this.props.onMouseEnter}
                 onMouseLeave={this.props.showPlayButton ? null : this.props.onMouseLeave}
             >
@@ -311,7 +305,7 @@ LibraryItemComponent.propTypes = {
     onBlur: PropTypes.func.isRequired,
     onClick: PropTypes.func.isRequired,
     onFocus: PropTypes.func.isRequired,
-    onKeyDown: PropTypes.func.isRequired,
+    onKeyPress: PropTypes.func.isRequired,
     onMouseEnter: PropTypes.func.isRequired,
     onMouseLeave: PropTypes.func.isRequired,
     onPlay: PropTypes.func.isRequired,

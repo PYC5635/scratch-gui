@@ -1,4 +1,4 @@
-import {defineMessages, FormattedMessage} from 'react-intl';
+import {defineMessages, FormattedMessage, intlShape, injectIntl} from 'react-intl';
 import PropTypes from 'prop-types';
 import React from 'react';
 import Modal from '../../containers/windowed-modal.jsx';
@@ -36,20 +36,16 @@ class SimpleDialogComponent extends React.Component {
         this.setState({inputValue: e.target.value});
     };
     
-    handleKeyDown = e => {
+    handleKeyPress = e => {
         if (e.key === 'Enter' && this.props.onOk) {
             this.props.onOk(this.state.inputValue);
         } else if (e.key === 'Escape') {
             this.props.onCancel();
         }
     };
-
-    handleConfirm = () => {
-        this.props.onOk(this.state.inputValue);
-    };
     
     render () {
-        const {type, title, message} = this.props;
+        const {type, title, message, intl} = this.props;
         const isPrompt = type === 'prompt';
         const isConfirm = type === 'confirm';
         
@@ -85,7 +81,7 @@ class SimpleDialogComponent extends React.Component {
                             type="text"
                             value={this.state.inputValue}
                             onChange={this.handleInputChange}
-                            onKeyDown={this.handleKeyDown}
+                            onKeyPress={this.handleKeyPress}
                             aria-label={typeof message === 'string' ? message : 'Input'}
                         />
                     )}
@@ -106,7 +102,7 @@ class SimpleDialogComponent extends React.Component {
                         )}
                         <button
                             className={styles.okButton}
-                            onClick={this.handleConfirm}
+                            onClick={() => this.props.onOk(this.state.inputValue)}
                             type="button"
                         >
                             <FormattedMessage {...messages.ok} />
@@ -119,6 +115,7 @@ class SimpleDialogComponent extends React.Component {
 }
 
 SimpleDialogComponent.propTypes = {
+    intl: intlShape,
     type: PropTypes.oneOf(['alert', 'confirm', 'prompt']).isRequired,
     title: PropTypes.string.isRequired,
     message: PropTypes.node.isRequired,
@@ -127,4 +124,4 @@ SimpleDialogComponent.propTypes = {
     onCancel: PropTypes.func.isRequired
 };
 
-export default SimpleDialogComponent;
+export default injectIntl(SimpleDialogComponent);

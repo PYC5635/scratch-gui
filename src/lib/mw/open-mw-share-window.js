@@ -46,7 +46,7 @@ const openMistWarpShareWindow = ({vm, initialTitle, initialError, action = 'save
                 t('mw.share.windowTitleSave', 'Save to Bilup');
         })(),
         width: 460,
-        height: 430,
+        height: 380,
         minWidth: 360,
         minHeight: 300,
         className: 'mw-share-window',

@@ -875,6 +875,7 @@
   "resize-selected-item/x": "X",
   "resize-selected-item/y": "Y",
   "resize-selected-item/position": "Position",
+  "resize-selected-item/direction": "Direction",
   "resize-selected-item/@name": "Resize selected item",
   "resize-selected-item/@description": "Adds a button to the paint editor to resize selected items with precise width, height, and position values."
 }

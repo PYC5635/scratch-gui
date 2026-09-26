@@ -4,8 +4,6 @@ import React from 'react';
 import VM from 'scratch-vm';
 import { defineMessages, injectIntl, intlShape } from 'react-intl';
 import log from '../lib/utils/log';
-import {connect} from 'react-redux';
-import {showStandardAlert} from '../reducers/alerts';
 
 import extensionLibraryContent, {
     galleryError,
@@ -245,47 +243,60 @@ const emptyBanner = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAA
 // localURL 是桌面端打包的本地协议地址（协议层云端优先、失败自动回退
 // 本地缓存，见 desktop 仓库的 protocols.js），仅桌面端存在，供云端
 // 失败时兜底使用。
+//
+// 对于在中国大陆无法直接访问的源（如 turbowarp.org），可配置 fallbackURL
+// 和 fallbackBase 作为镜像代理。当 cloudURL 请求失败时，自动尝试
+// fallbackURL 获取元数据，并使用 fallbackBase 构造扩展 JS/图标/文档 URL。
 const SOURCES = [
     {
         name: 'tw',
         cloudURL: 'https://extensions.turbowarp.org/generated-metadata/extensions-v0.json',
         localURL: 'tw-extensions://./generated-metadata/extensions-v0.json',
-        map: data => data.extensions.map(extension => ({
-            name: extension.name,
-            nameTranslations: extension.nameTranslations || {},
-            description: extension.description,
-            descriptionTranslations: extension.descriptionTranslations || {},
-            extensionId: extension.id,
-            extensionURL: `https://extensions.turbowarp.org/${extension.slug}.js`,
-            iconURL: `https://extensions.turbowarp.org/${extension.image || 'images/unknown.svg'}`,
-            source: 'tw',
-            tags: ['tw'],
-            credits: [
-                ...(extension.by || []),
-                ...(extension.original || [])
-            ].map(credit => {
-                if (credit.link) {
-                    return (
-                        <a
-                            href={credit.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            key={credit.name}
-                        >
-                            {credit.name}
-                        </a>
-                    );
-                }
-                return credit.name;
-            }),
-            docsURI: extension.docs ? `https://extensions.turbowarp.org/${extension.slug}` : null,
-            samples: extension.samples ? extension.samples.map(sample => ({
-                href: `${process.env.ROOT}editor?project_url=https://extensions.turbowarp.org/samples/${encodeURIComponent(sample)}.sb3`,
-                text: sample
-            })) : null,
-            incompatibleWithScratch: true,
-            featured: true
-        }))
+        // 主站不可用时的镜像代理地址（需自行部署反向代理）：
+        // 代理服务器需将 /turbowarp/ 路径反向代理到 extensions.turbowarp.org
+        // 例如：https://extensions.bilup.org/turbowarp/generated-metadata/extensions-v0.json
+        // 应返回与 cloudURL 相同的 JSON 内容
+        fallbackURL: '',
+        fallbackBase: '',
+        map: (data, useProxy = false) => {
+            const base = useProxy ? 'https://extensions.bilup.org/turbowarp' : 'https://extensions.turbowarp.org';
+            return data.extensions.map(extension => ({
+                name: extension.name,
+                nameTranslations: extension.nameTranslations || {},
+                description: extension.description,
+                descriptionTranslations: extension.descriptionTranslations || {},
+                extensionId: extension.id,
+                extensionURL: `${base}/${extension.slug}.js`,
+                iconURL: `${base}/${extension.image || 'images/unknown.svg'}`,
+                source: 'tw',
+                tags: ['tw'],
+                credits: [
+                    ...(extension.by || []),
+                    ...(extension.original || [])
+                ].map(credit => {
+                    if (credit.link) {
+                        return (
+                            <a
+                                href={credit.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                key={credit.name}
+                            >
+                                {credit.name}
+                            </a>
+                        );
+                    }
+                    return credit.name;
+                }),
+                docsURI: extension.docs ? `${base}/${extension.slug}` : null,
+                samples: extension.samples ? extension.samples.map(sample => ({
+                    href: `${process.env.ROOT}editor?project_url=${base}/samples/${encodeURIComponent(sample)}.sb3`,
+                    text: sample
+                })) : null,
+                incompatibleWithScratch: true,
+                featured: true
+            }));
+        }
     },
     {
         name: 'mistium',
@@ -493,10 +504,13 @@ const fetchLibrary = async () => {
     };
 
     const loadLocalFallback = async source => {
+        // 当源配置了 fallbackURL 时，即使从本地缓存加载也使用代理基 URL，
+        // 因为云端 URL 不可用的原因（如网络封锁）可能仍然存在
+        const useProxy = !!source.fallbackURL;
         if (isDesktop() && source.localURL) {
             try {
                 const data = await fetchMetadataJSON(source.localURL);
-                const extensions = source.map(data);
+                const extensions = source.map(data, useProxy);
                 if (extensions.length) {
                     writeCachedMetadata(source.name, data);
                     return extensions;
@@ -508,7 +522,7 @@ const fetchLibrary = async () => {
         const cachedData = readCachedMetadata(source.name);
         if (cachedData) {
             try {
-                const extensions = source.map(cachedData);
+                const extensions = source.map(cachedData, useProxy);
                 if (extensions.length) {
                     return extensions;
                 }
@@ -522,14 +536,31 @@ const fetchLibrary = async () => {
     const fetchAndAdd = async source => {
         sourceStatuses[source.name] = 'loading';
         report();
+        let fetchSuccess = false;
         try {
             const data = await fetchMetadataJSON(source.cloudURL);
             const extensions = source.map(data);
             writeCachedMetadata(source.name, data);
             allExtensions.push(...extensions);
             sourceStatuses[source.name] = 'loaded';
+            fetchSuccess = true;
         } catch (error) {
-            console.warn(`Failed to load ${source.name} extensions:`, error);
+            console.warn(`Failed to load ${source.name} extensions from primary URL:`, error);
+            // 尝试镜像代理回退 URL（如 turbowarp.org 在中国大陆不可用时）
+            if (source.fallbackURL) {
+                try {
+                    const data = await fetchMetadataJSON(source.fallbackURL);
+                    const extensions = source.map(data, true);
+                    writeCachedMetadata(source.name, data);
+                    allExtensions.push(...extensions);
+                    sourceStatuses[source.name] = 'loaded';
+                    fetchSuccess = true;
+                } catch (fallbackError) {
+                    console.warn(`Failed to load ${source.name} extensions from fallback URL:`, fallbackError);
+                }
+            }
+        }
+        if (!fetchSuccess) {
             // 云端加载失败 → 回退本地缓存：
             // 1) 桌面端先走本地协议（应用打包了各扩展库的元数据，协议层
             //    云端优先、失败自动读本地缓存，见 desktop 的 protocols.js）
@@ -565,9 +596,6 @@ class ExtensionLibrary extends React.PureComponent {
             sourceStatuses: cachedSourceStatuses,
             customSources: cachedCustomSources
         };
-        this._isMounted = false;
-        this.galleryTimeout = null;
-        this.loadingExtensions = new Set();
     }
     
     componentDidMount() {
@@ -594,34 +622,20 @@ class ExtensionLibrary extends React.PureComponent {
         
         // 首次打开时拉取网络源；已注册的自定义库独立加载（互不阻塞）
         if (!this.state.gallery) {
-            this.galleryTimeout = setTimeout(() => {
-                if (this._isMounted) {
-                    this.setState({
-                        galleryTimedOut: true
-                    });
-                }
+            const timeout = setTimeout(() => {
+                this.setState({
+                    galleryTimedOut: true
+                });
             }, 750);
 
             fetchLibrary()
-                .then(gallery => {
-                    cachedGallery = gallery;
-                    if (this._isMounted) {
-                        this.setState({
-                            gallery
-                        });
-                    }
-                    clearTimeout(this.galleryTimeout);
-                    this.galleryTimeout = null;
-                })
+                .then(() => clearTimeout(timeout))
                 .catch(error => {
                     log.error(error);
-                    if (this._isMounted) {
-                        this.setState({
-                            galleryError: error
-                        });
-                    }
-                    clearTimeout(this.galleryTimeout);
-                    this.galleryTimeout = null;
+                    this.setState({
+                        galleryError: error
+                    });
+                    clearTimeout(timeout);
                 });
 
             cachedCustomSources.forEach(source => {
@@ -631,8 +645,8 @@ class ExtensionLibrary extends React.PureComponent {
             });
         }
     }
+    
     componentWillUnmount() {
-        this._isMounted = false;
         if (this.unsubscribeGalleryUpdate) {
             this.unsubscribeGalleryUpdate();
         }
@@ -641,8 +655,6 @@ class ExtensionLibrary extends React.PureComponent {
             vm.off('EXTENSION_ADDED', this.handleExtensionChange);
             vm.off('EXTENSION_REMOVED', this.handleExtensionChange);
         }
-        clearTimeout(this.galleryTimeout);
-        this.galleryTimeout = null;
     }
     getSourceStatus(tag) {
         // 内置本地数据始终可用（桌面端本地加载成功 → 蓝色）
@@ -708,25 +720,19 @@ class ExtensionLibrary extends React.PureComponent {
                     this.props.onCategorySelected(extensionId);
                 }
             } else {
-                if (this.loadingExtensions.has(extensionId)) return;
-                this.loadingExtensions.add(extensionId);
-                return this.props.vm.extensionManager.loadExtensionURL(url)
+                this.props.vm.extensionManager.loadExtensionURL(url)
                     .then(() => {
                         // 实时刷新"已加载"对钩
                         this.forceUpdate();
                         if (typeof this.props.onCategorySelected === 'function') {
                             this.props.onCategorySelected(extensionId);
                         }
-                        return true;
                     })
                     .catch(err => {
                         this.forceUpdate();
                         log.error(err);
-                        this.props.onShowExtensionError();
-                        return false;
-                    })
-                    .finally(() => {
-                        this.loadingExtensions.delete(extensionId);
+                        // eslint-disable-next-line no-alert
+                        alert(err);
                     });
             }
         }
@@ -813,21 +819,14 @@ ExtensionLibrary.propTypes = {
     onOpenCustomExtensionModal: PropTypes.func,
     onOpenCustomGalleryModal: PropTypes.func,
     onRequestClose: PropTypes.func,
-    onShowExtensionError: PropTypes.func.isRequired,
     visible: PropTypes.bool,
     vm: PropTypes.instanceOf(VM).isRequired // eslint-disable-line react/no-unused-prop-types
 };
 
-const mapDispatchToProps = dispatch => ({
-    onShowExtensionError: () => dispatch(showStandardAlert('extensionLoadError'))
-});
-
-export default injectIntl(connect(null, mapDispatchToProps)(ExtensionLibrary));
+export default injectIntl(ExtensionLibrary);
 
 export {
-    ExtensionLibrary,
     addCustomSource,
     removeCustomSource,
-    updateGallery,
-    fetchLibrary
+    updateGallery
 };

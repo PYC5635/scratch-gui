@@ -76,7 +76,6 @@ class SpriteSelectorItem extends React.PureComponent {
         this.noClick = true;
     }
     handleTouchEnd (e) {
-        if (!this.ref) return;
         const {x, y} = getEventXY(e);
         const {top, left, bottom, right} = this.ref.getBoundingClientRect();
         if (x >= left && x <= right && y >= top && y <= bottom) {
@@ -184,14 +183,12 @@ SpriteSelectorItem.propTypes = {
     onExportButtonClick: PropTypes.func,
     receivedBlocks: PropTypes.bool.isRequired,
     selected: PropTypes.bool,
-    vm: PropTypes.instanceOf(VM)
+    vm: PropTypes.instanceOf(VM).isRequired
 };
 
 const mapStateToProps = (state, {id}) => {
-    const activity = state.scratchGui.collaboration.activity || {};
+    const activity = state.scratchGui.collaboration.activity;
     const vm = state.scratchGui.vm;
-    const editingTarget = vm && vm.editingTarget;
-    const editorTab = state.scratchGui.editorTab;
 
     // The same component backs the sprite list (string id) and the costume and
     // sound lists (numeric index). For an asset, "who else is on it" means
@@ -201,8 +198,8 @@ const mapStateToProps = (state, {id}) => {
         usersInSprite(activity, id) :
         usersOnAsset(
             activity,
-            editingTarget ? editingTarget.id : null,
-            editorTab ? editorTab.activeTabIndex : 0,
+            vm.editingTarget ? vm.editingTarget.id : null,
+            state.scratchGui.editorTab.activeTabIndex,
             id
         );
 
@@ -226,5 +223,4 @@ const ConnectedComponent = connect(
     mapDispatchToProps
 )(SpriteSelectorItem);
 
-export {SpriteSelectorItem};
 export default ConnectedComponent;

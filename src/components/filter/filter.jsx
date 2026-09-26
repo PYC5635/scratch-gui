@@ -33,18 +33,15 @@ const FilterComponent = props => {
                 value={filterQuery}
                 onChange={onChange}
             />
-            <button
-                type="button"
-                aria-label="Clear search"
+            <div
                 className={styles.xIconWrapper}
-                disabled={!filterQuery.length}
                 onClick={onClear}
             >
                 <TWRenderRecoloredImage
                     className={styles.xIcon}
                     src={xIcon}
                 />
-            </button>
+            </div>
         </div>
     );
 };

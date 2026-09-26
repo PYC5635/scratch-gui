@@ -57,8 +57,9 @@ const Selector = props => {
             <Box className={styles.listArea}>
                 {items.map((item, index) => (
                     <SortableAsset
+                        id={item.name}
                         index={isRelevantDrag ? ordering.indexOf(index) : index}
-                        key={index}
+                        key={item.name}
                         onAddSortable={onAddSortable}
                         onRemoveSortable={onRemoveSortable}
                     >
