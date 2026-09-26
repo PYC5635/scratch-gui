@@ -5,7 +5,6 @@ import {defineMessages, intlShape, injectIntl} from 'react-intl';
 import VM from 'scratch-vm';
 
 import AssetPanel from '../components/asset-panel/asset-panel.jsx';
-import PaintEditorWrapper from './paint-editor-wrapper.jsx';
 import {connect} from 'react-redux';
 import {handleFileUpload, costumeUpload} from '../lib/file-uploader.js';
 import errorBoundaryHOC from '../lib/components/error-boundary-hoc.jsx';
@@ -36,6 +35,11 @@ import searchIcon from '../components/action-menu/icon--search.svg';
 
 import {getCostumeLibrary, getBackdropLibrary} from '../lib/libraries/tw-async-libraries';
 import CollaborationService from '../lib/collaboration/index.js';
+
+// The paint editor drags in the whole vector toolchain (scratch-paint, paper.js,
+// opentype.js) — roughly 1.7 MB. It is only ever mounted from this tab, so keep
+// it in its own async chunk and let the asset list paint first.
+const PaintEditorWrapper = React.lazy(() => import('./paint-editor-wrapper.jsx'));
 
 let messages = defineMessages({
     addLibraryBackdropMsg: {
@@ -320,9 +324,11 @@ class CostumeTab extends React.Component {
                 onItemClick={this.handleSelectCostume}
             >
                 {target.costumes ?
-                    <PaintEditorWrapper
-                        selectedCostumeIndex={this.state.selectedCostumeIndex}
-                    /> :
+                    <React.Suspense fallback={null}>
+                        <PaintEditorWrapper
+                            selectedCostumeIndex={this.state.selectedCostumeIndex}
+                        />
+                    </React.Suspense> :
                     null
                 }
             </AssetPanel>

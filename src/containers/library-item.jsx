@@ -122,7 +122,7 @@ class LibraryItem extends React.PureComponent {
     render () {
         const iconMd5 = this.curIconMd5();
         // TW: Use storage.assetHost instead of hardcoded URL
-        const assetHost = storage.getAssetHost() || 'https://assets.r2.bilup.org';
+        const assetHost = storage.getAssetHost() || 'https://assets.r2.pinewarp.org';
         const iconURL = iconMd5 ?
             `${assetHost}/${iconMd5}` :
             this.props.iconRawURL;

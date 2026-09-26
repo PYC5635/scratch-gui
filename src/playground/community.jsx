@@ -44,7 +44,7 @@ if (projectEntryMatch) {
     // Register locale data (required for react-intl to format numbers/dates in zh-cn).
     addLocaleData(localeData);
 
-    // Merge TW/Bilup extra translations and community site translations.
+    // Merge TW/PineWarp extra translations and community site translations.
     addAdditionalTranslations(editorMessages);
     for (const locale of Object.keys(editorMessages)) {
         const toMixIn = communityTranslations[locale.toLowerCase()];

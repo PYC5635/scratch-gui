@@ -47,11 +47,13 @@ const messages = defineMessages({
     loading: {id: 'mw.projectMeta.loading', defaultMessage: 'Loading...'},
     notUploaded: {id: 'mw.projectMeta.notUploaded', defaultMessage: 'Not uploaded'},
     editorEstimate: {id: 'mw.projectMeta.editorEstimate', defaultMessage: 'Editor estimate'},
-    storedOnBilup: {id: 'mw.projectMeta.storedOnBilup', defaultMessage: 'Stored on Bilup'},
+    storedOnPineWarp: {id: 'mw.projectMeta.storedOnPineWarp', defaultMessage: 'Stored on PineWarp'},
     serverUsage: {id: 'mw.projectMeta.serverUsage', defaultMessage: 'Server usage'},
     totalStored: {id: 'mw.projectMeta.totalStored', defaultMessage: 'Total stored'},
     projectData: {id: 'mw.projectMeta.projectData', defaultMessage: 'Project data'},
     assetsLabel: {id: 'mw.projectMeta.assets', defaultMessage: 'Assets'},
+    customAssetsLabel: {id: 'mw.projectMeta.customAssets', defaultMessage: 'Custom assets'},
+    fontsLabel: {id: 'mw.projectMeta.fonts', defaultMessage: 'Fonts'},
     uploadLimits: {id: 'mw.projectMeta.uploadLimits', defaultMessage: 'Upload limits'},
     compressedProjectData: {id: 'mw.projectMeta.compressedProjectData', defaultMessage: 'Compressed project data on server'},
     exactSizeFromUpload: {id: 'mw.projectMeta.exactSizeFromUpload', defaultMessage: 'Exact size from the last upload'},
@@ -63,7 +65,7 @@ const messages = defineMessages({
     fastEstimateFromVM: {id: 'mw.projectMeta.fastEstimateFromVM', defaultMessage: 'Fast lower-bound estimate from the VM'},
     storageDescription: {id: 'mw.projectMeta.storageDescription', defaultMessage: 'Current size, server usage and upload limits.'},
     vmSizeNote: {id: 'mw.projectMeta.vmSizeNote', defaultMessage: 'Sizes in the editor come directly from the VM. Final compression is measured during upload.'},
-    bilupLimits: {id: 'mw.projectMeta.bilupLimits', defaultMessage: 'Bilup allows 20 MB of compressed project data, 1 GB expanded, 50 MB of assets, and 10 MB per asset.'},
+    pinewarpLimits: {id: 'mw.projectMeta.pinewarpLimits', defaultMessage: 'PineWarp allows 20 MB of compressed project data, 1 GB expanded, 50 MB of assets, and 10 MB per asset.'},
     sprites: {id: 'mw.projectMeta.sprites', defaultMessage: 'Sprites'},
     costumes: {id: 'mw.projectMeta.costumes', defaultMessage: 'Costumes'},
     sounds: {id: 'mw.projectMeta.sounds', defaultMessage: 'Sounds'},
@@ -80,7 +82,7 @@ const messages = defineMessages({
     format: {id: 'mw.projectMeta.format', defaultMessage: 'Format'},
     untitled: {id: 'mw.projectMeta.untitled', defaultMessage: 'Untitled'},
     saveToAddAuthor: {id: 'mw.projectMeta.saveToAddAuthor', defaultMessage: 'Save this project to add @{roturUsername} as its author.'},
-    signInToAddAuthor: {id: 'mw.projectMeta.signInToAddAuthor', defaultMessage: 'Sign in to Bilup Accounts and save this project to add authorship.'},
+    signInToAddAuthor: {id: 'mw.projectMeta.signInToAddAuthor', defaultMessage: 'Sign in to PineWarp Accounts and save this project to add authorship.'},
     authorId: {id: 'mw.projectMeta.authorId', defaultMessage: 'Author ID'},
     platform: {id: 'mw.projectMeta.platform', defaultMessage: 'Platform'},
     version: {id: 'mw.projectMeta.version', defaultMessage: 'Version'},
@@ -334,7 +336,7 @@ const ProjectMetadataModal = ({initialView, intl, onRequestClose, projectTitle, 
         {
             label: intl.formatMessage(messages.groupAnalysis),
             items: [
-                {id: 'optimiser', label: intl.formatMessage({id: 'mw.projectMeta.storage', defaultMessage: 'Bilup storage'}), icon: Gauge},
+                {id: 'optimiser', label: intl.formatMessage({id: 'mw.projectMeta.storage', defaultMessage: 'PineWarp storage'}), icon: Gauge},
                 {id: 'breakdown', label: intl.formatMessage({id: 'mw.projectMeta.breakdown', defaultMessage: 'Size breakdown'}), icon: HardDrive}
             ]
         }
@@ -351,7 +353,7 @@ const ProjectMetadataModal = ({initialView, intl, onRequestClose, projectTitle, 
                     <div>
                         <Header>
                             <FormattedMessage
-                                defaultMessage="Bilup storage"
+                                defaultMessage="PineWarp storage"
                                 id="mw.projectMeta.storage"
                             />
                         </Header>
@@ -380,7 +382,7 @@ const ProjectMetadataModal = ({initialView, intl, onRequestClose, projectTitle, 
                         <strong>{formatSize(report.localEstimate)}</strong>
                     </div>
                     <div>
-                        <span>{intl.formatMessage(messages.storedOnBilup)}</span>
+                        <span>{intl.formatMessage(messages.storedOnPineWarp)}</span>
                         <strong>
                             {serverProject ? formatSize(serverProject.sizeBytes || 0) :
                                 serverLoading ? intl.formatMessage(messages.loading) : intl.formatMessage(messages.notUploaded)}
@@ -451,7 +453,7 @@ const ProjectMetadataModal = ({initialView, intl, onRequestClose, projectTitle, 
                         intl.formatMessage(messages.fastEstimateFromVM)}
                 />
                 <p className={styles.detail}>
-                    {intl.formatMessage(messages.bilupLimits)}
+                    {intl.formatMessage(messages.pinewarpLimits)}
                 </p>
             </React.Fragment>
         );
@@ -528,18 +530,27 @@ const ProjectMetadataModal = ({initialView, intl, onRequestClose, projectTitle, 
                     />
                 </Header>
                 <div className={styles.largest}>
-                    {report.largest.map(entry => (
-                        <div
-                            className={styles.largestRow}
-                            key={entry.name}
-                        >
-                            <span>
-                                <strong>{entry.label}</strong>
-                                <small>{entry.category}</small>
-                            </span>
-                            <strong>{formatSize(entry.size)}</strong>
-                        </div>
-                    ))}
+                    {report.largest.map(entry => {
+                        const categoryLabel = {
+                            Costumes: intl.formatMessage(messages.costumes),
+                            Sounds: intl.formatMessage(messages.sounds),
+                            'Custom assets': intl.formatMessage(messages.customAssetsLabel),
+                            Fonts: intl.formatMessage(messages.fontsLabel),
+                            'Variables and lists': intl.formatMessage(messages.variableDataInEditor)
+                        }[entry.category] || entry.category;
+                        return (
+                            <div
+                                className={styles.largestRow}
+                                key={entry.name}
+                            >
+                                <span>
+                                    <strong>{entry.label}</strong>
+                                    <small>{categoryLabel}</small>
+                                </span>
+                                <strong>{formatSize(entry.size)}</strong>
+                            </div>
+                        );
+                    })}
                 </div>
             </React.Fragment>
         );

@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage, injectIntl, intlShape} from 'react-intl';
-import {useIntl} from '../../lib/tw-use-intl.jsx';
 import {connect} from 'react-redux';
 import classNames from 'classnames';
 
@@ -29,6 +28,7 @@ const FontListItem = ({family, onClick}) => (
     <div
         className={styles.fontItem}
         data-family={family}
+        data-font-preview
         onClick={onClick}
         style={{fontFamily: family}}
         title={family}
@@ -64,63 +64,54 @@ FontSection.propTypes = {
 };
 
 // New: Selected Font Display
-const SelectedFontDisplay = ({selectedFont, onReset, onRemove}) => {
-    const intl = useIntl();
-    return (
-        <div className={styles.fontSection}>
-            <div className={styles.fontSectionTitle}>
-                <div className={styles.fontSectionTitleLeft}>
-                    <Check className={styles.icon} />
+const SelectedFontDisplay = ({selectedFont, onReset, onRemove}) => (
+    <div className={styles.fontSection}>
+        <div className={styles.fontSectionTitle}>
+            <div className={styles.fontSectionTitleLeft}>
+                <Check className={styles.icon} />
+                <FormattedMessage
+                    defaultMessage="Selected font"
+                    id="tw.fonts.selectedFont"
+                />
+            </div>
+            <button
+                className={styles.resetButton}
+                onClick={onReset}
+                title={this.props.intl.formatMessage({defaultMessage: 'Reset to default font', id: 'tw.fonts.resetToDefault'})}
+            >
+                <RotateCcw
+                    size={14}
+                    className={styles.inlineIcon}
+                />
+                <FormattedMessage
+                    defaultMessage="Reset"
+                    id="tw.fonts.reset"
+                />
+            </button>
+        </div>
+        <div className={styles.selectedFontsList}>
+            {selectedFont ? (
+                <div className={styles.selectedFont}>
+                    <span data-font-preview style={{fontFamily: selectedFont}}>{selectedFont}</span>
+                    <button
+                        className={styles.removeButton}
+                        onClick={onRemove}
+                        title={this.props.intl.formatMessage({defaultMessage: 'Remove font', id: 'mw.settings.removeFont'})}
+                    >
+                        {'×'}
+                    </button>
+                </div>
+            ) : (
+                <div className={styles.fontHint}>
                     <FormattedMessage
-                        defaultMessage="Selected font"
-                        id="tw.fonts.selectedFont"
+                        defaultMessage="Default"
+                        id="tw.fonts.default"
                     />
                 </div>
-                <button
-                    className={styles.resetButton}
-                    onClick={onReset}
-                    title={intl.formatMessage({
-                        defaultMessage: 'Reset to default font',
-                        id: 'mw.fonts.resetToDefault'
-                    })}
-                >
-                    <RotateCcw
-                        size={14}
-                        className={styles.inlineIcon}
-                    />
-                    <FormattedMessage
-                        defaultMessage="Reset"
-                        id="tw.fonts.reset"
-                    />
-                </button>
-            </div>
-            <div className={styles.selectedFontsList}>
-                {selectedFont ? (
-                    <div className={styles.selectedFont}>
-                        <span style={{fontFamily: selectedFont}}>{selectedFont}</span>
-                        <button
-                            className={styles.removeButton}
-                            onClick={onRemove}
-                            title={intl.formatMessage({
-                                defaultMessage: 'Remove font',
-                                id: 'mw.fonts.removeFont'
-                            })}
-                        >
-                            {'×'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className={styles.fontHint}>
-                        <FormattedMessage
-                            defaultMessage="Default"
-                            id="tw.fonts.default"
-                        />
-                    </div>
-                )}
-            </div>
+            )}
         </div>
-    );
-};
+    </div>
+);
 
 SelectedFontDisplay.propTypes = {
     selectedFont: PropTypes.string,
@@ -141,11 +132,11 @@ class MWFontsWindow extends React.Component {
             localScreen: ''
         };
         this.searchTimeout = null;
-        this._isMounted = false;
+        this._mounted = false;
     }
 
     componentDidMount () {
-        this._isMounted = true;
+        this._mounted = true;
         const fontManager = this.getFontManager();
         if (fontManager) {
             this.refreshLocalFonts();
@@ -154,7 +145,7 @@ class MWFontsWindow extends React.Component {
     }
 
     componentWillUnmount () {
-        this._isMounted = false;
+        this._mounted = false;
         const fontManager = this.getFontManager();
         if (fontManager) fontManager.off('change', this.refreshLocalFonts);
         if (this.searchTimeout) clearTimeout(this.searchTimeout);
@@ -182,7 +173,7 @@ class MWFontsWindow extends React.Component {
     resetFonts = () => this.setSelectedFont({google: [], system: []});
 
     getSelectedFontName = () =>
-        this.props.theme.fonts.google[0] || this.props.theme.fonts.system[0] || null;
+        (this.props.theme.fonts && this.props.theme.fonts.google && this.props.theme.fonts.google[0]) || (this.props.theme.fonts && this.props.theme.fonts.system && this.props.theme.fonts.system[0]) || null;
 
     // DRY: Unified history selection
     selectFromHistory = async family => {
@@ -216,12 +207,12 @@ class MWFontsWindow extends React.Component {
         this.setState({loading: true});
         try {
             const results = await searchGoogleFonts(trimmed);
-            if (this._isMounted) this.setState({searchResults: results});
+            if (this._mounted) this.setState({searchResults: results});
         } catch (err) {
             console.error('Error searching Google Fonts:', err);
-            if (this._isMounted) this.setState({searchResults: []});
+            if (this._mounted) this.setState({searchResults: []});
         } finally {
-            if (this._isMounted) this.setState({loading: false});
+            if (this._mounted) this.setState({loading: false});
         }
     };
 

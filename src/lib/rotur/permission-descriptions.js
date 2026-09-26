@@ -31,7 +31,7 @@ const CATEGORY_LABELS = {
     status: 'Status'
 };
 
-// Never grantable through this flow (mirrors accounts.bilup.org FORBIDDEN_PERMISSIONS).
+// Never grantable through this flow (mirrors accounts.pinewarp.org FORBIDDEN_PERMISSIONS).
 const FORBIDDEN_PERMISSIONS = new Set(['tokens:manage', 'account:delete']);
 
 const titleCase = word => word.charAt(0).toUpperCase() + word.slice(1);

@@ -14,6 +14,16 @@ const messages = defineMessages({
         defaultMessage: 'Cancel',
         description: 'Button to cancel simple dialog',
         id: 'tw.simpleDialog.cancel'
+    },
+    input: {
+        defaultMessage: 'Input',
+        description: 'Accessible label for the text input in a prompt dialog',
+        id: 'tw.simpleDialog.input'
+    },
+    actions: {
+        defaultMessage: 'Dialog actions',
+        description: 'Accessible label for the group holding a dialog\'s buttons',
+        id: 'tw.simpleDialog.actions'
     }
 });
 
@@ -82,14 +92,14 @@ class SimpleDialogComponent extends React.Component {
                             value={this.state.inputValue}
                             onChange={this.handleInputChange}
                             onKeyPress={this.handleKeyPress}
-                            aria-label={typeof message === 'string' ? message : 'Input'}
+                            aria-label={typeof message === 'string' ? message : intl.formatMessage(messages.input)}
                         />
                     )}
 
                     <div
                         className={styles.buttonRow}
                         role="group"
-                        aria-label="Dialog actions"
+                        aria-label={intl.formatMessage(messages.actions)}
                     >
                         {(isConfirm || isPrompt) && (
                             <button

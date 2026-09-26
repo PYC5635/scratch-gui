@@ -467,6 +467,20 @@ const settingDefinitions = {
             id: 'mw.settingsModal.scriptLazyLoadingHelp'
         }
     },
+    skipAssetLoading: {
+        label: {
+            defaultMessage: 'Ignore Costumes When Loading Projects',
+            description: 'Skip loading project assets so the project opens immediately',
+            id: 'mw.settingsModal.skipAssetLoading'
+        },
+        help: {
+            defaultMessage: 'Opens a project right away without waiting for its costumes and ' +
+                'sounds, then loads them gradually in the background. Sprites stay ' +
+                'invisible until their costumes arrive.',
+            description: 'Ignore Costumes When Loading Projects setting help',
+            id: 'mw.settingsModal.skipAssetLoadingHelp'
+        }
+    },
     squareStageCorners: {
         label: {
             defaultMessage: 'Square Stage Corners',
@@ -631,6 +645,7 @@ const RealLayerIndexes = createBooleanSetting('RealLayerIndexes', settingDefinit
 const EnableStageResize = createBooleanSetting('EnableStageResize', settingDefinitions.enableStageResize);
 const WindowAnimation = createBooleanSetting('WindowAnimation', settingDefinitions.windowAnimation);
 const ScriptLazyLoading = createBooleanSetting('ScriptLazyLoading', settingDefinitions.scriptLazyLoading);
+const SkipAssetLoading = createBooleanSetting('SkipAssetLoading', settingDefinitions.skipAssetLoading);
 const SquareStageCorners = createBooleanSetting('SquareStageCorners', settingDefinitions.squareStageCorners);
 const HideDeleteButton = createBooleanSetting('HideDeleteButton', settingDefinitions.hideDeleteButton);
 const HideExtensionButton = createBooleanSetting('HideExtensionButton', settingDefinitions.hideExtensionButton);
@@ -1319,6 +1334,13 @@ const pageConfigurations = {
                             value: props.scriptLazyLoading,
                             onChange: props.onScriptLazyLoadingChange
                         })
+                    },
+                    {
+                        component: SkipAssetLoading,
+                        props: props => ({
+                            value: props.skipAssetLoading,
+                            onChange: props.onSkipAssetLoadingChange
+                        })
                     }
                 ]
             }
@@ -1689,13 +1711,13 @@ class UnwrappedRoturPage extends React.Component {
                 <p className={styles.detail}>
                     {loggedIn ? (
                         <FormattedMessage
-                            defaultMessage="Signed in as {username}. These options control how Bilup appears on your Bilup Accounts profile."
+                            defaultMessage="Signed in as {username}. These options control how PineWarp appears on your PineWarp Accounts profile."
                             id="mw.settings.rotur.signedInAs"
                             values={{username}}
                         />
                     ) : (
                         <FormattedMessage
-                            defaultMessage="Log in with Bilup Accounts from the top-right of the menu bar to publish presence."
+                            defaultMessage="Log in with PineWarp Accounts from the top-right of the menu bar to publish presence."
                             id="mw.settings.rotur.notSignedIn"
                         />
                     )}
@@ -1705,11 +1727,11 @@ class UnwrappedRoturPage extends React.Component {
                     value={presenceEnabled}
                     onChange={this.handlePresenceChange}
                     label={<FormattedMessage
-                        defaultMessage="Show Bilup activity on Bilup Accounts"
+                        defaultMessage="Show PineWarp activity on PineWarp Accounts"
                         id="mw.settings.rotur.presenceEnabled"
                     />}
                     help={<FormattedMessage
-                        defaultMessage="When signed in, friends on Bilup Accounts can see that you are editing in Bilup."
+                        defaultMessage="When signed in, friends on PineWarp Accounts can see that you are editing in PineWarp."
                         id="mw.settings.rotur.presenceEnabledHelp"
                     />}
                 />
@@ -1721,7 +1743,7 @@ class UnwrappedRoturPage extends React.Component {
                         id="mw.settings.rotur.includeEditDuration"
                     />}
                     help={<FormattedMessage
-                        defaultMessage="Uses Bilup Accounts's elapsed timer. Not added to the title or status text."
+                        defaultMessage="Uses PineWarp Accounts's elapsed timer. Not added to the title or status text."
                         id="mw.settings.rotur.includeEditDurationHelp"
                     />}
                 />
@@ -1764,7 +1786,7 @@ class UnwrappedRoturPage extends React.Component {
 
                 <p className={styles.detail}>
                     <FormattedMessage
-                        defaultMessage="Themes and settings sync to your Bilup Accounts account when signed in."
+                        defaultMessage="Themes and settings sync to your PineWarp Accounts account when signed in."
                         id="mw.settings.rotur.cloudSyncNote"
                     />
                 </p>
@@ -2032,7 +2054,7 @@ class DesktopPage extends React.Component {
                             id="mw.settingsModal.desktop.richPresence"
                         />}
                         help={<FormattedMessage
-                            defaultMessage="Shows that you are using Bilup on your Discord profile while the app is open."
+                            defaultMessage="Shows that you are using PineWarp on your Discord profile while the app is open."
                             id="mw.settingsModal.desktop.richPresenceHelp"
                         />}
                     />
@@ -2252,7 +2274,7 @@ class SettingsModalComponent extends React.Component {
                     },
                     ...(isScratchDesktop() ? [] : [{
                         id: 'rotur',
-                        label: intl.formatMessage({id: 'mw.settings.rotur', defaultMessage: 'Bilup Accounts'}),
+                        label: intl.formatMessage({id: 'mw.settings.rotur', defaultMessage: 'PineWarp Accounts'}),
                         icon: Radio
                     }])
                 ]
@@ -2409,7 +2431,9 @@ SettingsModalComponent.propTypes = {
     windowAnimation: PropTypes.bool,
     onWindowAnimationChange: PropTypes.func,
     scriptLazyLoading: PropTypes.bool,
-    onScriptLazyLoadingChange: PropTypes.func
+    onScriptLazyLoadingChange: PropTypes.func,
+    skipAssetLoading: PropTypes.bool,
+    onSkipAssetLoadingChange: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);

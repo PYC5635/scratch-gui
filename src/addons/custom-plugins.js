@@ -36,7 +36,7 @@ const moduleCache = new Map();
 // 插件代码与清单直接存 localStorage（与设置存储同源、无 IndexedDB 的事务/隐私模式问题）。
 // 所有读写均为同步：导入/删除后 UI 立即刷新，持久化失败仅告警不影响内存操作。
 
-const PLUGINS_STORAGE_KEY = 'bilup:customPlugins';
+const PLUGINS_STORAGE_KEY = 'pinewarp:customPlugins';
 
 const readPersistedPlugins = () => {
     try {

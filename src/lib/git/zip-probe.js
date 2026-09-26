@@ -2,7 +2,7 @@
 // instead of from a full parse.
 //
 // Why this exists: `hasEmbeddedRepo` (workspace/adapter.js) runs on every
-// "open from computer" to decide whether an sb3 carries a `.bilup-git/`
+// "open from computer" to decide whether an sb3 carries a `.pinewarp-git/`
 // repository, and JSZip.loadAsync builds an entry object for every member just
 // to answer it -- measured at ~110 ms for a 33 MB project with 1553 assets,
 // against ~0.05 ms here.
@@ -24,7 +24,7 @@ const ZIP64_SENTINEL_32 = 0xffffffff;
  * Does the archive contain a *file* whose path starts with `prefix`?
  *
  * @param {ArrayBuffer|Uint8Array} input raw archive bytes
- * @param {string} prefix path prefix, e.g. `.bilup-git/`
+ * @param {string} prefix path prefix, e.g. `.pinewarp-git/`
  * @returns {boolean|null} true/false when decidable, or null when the input is
  *   not a plain single-disk ZIP (ZIP64, truncated, not a ZIP at all, or not a
  *   buffer) and the caller should fall back to a real ZIP parser.

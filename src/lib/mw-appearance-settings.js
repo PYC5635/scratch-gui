@@ -1,20 +1,7 @@
-import {getItem as getStorageItem} from './utils/safe-storage.js';
-
-const storageKey = id => `mw:${id}`;
-
-const safeGetItem = key => {
-    try {
-        return getStorageItem(key);
-    } catch (err) {
-        return null;
-    }
-};
-
-// Static CSS presets for the simple toggles (square corners, hidden buttons, etc.).
 const APPEARANCE_SETTINGS = [
     {
         id: 'square-stage-corners',
-        css: '[class*="stage_section"],[class*="stage_green-flag-overlay-wrapper"]{border-radius:0 !important;}'
+        css: '[class*="stage_stage"],[class*="stage_green-flag-overlay-wrapper"]{border-radius:0 !important;}'
     },
     {
         id: 'hide-delete-button',
@@ -28,29 +15,29 @@ const APPEARANCE_SETTINGS = [
     },
     {
         id: 'hide-backpack',
-        css: '[class^="uppack_backpack-container"]{display:none;}'
+        css: '[class^="backpack_backpack-container"]{display:none;}'
     },
     {
         id: 'unclip-palette',
         default: true,
         css: '.injectionDiv:has(> .blocklyToolboxDiv:hover, > svg.blocklyFlyout:not(.sa-flyoutClose):hover)' +
             ' > svg.blocklyFlyout:not(.sa-flyoutClose){overflow:visible;}' +
-            '.injectionDiv:has(> .blocklyToolboxDiv:hover, > svg.blocklyFlyout:not(.sa-flyoutClose):hover)' +
-            ' #blocklyBlockMenuClipRect{width:100000px;}'
+            '.injectionDiv > svg.blocklyFlyout:not(.sa-flyoutClose):hover{overflow:visible;}'
     }
 ];
 
-const elementId = id => `mw-appearance-${id}`;
-
-const defaultValue = id => {
-    const setting = APPEARANCE_SETTINGS.find(s => s.id === id);
-    return !!(setting && setting.default);
-};
+const storageKey = id => `mw:${id}`;
 
 const getAppearanceSetting = id => {
-    const stored = safeGetItem(storageKey(id));
-    return stored === null ? defaultValue(id) : stored === 'true';
+    const setting = APPEARANCE_SETTINGS.find(s => s.id === id);
+    try {
+        return localStorage.getItem(storageKey(id)) === 'true';
+    } catch (err) {
+        return setting && setting.default ? setting.default : false;
+    }
 };
+
+const elementId = id => `mw-appearance-${id}`;
 
 const applyAppearanceSetting = (id, enabled) => {
     const setting = APPEARANCE_SETTINGS.find(s => s.id === id);
@@ -76,7 +63,6 @@ const setAppearanceSetting = (id, enabled) => {
     applyAppearanceSetting(id, enabled);
 };
 
-// Apply all appearance settings on initial load.
 const initAppearanceSettings = () => {
     for (const setting of APPEARANCE_SETTINGS) {
         applyAppearanceSetting(setting.id, getAppearanceSetting(setting.id));

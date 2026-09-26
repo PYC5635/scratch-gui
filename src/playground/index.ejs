@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google" value="notranslate">
-    <meta name="description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
+    <meta name="description" content="<%= htmlWebpackPlugin.options.description || (htmlWebpackPlugin.options.APP_NAME + ' is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations.') %>" />
     <!-- OpenGraph Meta Tags for Discord/Social Embeds -->
     <meta property="og:title" content="<%= htmlWebpackPlugin.options.title %>" />
-    <meta property="og:description" content="<%= htmlWebpackPlugin.options.APP_NAME %> is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations." />
+    <meta property="og:description" content="<%= htmlWebpackPlugin.options.description || (htmlWebpackPlugin.options.APP_NAME + ' is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations.') %>" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="<%= htmlWebpackPlugin.options.root %>images/apple-touch-icon.png" />
-    <meta property="og:url" content="https://com.bilup.org/" />
+    <meta property="og:url" content="https://pinewarp.github.io/" />
     <title><%= htmlWebpackPlugin.options.title %></title>
     <link rel="apple-touch-icon" href="<%= htmlWebpackPlugin.options.root %>images/apple-touch-icon.png">
     <% if (htmlWebpackPlugin.options.root === "/" || htmlWebpackPlugin.options.root === "") { %>
@@ -121,16 +121,34 @@
     <div class="splash-screen spash-waiting-for-js" hidden>
       <div class="splash-spinner"></div>
 
-      <div class="splash-error-title" hidden>Something went wrong. <a href="https://github.com/Bilup/scratch-gui/issues" target="_blank" rel="noreferrer">Please report</a> with the information below.</div>
+      <div class="splash-error-title" hidden><span class="i18n-en">Something went wrong. <a href="https://github.com/PineWarp/PineWarp.github.io/issues" target="_blank" rel="noreferrer">Please report</a> with the information below.</span><span class="i18n-zh" hidden>出错了。<a href="https://github.com/PineWarp/PineWarp.github.io/issues" target="_blank" rel="noreferrer">请反馈</a>并附上下方信息。</span></div>
       <div class="splash-errors" hidden></div>
-      <button class="splash-reset" hidden> with the information below.</div>
-      <div class="splash-errors" hidden></div>
-      <button class="splash-reset" hidden>Click here to reset caches (can fix some errors)</button>
+      <button class="splash-reset" hidden><span class="i18n-en">Click here to reset caches (can fix some errors)</span><span class="i18n-zh" hidden>点此重置缓存（可修复部分错误）</span></button>
     </div>
 
     <script>
       (function () {
         'use strict';
+
+        // Pick the splash language the same way the editor does: stored choice
+        // first, then the browser language. Everything else falls back to English.
+        var isZh = false;
+        try {
+          var langSetting = localStorage.getItem('tw:language');
+          if (langSetting) {
+            isZh = langSetting.toLowerCase().indexOf('zh') === 0;
+          } else {
+            isZh = (navigator.language || '').toLowerCase().indexOf('zh') === 0;
+          }
+        } catch (e) {
+          // ignore
+        }
+        if (isZh) {
+          var enNodes = document.querySelectorAll('.i18n-en');
+          var zhNodes = document.querySelectorAll('.i18n-zh');
+          for (var i = 0; i < enNodes.length; i++) enNodes[i].hidden = true;
+          for (var j = 0; j < zhNodes.length; j++) zhNodes[j].hidden = false;
+        }
 
         var theme = '';
         var accent = '#75C1C4';

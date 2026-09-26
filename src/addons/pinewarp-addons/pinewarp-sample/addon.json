@@ -1,0 +1,29 @@
+{
+    "name": "PineWarp Sample",
+    "description": "A sample local plugin demonstrating the pinewarp-addons pipeline. Shows a message in the stage header and logs it to console.",
+    "credits": [
+        {
+            "name": "PineWarp"
+        }
+    ],
+    "userscripts": [
+        {
+            "url": "userscript.js",
+            "matches": [
+                "projects"
+            ]
+        }
+    ],
+    "settings": [
+        {
+            "id": "message",
+            "type": "string",
+            "default": "Hello from PineWarp Sample!",
+            "name": "Message"
+        }
+    ],
+    "tags": [
+        "recommended"
+    ],
+    "enabledByDefault": false
+}

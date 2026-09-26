@@ -2,9 +2,17 @@ import bindAll from 'lodash.bindall';
 import PropTypes from 'prop-types';
 import React from 'react';
 import classNames from 'classnames';
-import {FormattedMessage} from 'react-intl';
+import {defineMessages, FormattedMessage, injectIntl, intlShape} from 'react-intl';
 
 import styles from './custom-procedures.css';
+
+const messages = defineMessages({
+    customColor: {
+        defaultMessage: 'Custom color',
+        description: 'Title of the custom color input in the block color picker',
+        id: 'gui.customProcedures.customColor'
+    }
+});
 
 const PRESET_COLORS = [
     {name: 'My Blocks', color: '#FF6680'},
@@ -57,7 +65,7 @@ class ColorPicker extends React.Component {
                     <input
                         className={styles.colorInput}
                         type="color"
-                        title="Custom color"
+                        title={this.props.intl.formatMessage(messages.customColor)}
                         value={this.props.color}
                         onChange={this.props.onColorChange}
                     />
@@ -68,8 +76,9 @@ class ColorPicker extends React.Component {
 }
 
 ColorPicker.propTypes = {
+    intl: intlShape.isRequired,
     color: PropTypes.string.isRequired,
     onColorChange: PropTypes.func.isRequired
 };
 
-export default ColorPicker;
+export default injectIntl(ColorPicker);

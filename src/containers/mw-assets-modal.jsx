@@ -5,7 +5,6 @@ import {injectIntl, intlShape} from 'react-intl';
 import bindAll from 'lodash.bindall';
 import {closeAssetsModal} from '../reducers/modals';
 import downloadBlob from '../lib/utils/download-blob';
-import storage from '../lib/persistence/storage';
 import log from '../lib/utils/log';
 import AssetsModalComponent, {messages} from '../components/mw-assets-modal/assets-modal.jsx';
 
@@ -67,11 +66,15 @@ class MWAssetsModal extends React.Component {
     }
 
     get assetManager () {
-        return this.props.vm.runtime.assetManager;
+        return this.props.vm && this.props.vm.runtime && this.props.vm.runtime.assetManager;
     }
 
     getAssets () {
-        return this.props.vm.runtime.assetManager.assets.map(entry => ({
+        const assetManager = this.props.vm && this.props.vm.runtime && this.props.vm.runtime.assetManager;
+        if (!assetManager || !Array.isArray(assetManager.assets)) {
+            return [];
+        }
+        return assetManager.assets.map(entry => ({
             name: entry.name,
             dataFormat: entry.asset.dataFormat,
             size: entry.asset.data.length,
@@ -132,8 +135,8 @@ class MWAssetsModal extends React.Component {
         for (const file of Array.from(files)) {
             try {
                 const buffer = await file.arrayBuffer();
-                const asset = storage.createAsset(
-                    storage.AssetType.CustomAsset,
+                const asset = this.assetManager.runtime.storage.createAsset(
+                    this.assetManager.assetType,
                     getExtension(file.name),
                     new Uint8Array(buffer),
                     null,

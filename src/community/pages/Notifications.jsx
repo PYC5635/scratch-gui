@@ -110,14 +110,20 @@ const describe = (n, intl) => {
             defaultMessage="loved {title}"
             values={{title: <strong>{n.projectTitle}</strong>}}
         /> :
-        <span>loved your project</span>;
+        <FormattedMessage
+            id="mw.community.notifications.loveOwn"
+            defaultMessage="loved your project"
+        />;
     case 'comment': return n.projectTitle ?
         <FormattedMessage
             id="mw.community.notifications.comment"
             defaultMessage="commented on {title}"
             values={{title: <strong>{n.projectTitle}</strong>}}
         /> :
-        <span>commented on your project</span>;
+        <FormattedMessage
+            id="mw.community.notifications.commentOwn"
+            defaultMessage="commented on your project"
+        />;
     case 'profile_comment': return <FormattedMessage
         id="mw.community.notifications.profileComment"
         defaultMessage="commented on your profile"
@@ -157,7 +163,10 @@ const describe = (n, intl) => {
             defaultMessage="remixed {title}"
             values={{title: <strong>{n.projectTitle}</strong>}}
         /> :
-        <span>remixed your project</span>;
+        <FormattedMessage
+            id="mw.community.notifications.remixOwn"
+            defaultMessage="remixed your project"
+        />;
     case 'follow': return <FormattedMessage
         id="mw.community.notifications.follow"
         defaultMessage="followed you"

@@ -460,8 +460,8 @@ const generateManifestEntries = () => generateEntries(
 );
 
 for (const addon of addons) {
-    // 本地插件源优先：bilup-addons/<id> 存在则用它，否则用上游克隆
-    const localDirectory = pathUtil.resolve(__dirname, 'bilup-addons', addon);
+    // 本地插件源优先：pinewarp-addons/<id> 存在则用它，否则用上游克隆
+    const localDirectory = pathUtil.resolve(__dirname, 'pinewarp-addons', addon);
     const oldDirectory = fs.existsSync(localDirectory) ?
         localDirectory :
         pathUtil.resolve(__dirname, 'ScratchAddons', 'addons', addon);

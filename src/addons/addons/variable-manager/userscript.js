@@ -508,7 +508,7 @@ export default async function ({addon, console, msg}) {
         else show();
     };
 
-    window.__bilupVariableManagerToggle = toggle;
+    window.__pinewarpVariableManagerToggle = toggle;
 
     // --- Settings reactions ---------------------------------------------
     const removeSettingsListener = onSettingChanged(event => {

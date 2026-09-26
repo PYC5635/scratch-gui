@@ -3,7 +3,7 @@ import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {clearContentCache} from './cached-fetch.js';
 import {isGalleryExtensionUrl} from '../trusted-extension.js';
 
-const API_BASE = 'https://api.bilup.org/api';
+const API_BASE = 'https://api.pinewarp.org/api';
 
 const DEFAULT_FETCH_TIMEOUT = 30000; // 30 seconds
 
@@ -108,14 +108,14 @@ const parseResponse = async response => {
     return data;
 };
 
-const exchangeValidator = async (roturToken, appKey = 'bilup') => {
+const exchangeValidator = async (roturToken, appKey = 'pinewarp') => {
     const validatorResponse = await fetchWithTimeout(
-        `https://api.accounts.bilup.org/generate_validator?key=${encodeURIComponent(appKey)}&auth=${encodeURIComponent(roturToken)}`
+        `https://api.accounts.pinewarp.org/generate_validator?key=${encodeURIComponent(appKey)}&auth=${encodeURIComponent(roturToken)}`
     );
     const validatorData = await validatorResponse.json().catch(() => ({}));
     const validator = validatorData.validator;
     if (!validator) {
-        const error = new Error(validatorData.error || 'Could not validate Bilup Accounts login');
+        const error = new Error(validatorData.error || 'Could not validate PineWarp Accounts login');
         if (validatorData.error || validatorResponse.status === 403) {
             error.code = 'VALIDATOR_GENERATION_FAILED';
         }

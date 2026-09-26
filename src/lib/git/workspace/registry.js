@@ -8,7 +8,7 @@
 // projects can rebind instead of discarding.
 //
 // Only small metadata lives here (localStorage, synchronous, already used for
-// the git author). Repository *contents* stay in OPFS and `.bilup-git/`.
+// the git author). Repository *contents* stay in OPFS and `.pinewarp-git/`.
 //
 // Decision D1 (see .workbuddy/memory/git-rewrite-spec.md): embedded repo stays
 // as the portable artifact, the registry makes it addressable per project.
@@ -17,7 +17,7 @@ import {getItem, setItem} from '../../utils/safe-storage.js';
 
 const STORAGE_KEY = 'mw:git-registry';
 const SCHEMA_VERSION = 1;
-const CONFIG_KIND = 'bilup-git-config';
+const CONFIG_KIND = 'pinewarp-git-config';
 
 const emptyRegistry = () => ({version: SCHEMA_VERSION, entries: {}});
 

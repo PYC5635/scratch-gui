@@ -9,7 +9,7 @@ import Avatar from '../components/Avatar.jsx';
 import Button from '../components/ui/Button.jsx';
 import ProjectCard from '../components/ProjectCard.jsx';
 import NewsItem from '../components/NewsItem.jsx';
-import logo from '../assets/bilup-icon.svg';
+
 import styles from './Home.module.css';
 
 // Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).
@@ -184,7 +184,7 @@ const ActivitySection = ({user, login}) => {
                     onClick={login}
                 >
                     <FormattedMessage
-                        defaultMessage="Sign in with Bilup Accounts"
+                        defaultMessage="Sign in with PineWarp Accounts"
                         id="mw.community.home.signInRotur"
                     />
                 </button>
@@ -432,7 +432,7 @@ const Home = () => {
                     </h1>
                     <p>
                         <FormattedMessage
-                            defaultMessage="A visual coding community on the Bilup editor, with version control, forking, and pull requests behind every project."
+                            defaultMessage="A visual coding community on the PineWarp editor, with version control, forking, and pull requests behind every project."
                             id="mw.community.home.heroDescription"
                         />
                     </p>
@@ -462,14 +462,14 @@ const Home = () => {
                                 onClick={login}
                             >
                                 <FormattedMessage
-                                    defaultMessage="Sign in with Bilup Accounts"
+                                    defaultMessage="Sign in with PineWarp Accounts"
                                     id="mw.community.home.signInRotur"
                                 />
                             </button>
                         )}
                         <a
                             className={styles.secondaryButton}
-                            href="https://github.com/bilup"
+                            href="https://github.com/pinewarp"
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -482,11 +482,13 @@ const Home = () => {
                     </div>
                 </div>
                 <div className={styles.heroArt}>
-                    <img
-                        src={logo}
-                        alt=""
+                    <span
+                        role="img"
+                        aria-label="PineWarp"
                         className={styles.heroLogo}
-                    />
+                    >
+                        🍍
+                    </span>
                 </div>
             </section>
 

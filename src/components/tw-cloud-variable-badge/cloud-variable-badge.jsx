@@ -8,8 +8,8 @@ import {APP_NAME} from '../../lib/constants/brand';
 
 const hosts = [
     {
-        name: 'Hong Kong (Bilup)',
-        cloudHost: 'wss://clouddata.bilup.org'
+        name: 'Hong Kong (PineWarp)',
+        cloudHost: 'wss://clouddata.pinewarp.org'
     },
     {
         name: 'US East (TurboWarp)',
@@ -118,7 +118,7 @@ const CloudVariableBadge = props => {
             <a
                 target="_blank"
                 rel="noreferrer"
-                href="https://docs.bilup.org/advanced/cloud-variables"
+                href="https://docs.pinewarp.org/advanced/cloud-variables"
             >
                 <FormattedMessage
                     defaultMessage="Learn more about cloud variables."

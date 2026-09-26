@@ -22,9 +22,10 @@
 }
 
 .logo {
-    height: 40px;
-    width: auto;
-    display: block;
+    font-size: 40px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .tagline {

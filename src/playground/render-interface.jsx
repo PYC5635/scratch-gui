@@ -387,25 +387,25 @@ const Footer = () => (
                     </a>
                 </div>
                 <div className={styles.footerSection}>
-                    <a href="https://packager.bilup.org/">
+                    <a href="https://packager.pinewarp.org/">
                         {/* Do not translate */}
-                        {'Bilup Packager'}
+                        {'PineWarp Packager'}
                     </a>
-                    <a href="https://docs.bilup.org/advanced/embedding">
+                    <a href="https://docs.pinewarp.org/advanced/embedding">
                         <FormattedMessage
                             defaultMessage="Embedding"
                             description="Link in footer to embedding documentation for embedding link"
                             id="tw.footer.embed"
                         />
                     </a>
-                    <a href="https://docs.bilup.org/advanced/url-parameters">
+                    <a href="https://docs.pinewarp.org/advanced/url-parameters">
                         <FormattedMessage
                             defaultMessage="URL Parameters"
                             description="Link in footer to URL parameters documentation"
                             id="tw.footer.parameters"
                         />
                     </a>
-                    <a href="https://docs.bilup.org">
+                    <a href="https://docs.pinewarp.org">
                         <FormattedMessage
                             defaultMessage="Documentation"
                             description="Link in footer to additional documentation"
@@ -581,11 +581,11 @@ class Interface extends React.Component {
                                             values={{
                                                 link: (
                                                     <a
-                                                        href="https://docs.bilup.org/advanced/unshared-projects"
+                                                        href="https://docs.pinewarp.org/advanced/unshared-projects"
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >
-                                                        {'https://docs.bilup.org/advanced/unshared-projects'}
+                                                        {'https://docs.pinewarp.org/advanced/unshared-projects'}
                                                     </a>
                                                 )
                                             }}

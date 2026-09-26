@@ -1,0 +1,68 @@
+.tw-security-banner {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    padding: 12px 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+}
+
+.tw-security-banner-content {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 12px;
+}
+
+.tw-security-banner-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.tw-security-banner-text {
+    flex: 1;
+}
+
+.tw-security-banner-line1,
+.tw-security-banner-line2 {
+    margin: 4px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.tw-security-banner-line2 a {
+    color: #fcd34d;
+    text-decoration: underline;
+}
+
+.tw-security-banner-line2 a:hover {
+    color: #fbbf24;
+}
+
+.tw-security-banner-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.tw-security-banner-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}

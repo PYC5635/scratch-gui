@@ -78,7 +78,7 @@ import _remove_extension_button from "../addons/remove-extension-button/_manifes
 import _merge_operators from "../addons/merge-operators/_manifest_entry.js";
 import _tab_styles from "../addons/tab-styles/_manifest_entry.js";
 import _window_theme from "../addons/window-theme/_manifest_entry.js";
-import _comment_markdown from "../addons/tw-comment-markdown-editor/_manifest_entry.js";
+import _tw_comment_markdown_editor from "../addons/tw-comment-markdown-editor/_manifest_entry.js";
 import _hide_menubar from "../addons/hide-menubar/_manifest_entry.js";
 import _toolbox_category_drag from "../addons/toolbox-category-drag/_manifest_entry.js";
 import _block_pins from "../addons/block-pins/_manifest_entry.js";
@@ -89,7 +89,45 @@ import _todo from "../addons/todo/_manifest_entry.js";
 import _calculator from "../addons/calculator/_manifest_entry.js";
 import _project_size_display from "../addons/project-size-display/_manifest_entry.js";
 import _resize_selected_item from "../addons/resize-selected-item/_manifest_entry.js";
-import _bilup_sample from "../addons/bilup-sample/_manifest_entry.js";
+import _pinewarp_sample from "../addons/pinewarp-sample/_manifest_entry.js";
+import _02agent from "../addons/02agent/_manifest_entry.js";
+import _astras_copilot from "../addons/astras-copilot/_manifest_entry.js";
+import _autosave from "../addons/autosave/_manifest_entry.js";
+import _batch_color_replace from "../addons/batch-color-replace/_manifest_entry.js";
+import _block_count from "../addons/block-count/_manifest_entry.js";
+import _bookmark from "../addons/bookmark/_manifest_entry.js";
+import _cat_blocks_extended from "../addons/cat-blocks-extended/_manifest_entry.js";
+import _cn_code from "../addons/cn-code/_manifest_entry.js";
+import _coder_style from "../addons/coder-style/_manifest_entry.js";
+import _comment_vscode_sync from "../addons/comment-vscode-sync/_manifest_entry.js";
+import _custom_menu_bar from "../addons/custom-menu-bar/_manifest_entry.js";
+import _daily_quote from "../addons/daily-quote/_manifest_entry.js";
+import _debugger from "../addons/debugger/_manifest_entry.js";
+import _editor_compact from "../addons/editor-compact/_manifest_entry.js";
+import _editor_stepping from "../addons/editor-stepping/_manifest_entry.js";
+import _event_tracer from "../addons/event-tracer/_manifest_entry.js";
+import _expanded_backpack from "../addons/expanded-backpack/_manifest_entry.js";
+import _find_bar from "../addons/find-bar/_manifest_entry.js";
+import _frame_stepper from "../addons/frame-stepper/_manifest_entry.js";
+import _keymap_cheatsheet from "../addons/keymap-cheatsheet/_manifest_entry.js";
+import _language_package from "../addons/language-package/_manifest_entry.js";
+import _lint_system from "../addons/lint-system/_manifest_entry.js";
+import _middle_click_popup from "../addons/middle-click-popup/_manifest_entry.js";
+import _mini_map from "../addons/mini-map/_manifest_entry.js";
+import _my_blocks_plus from "../addons/my-blocks-plus/_manifest_entry.js";
+import _novatheai from "../addons/novatheai/_manifest_entry.js";
+import _pause from "../addons/pause/_manifest_entry.js";
+import _performance_budget from "../addons/performance-budget/_manifest_entry.js";
+import _performance_profiler from "../addons/performance-profiler/_manifest_entry.js";
+import _project_health_dashboard from "../addons/project-health-dashboard/_manifest_entry.js";
+import _project_outline from "../addons/project-outline/_manifest_entry.js";
+import _santa from "../addons/santa/_manifest_entry.js";
+import _script_tabs from "../addons/script-tabs/_manifest_entry.js";
+import _stage_camera from "../addons/stage-camera/_manifest_entry.js";
+import _Terminal from "../addons/Terminal/_manifest_entry.js";
+import _todo_list from "../addons/todo-list/_manifest_entry.js";
+import _tw_remove_feedback from "../addons/tw-remove-feedback/_manifest_entry.js";
+import _workspace_tabs from "../addons/workspace-tabs/_manifest_entry.js";
 export default {
   "cat-blocks": _cat_blocks,
   "dev-inspector": _dev_inspector,
@@ -170,7 +208,7 @@ export default {
   "merge-operators": _merge_operators,
   "tab-styles": _tab_styles,
   "window-theme": _window_theme,
-  "tw-comment-markdown-editor": _comment_markdown,
+  "tw-comment-markdown-editor": _tw_comment_markdown_editor,
   "hide-menubar": _hide_menubar,
   "toolbox-category-drag": _toolbox_category_drag,
   "block-pins": _block_pins,
@@ -181,5 +219,43 @@ export default {
   "calculator": _calculator,
   "project-size-display": _project_size_display,
   "resize-selected-item": _resize_selected_item,
-  "bilup-sample": _bilup_sample,
+  "pinewarp-sample": _pinewarp_sample,
+  "02agent": _02agent,
+  "astras-copilot": _astras_copilot,
+  "autosave": _autosave,
+  "batch-color-replace": _batch_color_replace,
+  "block-count": _block_count,
+  "bookmark": _bookmark,
+  "cat-blocks-extended": _cat_blocks_extended,
+  "cn-code": _cn_code,
+  "coder-style": _coder_style,
+  "comment-vscode-sync": _comment_vscode_sync,
+  "custom-menu-bar": _custom_menu_bar,
+  "daily-quote": _daily_quote,
+  "debugger": _debugger,
+  "editor-compact": _editor_compact,
+  "editor-stepping": _editor_stepping,
+  "event-tracer": _event_tracer,
+  "expanded-backpack": _expanded_backpack,
+  "find-bar": _find_bar,
+  "frame-stepper": _frame_stepper,
+  "keymap-cheatsheet": _keymap_cheatsheet,
+  "language-package": _language_package,
+  "lint-system": _lint_system,
+  "middle-click-popup": _middle_click_popup,
+  "mini-map": _mini_map,
+  "my-blocks-plus": _my_blocks_plus,
+  "novatheai": _novatheai,
+  "pause": _pause,
+  "performance-budget": _performance_budget,
+  "performance-profiler": _performance_profiler,
+  "project-health-dashboard": _project_health_dashboard,
+  "project-outline": _project_outline,
+  "santa": _santa,
+  "script-tabs": _script_tabs,
+  "stage-camera": _stage_camera,
+  "Terminal": _Terminal,
+  "todo-list": _todo_list,
+  "tw-remove-feedback": _tw_remove_feedback,
+  "workspace-tabs": _workspace_tabs,
 };

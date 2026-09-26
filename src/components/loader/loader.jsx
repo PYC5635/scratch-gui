@@ -363,14 +363,14 @@ class LoaderComponent extends React.Component {
                     {settings.showGithub ? (
                         <a
                             className={styles.githubCta}
-                            href="https://github.com/bilup"
+                            href="https://github.com/pinewarp"
                             rel="noopener noreferrer"
                             target="_blank"
                         >
                             <Github size={14} />
                             <FormattedMessage
-                                defaultMessage="Follow Bilup on GitHub"
-                                description="Link on the loading screen to the Bilup GitHub organisation"
+                                defaultMessage="Follow PineWarp on GitHub"
+                                description="Link on the loading screen to the PineWarp GitHub organisation"
                                 id="mw.loader.github"
                             />
                         </a>

@@ -2,7 +2,7 @@ import React, {useState, useEffect, useCallback} from 'react';
 import PropTypes from 'prop-types';
 import styles from './avatar.css';
 
-const AVATARS = 'https://avatars.accounts.bilup.org';
+const AVATARS = 'https://avatars.accounts.pinewarp.org';
 
 const overlayStatus = new Map();
 

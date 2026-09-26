@@ -2,11 +2,13 @@ import React, {useEffect, useRef, useState} from 'react';
 import {ExternalLink, Heart, Play} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import api, {embedUrl, projectUrl} from '../api';
+import {useIntl} from '../../lib/tw-use-intl.jsx';
 import Avatar from './Avatar.jsx';
 import ProjectThumbnail from './ProjectThumbnail.jsx';
 import styles from './FeaturedProject.module.css';
 
 const FeaturedProject = ({project}) => {
+    const intl = useIntl();
     const [details, setDetails] = useState(null);
     const [stageRatio, setStageRatio] = useState(0.75);
     const stageFrame = useRef(null);
@@ -50,12 +52,18 @@ const FeaturedProject = ({project}) => {
                         {displayProject.title}
                     </Link>
                     <Link to={`/users/${displayProject.owner}`} className={styles.owner}>
-                        by {displayProject.owner}
+                        {intl.formatMessage({
+                            id: 'mw.community.nav.byUser',
+                            defaultMessage: 'by {owner}'
+                        }, {owner: displayProject.owner})}
                     </Link>
                 </div>
                 <Link to={projectUrl(displayProject.id)} className={styles.openProject}>
                     <ExternalLink size={14} />
-                    Project page
+                    {intl.formatMessage({
+                        id: 'mw.community.project.projectPage',
+                        defaultMessage: 'Project page'
+                    })}
                 </Link>
             </div>
             <div

@@ -1,4 +1,3 @@
-import {getItem as getStorageItem} from '../utils/safe-storage.js';
 import {
     restoreSession as roturRestore,
     login as roturLogin,
@@ -6,6 +5,7 @@ import {
     getRotur
 } from './client.js';
 import {onRoturLogout} from './cloud-sync.js';
+import {clearGitAuth} from './git-api.js';
 import {
     runExchange,
     onAuthInvalid,
@@ -40,12 +40,19 @@ const setState = patch => {
 
 const subscribe = cb => {
     listeners.add(cb);
+    // Replay current state so subscribers mounted after login don't have to
+    // wait for the next status change to discover that the user is logged in.
+    try {
+        cb(state);
+    } catch (_) {
+        // ignore
+    }
     return () => listeners.delete(cb);
 };
 
 const readRoturToken = () => {
     try {
-        return getStorageItem(ROTUR_TOKEN_KEY);
+        return localStorage.getItem(ROTUR_TOKEN_KEY);
     } catch (_) {
         return null;
     }
@@ -156,6 +163,11 @@ const logout = () => {
     } catch (_) {
         // ignore
     }
+    try {
+        clearGitAuth();
+    } catch (_) {
+        // ignore
+    }
     roturLogout();
     storeSession(null);
     setState({status: 'idle', user: null, banMessage: null});
@@ -169,11 +181,16 @@ onBanned(message => {
     roturLogout();
     storeSession(null);
     try {
+        clearGitAuth();
+    } catch (_) {
+        // ignore
+    }
+    try {
         onRoturLogout();
     } catch (_) {
         // ignore
     }
-    setState({status: 'idle', user: null, banMessage: message || 'This account is banned from Bilup.'});
+    setState({status: 'idle', user: null, banMessage: message || 'This account is banned from PineWarp.'});
 });
 
 if (typeof window !== 'undefined') {

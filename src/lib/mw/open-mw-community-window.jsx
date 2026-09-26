@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {addLocaleData, IntlProvider} from 'react-intl';
-import {localeData} from '@bilup/scratch-l10n';
+import {localeData} from '@remixwarp/scratch-l10n';
 
 import WindowManager from '../../addons/window-system/window-manager';
 import CommunityScope from './community-scope.jsx';

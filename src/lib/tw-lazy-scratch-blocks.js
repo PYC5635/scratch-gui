@@ -1,5 +1,6 @@
 import {getVanillaPalette} from './mw-vanilla-palette';
 import {getItem as getStorageItem, setItem as setStorageItem} from './utils/safe-storage.js';
+import blocksMessages from '@remixwarp/scratch-l10n/locales/blocks-msgs';
 
 let _ScratchBlocks = null;
 
@@ -45,6 +46,18 @@ const load = () => {
         .then(m => {
             _ScratchBlocks = m.default;
             applyScriptLazyLoading(isScriptLazyLoadingEnabled());
+
+            // 文言（lzh）：以 zh-cn 积木文本为基底，叠加 scratch-l10n 提供的文言积木文本，
+            // 使 ScratchMsgs.setLocale('lzh') 时能切换给完整积木翻译（scratch-blocks 内置仅有 en/zh-cn）。
+            const wenyanBlocks = blocksMessages && blocksMessages['lzh'];
+            const zhCnBlocks = blocksMessages && blocksMessages['zh-cn'];
+            if (wenyanBlocks && _ScratchBlocks.ScratchMsgs && _ScratchBlocks.ScratchMsgs.locales) {
+                _ScratchBlocks.ScratchMsgs.locales['lzh'] = Object.assign(
+                    {},
+                    zhCnBlocks || {},
+                    wenyanBlocks
+                );
+            }
 
             try {
                 const operatorUtils = _ScratchBlocks.ScratchBlocks && _ScratchBlocks.ScratchBlocks.OperatorUtils;

@@ -63,6 +63,11 @@ const messages = defineMessages({
         description: 'Code lens to keep the current (ours) side of a conflict',
         id: 'mw.fractch.acceptCurrent'
     },
+    cursorPosition: {
+        defaultMessage: 'Ln {line}, Col {column}',
+        description: 'Status bar cursor position in the code editor',
+        id: 'mw.fractch.cursorPosition'
+    },
     acceptIncoming: {
         defaultMessage: 'Accept incoming',
         description: 'Code lens to keep the incoming (theirs) side of a conflict',
@@ -1839,7 +1844,7 @@ const FractchWorkspace = ({exitRequested, onExit, theme, vm}) => {
                 <span className={styles.statusMessage}>{status}</span>
                 {activeFile ? (
                     <React.Fragment>
-                        <span className={styles.statusItem}>{`Ln ${cursor.line}, Col ${cursor.column}`}</span>
+                        <span className={styles.statusItem}>{intl.formatMessage(messages.cursorPosition, {line: cursor.line, column: cursor.column})}</span>
                         <span className={styles.statusItem}>{languageForFile(activeFile)}</span>
                     </React.Fragment>
                 ) : null}

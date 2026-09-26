@@ -350,7 +350,7 @@ const GradientCreatorApp = injectIntl(props => {
                                                 type="button"
                                                 onClick={() => handleDuplicateColor(index)}
                                                 className={styles.paletteBtn}
-                                                title="Duplicate color"
+                                                title={intl.formatMessage({defaultMessage: 'Duplicate color', id: 'tw.customThemes.gradientCreator.duplicateColor'})}
                                             >
                                                 <FormattedMessage
                                                     defaultMessage="Copy"
@@ -362,7 +362,7 @@ const GradientCreatorApp = injectIntl(props => {
                                                     type="button"
                                                     onClick={() => handleRemoveColorStop(index)}
                                                     className={classNames(styles.paletteBtn, styles.paletteBtnDanger)}
-                                                    title="Remove color"
+                                                    title={intl.formatMessage({defaultMessage: 'Remove color', id: 'tw.customThemes.gradientBuilder.removeColor'})}
                                                 >
                                                     <FormattedMessage
                                                         defaultMessage="Remove"
@@ -494,7 +494,7 @@ const GradientCreatorApp = injectIntl(props => {
                     className={classNames(styles.footerBtn, isPreviewActive && styles.footerBtnActive)}
                     onClick={handlePreview}
                     disabled={!name.trim()}
-                    title="Apply this theme to see how it looks"
+                    title={intl.formatMessage({defaultMessage: 'Apply this theme to see how it looks', id: 'tw.customThemes.gradientBuilder.applyPreview'})}
                 >
                     {isPreviewActive ? (
                         <FormattedMessage
@@ -768,7 +768,7 @@ const GradientEditorApp = injectIntl(props => {
                                                 type="button"
                                                 onClick={() => handleDuplicateColor(index)}
                                                 className={styles.paletteBtn}
-                                                title="Duplicate color"
+                                                title={intl.formatMessage({defaultMessage: 'Duplicate color', id: 'tw.customThemes.gradientCreator.duplicateColor'})}
                                             >
                                                 <FormattedMessage
                                                     defaultMessage="Copy"
@@ -780,7 +780,7 @@ const GradientEditorApp = injectIntl(props => {
                                                     type="button"
                                                     onClick={() => handleRemoveColorStop(index)}
                                                     className={classNames(styles.paletteBtn, styles.paletteBtnDanger)}
-                                                    title="Remove color"
+                                                    title={intl.formatMessage({defaultMessage: 'Remove color', id: 'tw.customThemes.gradientBuilder.removeColor'})}
                                                 >
                                                     <FormattedMessage
                                                         defaultMessage="Remove"
@@ -912,7 +912,7 @@ const GradientEditorApp = injectIntl(props => {
                     className={classNames(styles.footerBtn, isPreviewActive && styles.footerBtnActive)}
                     onClick={handlePreview}
                     disabled={!name.trim()}
-                    title="Apply this theme to see how it looks"
+                    title={intl.formatMessage({defaultMessage: 'Apply this theme to see how it looks', id: 'tw.customThemes.gradientBuilder.applyPreview'})}
                 >
                     {isPreviewActive ? (
                         <FormattedMessage
@@ -1725,7 +1725,7 @@ class CustomThemeMenu extends React.Component {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `bilup-themes-${new Date().toISOString()
+            link.download = `pinewarp-themes-${new Date().toISOString()
                 .split('T')[0]}.json`;
             document.body.appendChild(link);
             link.click();
@@ -1742,7 +1742,7 @@ class CustomThemeMenu extends React.Component {
                 version: '2.0',
                 timestamp: Date.now(),
                 themes: [theme.export()],
-                platform: 'Bilup'
+                platform: 'PineWarp'
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json'
@@ -1820,7 +1820,7 @@ class CustomThemeMenu extends React.Component {
                         name="createName"
                         type="text"
                         defaultValue={this.state.createName}
-                        placeholder="My Custom Theme"
+                        placeholder={this.props.intl.formatMessage({defaultMessage: 'My Custom Theme', id: 'tw.customThemes.createDialog.namePlaceholder'})}
                         maxLength={50}
                     />
                 </div>
@@ -1834,7 +1834,7 @@ class CustomThemeMenu extends React.Component {
                     <textarea
                         name="createDescription"
                         defaultValue={this.state.createDescription}
-                        placeholder="A custom theme based on current settings"
+                        placeholder={this.props.intl.formatMessage({defaultMessage: 'A custom theme based on current settings', id: 'tw.customThemes.createDialog.descriptionPlaceholder'})}
                         maxLength={200}
                         rows={3}
                     />
@@ -1994,7 +1994,7 @@ class CustomThemeMenu extends React.Component {
                                                 e.stopPropagation();
                                                 this.handleEditGradientTheme(customTheme.uuid);
                                             }}
-                                            title="Edit gradient"
+                                            title={this.props.intl.formatMessage({defaultMessage: 'Edit gradient', id: 'tw.customThemes.editGradient'})}
                                         >
                                             <Edit className={styles.customThemeActionIcon} />
                                         </button>
@@ -2005,7 +2005,7 @@ class CustomThemeMenu extends React.Component {
                                             e.stopPropagation();
                                             this.handleExportSingleTheme(customTheme);
                                         }}
-                                        title="Export theme"
+                                        title={this.props.intl.formatMessage({defaultMessage: 'Export theme', id: 'tw.customThemes.exportTheme'})}
                                     >
                                         <Download className={styles.customThemeActionIcon} />
                                     </button>
@@ -2015,7 +2015,7 @@ class CustomThemeMenu extends React.Component {
                                             e.stopPropagation();
                                             this.handleDeleteTheme(customTheme.uuid, customTheme.name);
                                         }}
-                                        title="Delete theme"
+                                        title={this.props.intl.formatMessage({defaultMessage: 'Delete theme', id: 'tw.customThemes.deleteTheme'})}
                                     >
                                         <Trash className={styles.customThemeActionIcon} />
                                     </button>
@@ -2053,6 +2053,7 @@ class CustomThemeMenu extends React.Component {
 }
 
 CustomThemeMenu.propTypes = {
+    intl: intlShape.isRequired,
     isRtl: PropTypes.bool,
     onChangeTheme: PropTypes.func,
     theme: PropTypes.instanceOf(Theme),
@@ -2082,4 +2083,4 @@ const mapDispatchToProps = dispatch => ({
 export default connect(
     mapStateToProps,
     mapDispatchToProps
-)(CustomThemeMenu);
+)(injectIntl(CustomThemeMenu));

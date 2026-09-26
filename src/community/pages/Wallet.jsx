@@ -172,15 +172,24 @@ const Wallet = () => {
             ) : null}
 
             <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Buy credits</h2>
+                <h2 className={styles.sectionTitle}>{intl.formatMessage({id: 'mw.community.wallet.buyCredits', defaultMessage: 'Buy credits'})}</h2>
                 <p className={styles.sectionLead}>
-                    Top up through Stripe. Credits are added to your Rotur account after checkout.
+                    {intl.formatMessage({
+                        id: 'mw.community.wallet.topUpStripe',
+                        defaultMessage: 'Top up through Stripe. Credits are added to your Rotur account after checkout.'
+                    })}
                 </p>
                 {billingMsg ? (
                     <p className={styles.billingMsg}>
                         {billingMsg === 'success' ?
-                            'Payment successful. Credits will appear in your balance shortly.' :
-                            'Checkout cancelled.'}
+                            intl.formatMessage({
+                                id: 'mw.community.wallet.paymentSuccess',
+                                defaultMessage: 'Payment successful. Credits will appear in your balance shortly.'
+                            }) :
+                            intl.formatMessage({
+                                id: 'mw.community.wallet.checkoutCancelled',
+                                defaultMessage: 'Checkout cancelled.'
+                            })}
                     </p>
                 ) : null}
                 <div className={styles.tiers}>
@@ -194,16 +203,16 @@ const Wallet = () => {
                         >
                             <span className={styles.tierCredits}>
                                 {pack.credits.toLocaleString()}
-                                <span> credits</span>
+                                <span> {intl.formatMessage({id: 'mw.community.wallet.credits', defaultMessage: 'credits'})}</span>
                             </span>
                             <span className={styles.tierPrice}>${pack.price.toFixed(2)}</span>
                         </button>
                     ))}
                 </div>
-                {checkoutBusy ? <p className={styles.checkoutNote}>Opening secure Stripe checkout…</p> : null}
+                {checkoutBusy ? <p className={styles.checkoutNote}>{intl.formatMessage({id: 'mw.community.wallet.openingCheckout', defaultMessage: 'Opening secure Stripe checkout…'})}</p> : null}
                 {checkoutError ? <p className={styles.checkoutError}>{checkoutError}</p> : null}
                 {billing && !billing.billing_configured ? (
-                    <p className={styles.checkoutError}>Stripe billing is currently unavailable. Try again later.</p>
+                    <p className={styles.checkoutError}>{intl.formatMessage({id: 'mw.community.wallet.stripeUnavailable', defaultMessage: 'Stripe billing is currently unavailable. Try again later.'})}</p>
                 ) : null}
                 {billing && billing.stripe_portal ? (
                     <button
@@ -213,7 +222,7 @@ const Wallet = () => {
                         disabled={checkoutBusy}
                     >
                         <ExternalLink size={14} />
-                        Manage billing
+                        {intl.formatMessage({id: 'mw.community.wallet.manageBilling', defaultMessage: 'Manage billing'})}
                     </button>
                 ) : null}
             </section>

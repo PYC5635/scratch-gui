@@ -7,6 +7,7 @@ import VM from 'scratch-vm';
 import AudioEngine from 'scratch-audio';
 
 import {setProjectUnchanged} from '../../reducers/project-changed';
+import {applySkipAssetLoading} from '../mw-skip-asset-loading';
 import {
     LoadingStates,
     getIsLoadingWithId,
@@ -56,6 +57,9 @@ const vmManagerHOC = function (WrappedComponent) {
                 this.props.vm.initialized = true;
                 this.props.vm.setLocale(this.props.locale, this.props.messages);
             }
+            // Apply the "ignore costumes when loading projects" preference before
+            // any project load so the first project also opens without assets.
+            applySkipAssetLoading(this.props.vm);
             if (!this.props.isPlayerOnly && !this.props.isStarted) {
                 this.props.vm.start();
             }

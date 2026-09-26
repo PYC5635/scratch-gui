@@ -66,7 +66,7 @@ const tagStatusClass = {
     idle: styles.tagStatusDotIdle // 灰色：尚未获取到状态
 };
 
-const TagItem = ({tag, label, selected, onSelect, status, removable, onRemove}) => {
+const TagItem = injectIntl(({tag, label, selected, onSelect, status, removable, onRemove, intl}) => {
     const handleClick = React.useCallback(() => onSelect(tag), [onSelect, tag]);
     const handleRemove = React.useCallback(e => {
         e.stopPropagation();
@@ -82,7 +82,10 @@ const TagItem = ({tag, label, selected, onSelect, status, removable, onRemove}) 
         <button
             className={styles.tagRemoveButton}
             onClick={handleRemove}
-            title="Remove this gallery"
+            title={intl.formatMessage({
+                defaultMessage: 'Remove this gallery',
+                id: 'tw.extensionLibrary.removeGallery'
+            })}
             type="button"
         >
             <Trash2 size={14} />
@@ -97,9 +100,10 @@ const TagItem = ({tag, label, selected, onSelect, status, removable, onRemove}) 
             trailingAction={removeButton}
         />
     );
-};
+});
 
 TagItem.propTypes = {
+    intl: intlShape.isRequired,
     tag: PropTypes.string.isRequired,
     label: PropTypes.node.isRequired,
     selected: PropTypes.bool,
@@ -316,7 +320,7 @@ class TWExtensionLibrary extends React.Component {
         const sourceOf = item => item.source ||
             (item.tags.includes('rotur') ? 'rotur' : item.tags.includes('mistium') ? 'mistium' :
                 item.tags.includes('tw') ? 'tw' : item.tags.includes('sharkpool') ? 'sharkpool' :
-                item.tags.includes('ae') ? 'ae' : item.tags.includes('bilup') ? 'bilup' : 'scratch');
+                item.tags.includes('ae') ? 'ae' : item.tags.includes('pinewarp') ? 'pinewarp' : 'scratch');
         const sources = this.props.sources || [];
         const sections = sources.map(([source, sourceTitle]) => ({
             title: sourceTitle,

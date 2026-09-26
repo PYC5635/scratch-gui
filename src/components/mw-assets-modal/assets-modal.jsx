@@ -27,7 +27,9 @@ const messages = defineMessages({
 });
 
 const AssetsModal = props => {
-    const totalSize = props.assets.reduce((total, asset) => total + asset.size, 0);
+    const assets = props.assets || [];
+    const folders = props.folders || [];
+    const totalSize = assets.reduce((total, asset) => total + asset.size, 0);
     return (
         <Modal
             className={styles.modalContent}
@@ -91,7 +93,7 @@ const AssetsModal = props => {
                             description="Total file count and size of custom assets"
                             id="mw.assets.total"
                             values={{
-                                count: props.assets.length,
+                                count: assets.length,
                                 size: formatBytes(totalSize)
                             }}
                         />
@@ -100,7 +102,7 @@ const AssetsModal = props => {
 
                 <div className={styles.columns}>
                     <div className={styles.treeColumn}>
-                        {props.assets.length === 0 && props.folders.length === 0 ? (
+                        {assets.length === 0 && folders.length === 0 ? (
                             <div className={styles.empty}>
                                 <FormattedMessage
                                     // eslint-disable-next-line max-len
@@ -112,7 +114,7 @@ const AssetsModal = props => {
                         ) : null}
 
                         <AssetFolder
-                            node={buildTree(props.assets, props.folders)}
+                            node={buildTree(assets, folders)}
                             isRoot
                             selected={props.selected}
                             selectedIndex={props.selectedIndex}

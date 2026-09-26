@@ -284,7 +284,7 @@ class CustomThemesPage extends React.Component {
                 .split('T')[0];
             this.downloadJSON(
                 customThemeManager.exportAllThemes(),
-                `bilup-themes-${date}.json`
+                `pinewarp-themes-${date}.json`
             );
             this.setState({statusMessage: 'Exported all themes.'});
         } catch (error) {
@@ -302,7 +302,7 @@ class CustomThemesPage extends React.Component {
                 version: '2.0',
                 timestamp: Date.now(),
                 themes: [theme.export()],
-                platform: 'Bilup'
+                platform: 'PineWarp'
             }, `${theme.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-theme.json`);
         } catch (error) {
             await showAlert(this.props.intl.formatMessage({
@@ -424,7 +424,7 @@ class CustomThemesPage extends React.Component {
                     </h3>
                     <p className={styles.detail}>
                         <FormattedMessage
-                            defaultMessage="Create one from your current look, build a gradient, or browse BilupTheme."
+                            defaultMessage="Create one from your current look, build a gradient, or browse PineWarpTheme."
                             id="mw.customThemes.empty.hint"
                         />
                     </p>
@@ -723,7 +723,7 @@ class CustomThemesPage extends React.Component {
                         </h3>
                         <p className={styles.detail}>
                             <FormattedMessage
-                                defaultMessage="Load themes from a Bilup file."
+                                defaultMessage="Load themes from a PineWarp file."
                                 id="mw.customThemes.import.hint"
                             />
                         </p>
@@ -777,8 +777,8 @@ class CustomThemesPage extends React.Component {
                             <div className={styles.ctActionBody}>
                                 <h3>
                                     <FormattedMessage
-                                        defaultMessage="BilupTheme Marketplace"
-                                        id="mw.menu.biluptheme"
+                                        defaultMessage="PineWarpTheme Marketplace"
+                                        id="mw.menu.pinewarptheme"
                                     />
                                 </h3>
                                 <p className={styles.detail}>

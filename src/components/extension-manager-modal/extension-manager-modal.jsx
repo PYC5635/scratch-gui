@@ -32,6 +32,21 @@ const messages = defineMessages({
         defaultMessage: '{count} loaded extensions',
         description: 'Text shown when multiple extensions are loaded',
         id: 'tw.extensionManager.multipleExtensionsLoaded'
+    },
+    selectMultiple: {
+        defaultMessage: 'Select Multiple',
+        description: 'Button to enable multi-select in the extension manager',
+        id: 'tw.extensionManager.selectMultiple'
+    },
+    cancel: {
+        defaultMessage: 'Cancel',
+        description: 'Button to cancel multi-select in the extension manager',
+        id: 'tw.extensionManager.cancel'
+    },
+    delete: {
+        defaultMessage: 'Delete',
+        description: 'Button to delete the selected extensions',
+        id: 'tw.extensionManager.delete'
     }
 });
 
@@ -316,7 +331,7 @@ const ExtensionManagerModal = props => {
                             onClick={changeMultiSelectState}
                             type="button"
                         >
-                            {'Select Multiple'}
+                            {props.intl.formatMessage(messages.selectMultiple)}
                         </button>
                     </Box>
                 )}
@@ -328,7 +343,7 @@ const ExtensionManagerModal = props => {
                             onClick={changeMultiSelectState}
                             type="button"
                         >
-                            {'Cancel'}
+                            {props.intl.formatMessage(messages.cancel)}
                         </button>
                         <button
                             className={styles.multiSelectDelete}
@@ -336,7 +351,7 @@ const ExtensionManagerModal = props => {
                             disabled={selectedExtensions.length === 0}
                             type="button"
                         >
-                            {'Delete'}
+                            {props.intl.formatMessage(messages.delete)}
                         </button>
                     </Box>
                 )}

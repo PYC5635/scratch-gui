@@ -656,7 +656,7 @@ const EvidenceDetails = ({data}) => {
             <iframe
                 className={styles.evidenceStage}
                 src={embedUrl({projectJsonUrl: data.projectJsonUrl, assetsBase: data.assetsBase})}
-                title="Reported project copy"
+                title={t('mw.community.admin.reportedProjectCopy', 'Reported project copy')}
                 sandbox="allow-scripts allow-pointer-lock"
             />
         </div>
@@ -1018,7 +1018,7 @@ const Admin = () => {
         const who = report.type === 'project' ?
             t('mw.community.admin.ownerOfProject', 'the owner of this project') :
             `@${report.target}`;
-        if (!window.confirm(t('mw.community.admin.banWhoConfirm', 'Ban {who}? They will be locked out of Bilup until unbanned.', {who}))) return;
+        if (!window.confirm(t('mw.community.admin.banWhoConfirm', 'Ban {who}? They will be locked out of PineWarp until unbanned.', {who}))) return;
         act(report.id, 'ban_user');
     };
 

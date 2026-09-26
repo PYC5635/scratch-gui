@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import {defineMessages, injectIntl, intlShape} from 'react-intl';
+import {defineMessages, injectIntl, intlShape, FormattedMessage} from 'react-intl';
 import {publishToMistWarp, captureThumbnailDataUri, prepareThumbnailBlob} from '../../lib/community/publish.js';
 import {request} from '../../lib/community/api.js';
 import styles from './share-window.css';
@@ -24,13 +24,13 @@ const messages = defineMessages({
     savedAndShared: {id: 'mw.share.savedAndShared', defaultMessage: 'Your project is saved and shared.'},
     savedPrivate: {
         id: 'mw.share.savedPrivate',
-        defaultMessage: 'Your project is saved to Bilup. It stays private until you share it from its project page.'
+        defaultMessage: 'Your project is saved to PineWarp. It stays private until you share it from its project page.'
     },
     close: {id: 'mw.share.close', defaultMessage: 'Close'},
     openProjectPage: {id: 'mw.share.openProjectPage', defaultMessage: 'Open project page'},
     updateDescription: {
         id: 'mw.share.updateDescription',
-        defaultMessage: 'Upload the current version of this project to Bilup. The title and thumbnail stay as they are; edit those on the project page.'
+        defaultMessage: 'Upload the current version of this project to PineWarp. The title and thumbnail stay as they are; edit those on the project page.'
     },
     title: {id: 'mw.share.title', defaultMessage: 'Title'},
     untitled: {id: 'mw.share.untitled', defaultMessage: 'Untitled'},
@@ -38,7 +38,13 @@ const messages = defineMessages({
     thumbnailAlt: {id: 'mw.share.thumbnailAlt', defaultMessage: 'Project thumbnail'},
     noPreview: {id: 'mw.share.noPreview', defaultMessage: 'No preview'},
     useCurrentCanvas: {id: 'mw.share.useCurrentCanvas', defaultMessage: 'Use current canvas'},
-    uploadImage: {id: 'mw.share.uploadImage', defaultMessage: 'Upload an image'}
+    uploadImage: {id: 'mw.share.uploadImage', defaultMessage: 'Upload an image'},
+    progressCreatingRemix: {id: 'mw.share.progress.creatingRemix', defaultMessage: 'Creating remix'},
+    progressCreatingProject: {id: 'mw.share.progress.creatingProject', defaultMessage: 'Creating project'},
+    progressPackagingProject: {id: 'mw.share.progress.packagingProject', defaultMessage: 'Packaging project'},
+    progressUploadingProject: {id: 'mw.share.progress.uploadingProject', defaultMessage: 'Uploading project'},
+    progressProcessingOnServer: {id: 'mw.share.progress.processingOnServer', defaultMessage: 'Processing on server'},
+    progressUploadingPercent: {id: 'mw.share.progress.uploadingPercent', defaultMessage: 'Uploading {percent}%'}
 });
 
 class ShareWindow extends React.Component {
@@ -135,7 +141,15 @@ class ShareWindow extends React.Component {
                 title: isUpdate ? null : (this.state.title || this.props.intl.formatMessage(messages.untitled)),
                 thumbnailBlob,
                 updateOnly: isUpdate,
-                onProgress: ({message}) => this.setState({status: message})
+                onProgress: ({message}) => this.setState({status: message}),
+                progressMessages: {
+                    creatingRemix: this.props.intl.formatMessage(messages.progressCreatingRemix),
+                    creatingProject: this.props.intl.formatMessage(messages.progressCreatingProject),
+                    packagingProject: this.props.intl.formatMessage(messages.progressPackagingProject),
+                    uploadingProject: this.props.intl.formatMessage(messages.progressUploadingProject),
+                    processingOnServer: this.props.intl.formatMessage(messages.progressProcessingOnServer),
+                    uploadingPercent: this.props.intl.formatMessage(messages.progressUploadingPercent)
+                }
             });
             this.setState({status: null, done: result});
             this.props.onPublished(result);

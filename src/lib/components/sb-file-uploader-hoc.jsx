@@ -8,7 +8,6 @@ import sharedMessages from '../constants/shared-messages';
 import {setFileHandle, setProjectError} from '../../reducers/tw';
 import unpackage from '../unpackager';
 import RestorePointAPI from '../api/restore-points';
-import {resetLoadTiming, markLoadStage, reportLoadTiming} from '../utils/project-load-timing';
 
 import {
     LoadingStates,
@@ -151,10 +150,6 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                     console.log('[SBFileUploader] Step 3: User confirmation:', uploadAllowed);
                 }
                 if (uploadAllowed) {
-                    // Start of the user-visible load: everything up to the moment the
-                    // loading overlay closes is measured from here.
-                    resetLoadTiming();
-                    markLoadStage('file-selected');
                     // Don't update file handle until after confirming replace.
                     const handle = thisFileInput.handle;
                     if (handle) {
@@ -212,20 +207,11 @@ const SBFileUploaderHOC = function (WrappedComponent) {
             console.log('[SBFileUploader] Step 6: File reader onload triggered');
             if (this.fileReader) {
                 this.props.onLoadingStarted();
-                markLoadStage('file-read');
                 const filename = this.fileToUpload && this.fileToUpload.name;
                 let loadingSuccess = false;
-                // Snapshot the project that is about to be replaced before the VM
-                // changes, but write it out afterwards. The database half of a
-                // restore point (a row per asset, then a scan of the whole store)
-                // is the slow part and nothing is waiting on it, so it does not
-                // belong between the user choosing a file and the project loading.
-                let safetyRestorePoint = null;
                 if (this.props.projectChanged) {
-                    safetyRestorePoint = await RestorePointAPI.captureSafetyRestorePoint(
-                        this.props.vm, this.props.projectTitle);
+                    await RestorePointAPI.createSafetyRestorePoint(this.props.vm, this.props.projectTitle);
                 }
-                markLoadStage('restore-point');
                 // tw: stop when loading new project
                 console.log('[SBFileUploader] Step 6: Quitting VM before loading new project');
                 this.props.vm.quit();
@@ -255,7 +241,6 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                 this.props.vm.loadProject(loadedBytes, {mwCanTrustProject: true})
                     .then(async () => {
                         console.log('[SBFileUploader] Step 6: VM loadProject succeeded');
-                        markLoadStage('vm-load');
                         if (filename) {
                             const uploadedProjectTitle = this.getProjectTitleFromFilename(filename);
                             this.props.onSetProjectTitle(uploadedProjectTitle);
@@ -314,7 +299,6 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                         } catch (gitError) {
                             log.error('Failed to restore embedded git history:', gitError);
                         }
-                        markLoadStage('git-import');
                         loadingSuccess = true;
                     })
                     .catch(error => {
@@ -324,12 +308,6 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                     })
                     .then(() => {
                         console.log('[SBFileUploader] Step 6: Loading finished, success:', loadingSuccess);
-                        // Write the snapshot taken before the load now that the
-                        // editor is about to become interactive. Deliberately not
-                        // awaited -- see captureSafetyRestorePoint.
-                        if (safetyRestorePoint) {
-                            RestorePointAPI.writeSafetyRestorePoint(safetyRestorePoint);
-                        }
                         this.props.onLoadingFinished(this.props.loadingState, loadingSuccess);
                         // go back to step 7: whether project loading succeeded
                         // or failed, reset file objects
@@ -453,10 +431,6 @@ const SBFileUploaderHOC = function (WrappedComponent) {
         // transition project state from loading to regular, and close
         // loading screen and file menu
         onLoadingFinished: (loadingState, success) => {
-            // The overlay closing is the end of the load as far as the user is
-            // concerned, so this is where the stage breakdown is reported.
-            markLoadStage('overlay-closed');
-            reportLoadTiming();
             dispatch(onLoadedProject(loadingState, ownProps.canSave, success));
             dispatch(closeLoadingProject());
             dispatch(closeFileMenu());

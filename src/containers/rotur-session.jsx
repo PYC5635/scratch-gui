@@ -1,14 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
-import {injectIntl} from 'react-intl';
 import bindAll from 'lodash.bindall';
 
 import {
     syncActivity,
-    clearActivity,
-    subscribeNotifications,
-    subscribeNotificationRemovals
+    clearActivity
 } from '../lib/rotur/client.js';
 import {
     subscribe as subscribeIdentity,
@@ -30,20 +27,16 @@ import {
 } from '../reducers/rotur.js';
 import {closeModal} from '../reducers/modals.js';
 import {setTheme} from '../reducers/theme.js';
-import {detectTheme, applyThemeVisuals} from '../lib/themes/themePersistance.js';
+import {detectTheme, applyTheme} from '../lib/themes/themePersistance.js';
 import {customThemeManager} from '../lib/themes/custom-themes.js';
 import {applyLayout} from '../lib/mw-menu-bar-layout.js';
-// Imported from the leaf module rather than from ../lib/git/browser-terminal:
-// browser-terminal pulls in just-bash and browser-git (isomorphic-git +
-// lightning-fs + JSZip), and this container is in the initial bundle, so doing
-// so forced every user to download and parse those megabytes at startup.
 import {setShellUser} from '../lib/git/shell-user';
 import describeActivity from '../lib/collaboration/describe-activity.js';
 import {setProjectAuthor} from '../lib/mw-project-metadata.js';
 
 /**
- * Headless container: restores Bilup Accounts session, exposes login/logout, and
- * keeps Bilup Accounts activity in sync with the project title.
+ * Headless container: restores PineWarp Accounts session, exposes login/logout, and
+ * keeps PineWarp Accounts activity in sync with the project title.
  */
 class RoturSession extends React.Component {
     constructor (props) {
@@ -52,9 +45,6 @@ class RoturSession extends React.Component {
             'handleLogin',
             'handleLogout',
             'handleIdentityChange',
-            'handleNotificationPush',
-            'ensureNotificationSubscription',
-            'clearNotificationSubscription',
             'syncCurrentActivity',
             'refreshPlatformProjectLink',
             'syncProjectAuthor',
@@ -63,7 +53,6 @@ class RoturSession extends React.Component {
         ]);
         this.unsubscribeSettings = null;
         this.unsubscribeIdentity = null;
-        this.unsubscribeNotifications = null;
         this.editingSince = Date.now();
         this.platformProjectUrl = null;
         this.checkedPlatformId = null;
@@ -121,7 +110,6 @@ class RoturSession extends React.Component {
             this.unsubscribeIdentity();
             this.unsubscribeIdentity = null;
         }
-        this.clearNotificationSubscription();
         setRoturSessionApi(null);
     }
 
@@ -132,44 +120,9 @@ class RoturSession extends React.Component {
             this.editingSince = Date.now();
             this.props.onSetUser(next.user);
             this.applyCloudPreferences().then(() => this.syncCurrentActivity());
-            this.ensureNotificationSubscription();
         } else if (!next.user && hadUser) {
             clearActivity();
-            this.clearNotificationSubscription();
             this.props.onClear();
-        }
-    }
-
-    handleNotificationPush (notification) {
-        if (!notification || notification.read) {
-            return;
-        }
-        window.dispatchEvent(new CustomEvent('mw:notifications-push', {detail: notification}));
-    }
-
-    handleNotificationRemoved (payload) {
-        if (!payload || typeof payload.id !== 'string') {
-            return;
-        }
-        window.dispatchEvent(new CustomEvent('mw:notifications-removed', {detail: payload}));
-    }
-
-    ensureNotificationSubscription () {
-        if (this.unsubscribeNotifications) {
-            return;
-        }
-        this.unsubscribeNotifications = subscribeNotifications(this.handleNotificationPush);
-        this.unsubscribeNotificationRemovals = subscribeNotificationRemovals(this.handleNotificationRemoved);
-    }
-
-    clearNotificationSubscription () {
-        if (this.unsubscribeNotifications) {
-            this.unsubscribeNotifications();
-            this.unsubscribeNotifications = null;
-        }
-        if (this.unsubscribeNotificationRemovals) {
-            this.unsubscribeNotificationRemovals();
-            this.unsubscribeNotificationRemovals = null;
         }
     }
 
@@ -195,7 +148,7 @@ class RoturSession extends React.Component {
             try {
                 const theme = detectTheme();
                 this.props.onSetTheme(theme);
-                applyThemeVisuals(theme);
+                applyTheme(theme);
             } catch (e) {
                 // eslint-disable-next-line no-console
                 console.warn('[Rotur] Failed to re-apply theme from cloud', e);
@@ -252,7 +205,7 @@ class RoturSession extends React.Component {
     }
 
     /**
-     * What to publish as our Bilup Accounts presence right now.
+     * What to publish as our PineWarp Accounts presence right now.
      * @returns {object} The activity context.
      */
     currentActivityContext () {
@@ -265,9 +218,7 @@ class RoturSession extends React.Component {
             doing: describeActivity(vm, target ? {
                 targetId: target.id,
                 tab: this.props.activeTabIndex
-            } : null, this.props.intl ? (
-                (descriptor, values) => this.props.intl.formatMessage(descriptor, values)
-            ) : null),
+            } : null),
             editingSince: this.editingSince
         };
     }
@@ -349,4 +300,4 @@ const mapDispatchToProps = dispatch => ({
 export default connect(
     mapStateToProps,
     mapDispatchToProps
-)(injectIntl(RoturSession));
+)(RoturSession);

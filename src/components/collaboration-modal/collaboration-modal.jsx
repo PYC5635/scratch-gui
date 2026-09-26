@@ -631,7 +631,10 @@ class CollaborationModal extends Component {
                         <button
                             className={styles.editUsernameButton}
                             onClick={this.props.onOpenChangeUsername}
-                            title="Change username"
+                            title={this.props.intl.formatMessage({
+                                defaultMessage: 'Change username',
+                                id: 'gui.collaboration.changeUsername'
+                            })}
                         >
                             <PenLine size={16} />
                         </button>
