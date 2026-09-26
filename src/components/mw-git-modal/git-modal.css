@@ -282,8 +282,34 @@
 }
 
 /* Commit box */
+.commitTypeRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.commitTypeSelect {
+    flex: 0 0 auto;
+    width: 140px;
+    min-width: 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid $ui-black-transparent;
+    background: $ui-primary;
+    color: $text-primary;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+.commitTypeSelect:focus {
+    outline: none;
+    border-color: $looks-secondary;
+}
+
 .commitBox {
-    width: 100%;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
     min-height: 64px;
     resize: vertical;
     padding: 0.6rem;
@@ -294,6 +320,11 @@
     font-family: inherit;
     font-size: 0.85rem;
     box-sizing: border-box;
+}
+
+.commitBox:focus {
+    outline: none;
+    border-color: $looks-secondary;
 }
 
 /* Fields */
@@ -418,55 +449,121 @@
     box-sizing: border-box;
 }
 
-/* Commit history */
+/* Commit history — VS Code / Git Graph style rows: a continuous background
+   graph (one svg for the whole list) + two-line rows on top of it. */
+.commitList {
+    list-style: none;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.historyWrap {
+    position: relative;
+}
+
+.historyGraph {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+}
+
 .commitRow {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.5rem;
+    padding: 0 0.35rem 0 0;
+    height: 42px;
     border-radius: 6px;
-    border: 1px solid transparent;
+    cursor: pointer;
+    box-sizing: border-box;
 }
 
 .commitRow:hover {
-    background: $ui-tertiary;
+    background: rgba(127, 135, 150, 0.14);
 }
 
 .commitRowSelected {
-    border-color: $looks-secondary;
-    background: color-mix(in srgb, $looks-secondary 8%, transparent);
+    background: color-mix(in srgb, $looks-secondary 18%, transparent);
+}
+
+.commitRowSelected:hover {
+    background: color-mix(in srgb, $looks-secondary 26%, transparent);
 }
 
 .commitMain {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    justify-content: center;
+    gap: 0.1rem;
     flex: 1;
-    cursor: pointer;
+    min-width: 0;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    overflow: hidden;
+}
+
+.commitMessageRow {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     min-width: 0;
 }
 
 .commitMessage {
-    font-size: 0.85rem;
+    font-size: 0.83rem;
+    font-weight: 500;
+    line-height: 1.35;
     color: $text-primary;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
 }
 
-.commitMeta {
+.commitChips {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.commitMetaRow {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    flex-wrap: wrap;
+    gap: 0.45rem;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.commitAuthor {
+    color: $text-primary;
+    opacity: 0.8;
+}
+
+.commitMetaSep {
+    color: $text-primary;
+    opacity: 0.35;
+}
+
+.commitTime {
+    color: $text-primary;
+    opacity: 0.55;
 }
 
 .commitHash {
     font-family: monospace;
-    font-size: 0.72rem;
-    opacity: 0.6;
+    font-size: 0.7rem;
     color: $text-primary;
+    opacity: 0.45;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .branchChip {
@@ -475,12 +572,151 @@
     border-radius: 8px;
     color: white;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.4;
+}
+
+/* Type colouring of branch labels: local branches are blue, remote-tracking
+   refs ("origin/main") purple — a pulled branch shows both chips side by side. */
+.branchChipLocal {
+    background: #2563eb;
+}
+
+.branchChipRemote {
+    background: #7c3aed;
+}
+
+.readOnlyTag {
+    font-size: 0.72rem;
+    color: $text-primary;
+    opacity: 0.5;
 }
 
 .commitActions {
     display: flex;
     gap: 0.2rem;
     flex-shrink: 0;
+    opacity: 0.45;
+    transition: opacity 0.12s ease;
+    padding-left: 0.25rem;
+}
+
+.commitRow:hover .commitActions,
+.commitRowSelected .commitActions {
+    opacity: 1;
+}
+
+/* Commit detail panel (below the list) */
+.commitDetail {
+    margin-top: 1rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid $ui-black-transparent;
+    background: $ui-primary;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.detailHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.detailSubject {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-primary;
+    flex: 1 1 auto;
+    word-break: break-word;
+}
+
+.detailHash {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: $ui-tertiary;
+    color: $text-primary;
+    opacity: 0.8;
+    flex: 0 0 auto;
+}
+
+.detailBody {
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border-radius: 6px;
+    background: $ui-tertiary;
+    color: $text-primary;
+    font-family: monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.detailGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.detailRow {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.detailLabel {
+    flex: 0 0 80px;
+    font-weight: 600;
+    color: $text-primary;
+    opacity: 0.65;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+}
+
+.detailValue {
+    flex: 1 1 auto;
+    color: $text-primary;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.detailMuted {
+    color: $text-primary;
+    opacity: 0.55;
+    font-family: monospace;
+    font-size: 0.78rem;
+}
+
+.detailParent {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    background: $ui-tertiary;
+    color: $text-primary;
+    font-size: 0.72rem;
+    margin-right: 0.3rem;
+}
+
+.detailParentLink {
+    cursor: pointer;
+}
+
+.detailParentLink:hover {
+    background: color-mix(in srgb, $looks-secondary 20%, transparent);
 }
 
 .currentTag {
@@ -566,6 +802,21 @@
     height: 20px;
     opacity: 0.6;
     flex-shrink: 0;
+}
+
+.remoteLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.82rem;
+    color: $looks-secondary;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 0.15rem;
+}
+
+.remoteLink:hover {
+    text-decoration: underline;
 }
 
 /* Merge / conflicts */
@@ -713,4 +964,168 @@
     color: #c62828;
     font-size: 0.82rem;
     word-break: break-word;
+}
+
+.successBar {
+    padding: 0.6rem 1.5rem;
+    background: color-mix(in srgb, #2e7d32 14%, transparent);
+    color: #2e7d32;
+    font-size: 0.82rem;
+    word-break: break-word;
+}
+
+.hiddenInput {
+    display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Staging area (decision D2).
+   The changes list is split into "Staged changes" and "Changes" groups, each
+   row carrying a real checkbox that moves the path in or out of the index.
+   Appended last so none of the frozen rules above are touched.
+   --------------------------------------------------------------------------- */
+
+.changeGroup {
+    margin-top: 0.85rem;
+}
+
+.changeGroupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.15rem;
+}
+
+.changeGroupTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $text-primary;
+}
+
+.changeCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: $ui-tertiary;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.linkButton {
+    border: none;
+    background: none;
+    padding: 0.15rem 0.25rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: $looks-secondary;
+    cursor: pointer;
+}
+
+.linkButton:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.linkButton:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.changeCheckbox {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: $looks-secondary;
+    cursor: pointer;
+}
+
+/* Renamed files read as a single entry: "old → new". */
+.badgeRename {
+    background: #0277bd;
+}
+
+.filePathOld {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+.filePathArrow {
+    margin: 0 0.35rem;
+    opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   Sync banner (decision D3): drift between the checked-out branch and its
+   upstream, so Push / Pull never has to be guessed at.
+   --------------------------------------------------------------------------- */
+
+.syncBar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: -0.35rem 0 0.85rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    background: $ui-tertiary;
+    font-size: 0.75rem;
+}
+
+.syncText {
+    flex: 1;
+    color: $text-primary;
+    opacity: 0.85;
+    word-break: break-all;
+}
+
+.syncCount {
+    flex-shrink: 0;
+    font-family: monospace;
+    font-weight: 700;
+}
+
+.syncAhead {
+    color: #2e7d32;
+}
+
+.syncBehind {
+    color: #c62828;
+}
+
+/* ---------------------------------------------------------------------------
+   Detached HEAD banner.
+   HEAD holding a raw commit is a dead end in this product: the commit can be
+   neither pushed nor seen on a branch. The window used to show only "no branch
+   (detached HEAD)" in the Remote view, with no way back — the recovery picker
+   below is the way out. Appended last so none of the frozen rules above move.
+   --------------------------------------------------------------------------- */
+.detachedBar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1.5rem;
+    background: color-mix(in srgb, #ff8c1a 18%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, #ff8c1a 45%, transparent);
+}
+
+.detachedText {
+    flex: 1;
+    color: #8a4b00;
+    font-size: 0.82rem;
+    word-break: break-word;
+}
+
+.detachedSelect {
+    flex-shrink: 0;
+    max-width: 14rem;
 }

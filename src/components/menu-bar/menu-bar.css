@@ -82,12 +82,6 @@
     display: block;
 }
 
-.home-wordmark {
-    font-weight: 800;
-    font-size: 19px;
-    letter-spacing: -0.02em;
-}
-
 .menu-bar-item {
     display: flex;
     text-decoration: none;

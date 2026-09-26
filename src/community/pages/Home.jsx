@@ -9,7 +9,7 @@ import Avatar from '../components/Avatar.jsx';
 import Button from '../components/ui/Button.jsx';
 import ProjectCard from '../components/ProjectCard.jsx';
 import NewsItem from '../components/NewsItem.jsx';
-import logo from '../assets/bilup-logo.svg';
+import logo from '../assets/bilup-icon.svg';
 import styles from './Home.module.css';
 
 // Format a timestamp as "YYYY-MM-DD HH:mm" (e.g. 2026-08-07 14:30).

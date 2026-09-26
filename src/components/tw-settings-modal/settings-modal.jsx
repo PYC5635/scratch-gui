@@ -26,13 +26,14 @@ import MenuBarLayoutSetting from './menu-bar-layout.jsx';
 import MenuBarFeatureSettings from './menu-bar-settings.jsx';
 import {LanguagePage, ThemePage, WallpaperPage, FontsPage} from './appearance-pages.jsx';
 import LoadingScreenPage from './loading-screen-page.jsx';
+import FrostedGlassPage from './frosted-glass-page.jsx';
 import ShortcutManager from '../shortcut-manager/shortcut-manager.jsx';
 import {takeSettingsModalInitialView} from '../../lib/settings/modal-view.js';
 import isScratchDesktop from '../../lib/utils/isScratchDesktop.js';
 
 import {Settings, Zap, Blocks, Palette, PanelTop, Bug, GitBranch, Variable, Radio,
     Globe, SunMoon, Wallpaper, Type, Monitor, Keyboard, ChevronLeft,
-    Hourglass} from 'lucide-react';
+    Hourglass, Droplets} from 'lucide-react';
 import {connect} from 'react-redux';
 
 import {DEFINITIONS as DEBUGGER_SETTINGS, getSetting as getDebuggerSetting,
@@ -41,7 +42,7 @@ import {DEFINITIONS as VARIABLE_MANAGER_SETTINGS, getSetting as getVariableManag
     setSetting as setVariableManagerSetting} from '../../lib/variable-manager/settings.js';
 import {
     getAuthorName, getAuthorEmail, setAuthorName, setAuthorEmail,
-    getDefaultBranch, setDefaultBranch, getAutoCommit, setAutoCommit
+    getDefaultBranch, setDefaultBranch
 } from '../../lib/git/config.js';
 import {
     getRoturSettings,
@@ -452,16 +453,18 @@ const settingDefinitions = {
             id: 'mw.settingsModal.windowAnimationHelp'
         }
     },
-    frostedGlass: {
+    scriptLazyLoading: {
         label: {
-            defaultMessage: 'Frosted Glass Theme',
-            description: 'Frosted Glass Theme setting',
-            id: 'mw.settingsModal.frostedGlass'
+            defaultMessage: 'Block Lazy Loading',
+            description: 'Only render blocks near the visible area of the editor',
+            id: 'mw.settingsModal.scriptLazyLoading'
         },
         help: {
-            defaultMessage: 'Applies a frosted glass blur effect to the editor UI, blocks palette, and stage area. Only affects the editor.',
-            description: 'Frosted Glass Theme setting help',
-            id: 'mw.settingsModal.frostedGlassHelp'
+            defaultMessage: 'Only renders blocks on screen and in the area around it ' +
+                '(the ring outside the screen is three times its area). Blocks beyond that ' +
+                'stop being rendered to save performance, and render again when you scroll back.',
+            description: 'Block Lazy Loading setting help',
+            id: 'mw.settingsModal.scriptLazyLoadingHelp'
         }
     },
     squareStageCorners: {
@@ -627,7 +630,7 @@ const CaseSensitiveLists = createBooleanSetting('CaseSensitiveLists', settingDef
 const RealLayerIndexes = createBooleanSetting('RealLayerIndexes', settingDefinitions.realLayerIndexes);
 const EnableStageResize = createBooleanSetting('EnableStageResize', settingDefinitions.enableStageResize);
 const WindowAnimation = createBooleanSetting('WindowAnimation', settingDefinitions.windowAnimation);
-const FrostedGlass = createBooleanSetting('FrostedGlass', settingDefinitions.frostedGlass);
+const ScriptLazyLoading = createBooleanSetting('ScriptLazyLoading', settingDefinitions.scriptLazyLoading);
 const SquareStageCorners = createBooleanSetting('SquareStageCorners', settingDefinitions.squareStageCorners);
 const HideDeleteButton = createBooleanSetting('HideDeleteButton', settingDefinitions.hideDeleteButton);
 const HideExtensionButton = createBooleanSetting('HideExtensionButton', settingDefinitions.hideExtensionButton);
@@ -665,7 +668,6 @@ DisableCompiler.propTypes = {
     value: PropTypes.bool,
     onChange: PropTypes.func.isRequired
 };
-
 const STYLE_OPTIONS = {
     'tab-style': [
         {value: 'mistwarp', labelId: 'mw.settingsModal.tabStyle.mistwarp', label: 'MistWarp'},
@@ -1272,9 +1274,8 @@ const pageConfigurations = {
         ]
     },
     experimental: {
-        sections: [
+        groups: [
             {
-                headerMessage: 'headerExperimental',
                 settings: [
                     {
                         component: RealLayerIndexes,
@@ -1289,7 +1290,11 @@ const pageConfigurations = {
                             value: props.caseSensitiveLists,
                             onChange: props.onCaseSensitiveListsChange
                         })
-                    },
+                    }
+                ]
+            },
+            {
+                settings: [
                     {
                         component: EnableStageResize,
                         props: props => ({
@@ -1303,12 +1308,16 @@ const pageConfigurations = {
                             value: props.windowAnimation,
                             onChange: props.onWindowAnimationChange
                         })
-                    },
+                    }
+                ]
+            },
+            {
+                settings: [
                     {
-                        component: FrostedGlass,
+                        component: ScriptLazyLoading,
                         props: props => ({
-                            value: props.frostedGlass,
-                            onChange: props.onFrostedGlassChange
+                            value: props.scriptLazyLoading,
+                            onChange: props.onScriptLazyLoadingChange
                         })
                     }
                 ]
@@ -1347,14 +1356,46 @@ UnwrappedPageRenderer.propTypes = {
     config: PropTypes.object.isRequired,
     intl: intlShape.isRequired
 };
-
 const PageRenderer = injectIntl(UnwrappedPageRenderer);
+
+const UnwrappedExperimentalRenderer = ({config, intl, ...props}) => (
+    <Box className={styles.body}>
+        <Header>{intl.formatMessage(messages.headerExperimental)}</Header>
+        {config.groups.map((group, groupIdx) => (
+            <div
+                key={groupIdx}
+                className={styles.experimentalGroup}
+            >
+                {group.settings.map((setting, settingIdx) => {
+                    if (setting.condition && !setting.condition(props)) {
+                        return null;
+                    }
+                    const SettingComponent = setting.component;
+                    const settingProps = setting.props(props);
+                    return (
+                        <SettingComponent
+                            key={settingIdx}
+                            {...settingProps}
+                            intl={intl}
+                        />
+                    );
+                })}
+            </div>
+        ))}
+    </Box>
+);
+
+UnwrappedExperimentalRenderer.propTypes = {
+    config: PropTypes.object.isRequired,
+    intl: intlShape.isRequired
+};
+const ExperimentalRenderer = injectIntl(UnwrappedExperimentalRenderer);
 
 const GeneralPage = props => (<PageRenderer
     config={pageConfigurations.general}
     {...props}
 />);
-const ExperimentalPage = props => (<PageRenderer
+const ExperimentalPage = props => (<ExperimentalRenderer
     config={pageConfigurations.experimental}
     {...props}
 />);
@@ -1421,14 +1462,12 @@ class UnwrappedVersionControlPage extends React.Component {
         bindAll(this, [
             'handleNameChange',
             'handleEmailChange',
-            'handleBranchChange',
-            'handleAutoCommitChange'
+            'handleBranchChange'
         ]);
         this.state = {
             authorName: getAuthorName(),
             authorEmail: getAuthorEmail(),
-            defaultBranch: getDefaultBranch(),
-            autoCommit: getAutoCommit()
+            defaultBranch: getDefaultBranch()
         };
     }
     handleNameChange (value) {
@@ -1442,11 +1481,6 @@ class UnwrappedVersionControlPage extends React.Component {
     handleBranchChange (value) {
         setDefaultBranch(value);
         this.setState({defaultBranch: getDefaultBranch()});
-    }
-    handleAutoCommitChange (e) {
-        const value = e.target.checked;
-        setAutoCommit(value);
-        this.setState({autoCommit: value});
     }
     render () {
         const {intl} = this.props;
@@ -1495,19 +1529,6 @@ class UnwrappedVersionControlPage extends React.Component {
                     value={this.state.defaultBranch}
                     onSubmit={this.handleBranchChange}
                     placeholder={intl.formatMessage(messages.defaultBranchPlaceholder)}
-                />
-                <BooleanSetting
-                    value={this.state.autoCommit}
-                    onChange={this.handleAutoCommitChange}
-                    label={<FormattedMessage
-                        defaultMessage="Commit automatically when the project is saved"
-                        id="mw.settings.vc.autoCommit"
-                    />}
-                    help={<FormattedMessage
-                        // eslint-disable-next-line max-len
-                        defaultMessage="Creates a commit each time you save the project so your history stays up to date without manual commits."
-                        id="mw.settings.vc.autoCommitHelp"
-                    />}
                 />
             </Box>
         );
@@ -2056,6 +2077,8 @@ const SettingsRouter = ({view, ...handlers}) => {
         return <WallpaperPage />;
     case 'fonts':
         return <FontsPage />;
+    case 'frostedGlass':
+        return <FrostedGlassPage />;
     case 'loadingScreen':
         return <LoadingScreenPage />;
     case 'debugger':
@@ -2171,6 +2194,11 @@ class SettingsModalComponent extends React.Component {
                         id: 'fonts',
                         label: intl.formatMessage({id: 'tw.menuBar.fonts', defaultMessage: 'Fonts'}),
                         icon: Type
+                    },
+                    {
+                        id: 'frostedGlass',
+                        label: intl.formatMessage({id: 'bl.frostedGlass.pageTitle', defaultMessage: 'Frosted Glass'}),
+                        icon: Droplets
                     },
                     {
                         id: 'editor',
@@ -2300,9 +2328,9 @@ class SettingsModalComponent extends React.Component {
                         >
                             <ChevronLeft size={18} />
                             <FormattedMessage
-                                defaultMessage="Settings"
+                                defaultMessage="Back"
                                 description="Back button in the settings window on mobile"
-                                id="tw.settingsModal.back"
+                                id="mw.settingsModal.back"
                             />
                         </button>
                         <SettingsRouter
@@ -2380,8 +2408,8 @@ SettingsModalComponent.propTypes = {
     onCloudVariableServerChange: PropTypes.func,
     windowAnimation: PropTypes.bool,
     onWindowAnimationChange: PropTypes.func,
-    frostedGlass: PropTypes.bool,
-    onFrostedGlassChange: PropTypes.func
+    scriptLazyLoading: PropTypes.bool,
+    onScriptLazyLoadingChange: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);

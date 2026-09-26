@@ -9,7 +9,6 @@ import LazyScratchBlocks from '../../lib/tw-lazy-scratch-blocks';
 import {updateCallbacks} from '../../lib/shortcuts/event-router.js';
 
 import WorkspaceQuerier from '../../lib/spotlight/WorkspaceQuerier.js';
-import {getBlockHeight} from '../../lib/spotlight/BlockRenderer.js';
 import {BlockTypeInfo} from '../../lib/spotlight/BlockTypeInfo.js';
 import {onClearTextWidthCache, offClearTextWidthCache} from '../../lib/spotlight/module.js';
 import {performSearch} from '../../lib/spotlight/searchUtils.js';
@@ -23,6 +22,7 @@ import {
 import {activateTab} from '../../reducers/editor-tab.js';
 import {HELP_ENTRIES} from '../../lib/help/index.js';
 import {renderMenuItem, calculateActualHeight} from '../../lib/spotlight/renderingUtils.js';
+import {beginPreviewBatch} from '../../lib/spotlight/previewRenderer.js';
 import {
     findNextSelectableIndex,
     handleSpriteSelection,
@@ -427,78 +427,85 @@ export default function NativeSpotlight ({vm, locale, activeTabIndex, isPlayerOn
                 queryPreviews.length = 0;
                 let y = 0;
 
-                for (let resultIdx = 0; resultIdx < blockList.length; resultIdx++) {
-                    const result = blockList[resultIdx];
+                // Creating and disposing the real blocks for the previews makes ScratchBlocks
+                // re-measure the whole project once per block, so keep that for the end.
+                const endPreviewBatch = beginPreviewBatch(Blockly);
+                try {
+                    for (let resultIdx = 0; resultIdx < blockList.length; resultIdx++) {
+                        const result = blockList[resultIdx];
 
-                    const mouseMoveListener = () => {
-                        updateSelection(resultIdx);
-                    };
+                        const mouseMoveListener = () => {
+                            updateSelection(resultIdx);
+                        };
 
-                    const mouseDownListener = e => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        updateSelection(resultIdx);
-                        allowMenuClose = !e.shiftKey;
-                        selectBlock();
-                        allowMenuClose = true;
-                        if (e.shiftKey) popupInput.focus();
-                    };
+                        const mouseDownListener = e => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            updateSelection(resultIdx);
+                            allowMenuClose = !e.shiftKey;
+                            selectBlock();
+                            allowMenuClose = true;
+                            if (e.shiftKey) popupInput.focus();
+                        };
 
-                    const svgBackground = popupPreviewBlocks.appendChild(
-                        document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-                    );
+                        const svgBackground = popupPreviewBlocks.appendChild(
+                            document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+                        );
 
-                    const svgGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    popupPreviewBlocks.appendChild(svgGroup);
-                    const {renderedBlock, height} = renderMenuItem(
-                        result, svgGroup, previewWidth, previewScale, Blockly, vm
-                    );
+                        const svgGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        popupPreviewBlocks.appendChild(svgGroup);
+                        const {renderedBlock, height} = renderMenuItem(
+                            result, svgGroup, previewWidth, previewScale, Blockly, vm
+                        );
 
-                    const svgBlock = svgGroup;
+                        const svgBlock = svgGroup;
 
-                    if (!renderedBlock || !svgBlock) continue;
+                        if (!renderedBlock || !svgBlock) continue;
 
-                    const actualHeight = calculateActualHeight(result, renderedBlock, height);
+                        const actualHeight = calculateActualHeight(result, renderedBlock, height);
 
-                    if (isNaN(y)) {
-                        y = 0;
+                        if (isNaN(y)) {
+                            y = 0;
+                        }
+
+                        svgBackground.classList.add('sa-mcp-preview-block-bg');
+                        svgBackground.setAttribute('x', '8');
+                        svgBackground.setAttribute('width', `${previewWidth - 16}`);
+                        svgBackground.addEventListener('mousemove', mouseMoveListener);
+                        svgBackground.addEventListener('mousedown', mouseDownListener);
+                        svgBlock.addEventListener('mousemove', mouseMoveListener);
+                        svgBlock.addEventListener('mousedown', mouseDownListener);
+                        svgBlock.classList.add('sa-mcp-preview-block');
+
+                        // Every entry occupies exactly one row, so the highlight lines up with it.
+                        svgBackground.setAttribute('transform', `translate(0, ${y * previewScale})`);
+                        svgBackground.setAttribute('height', `${actualHeight * previewScale}px`);
+
+                        queryPreviews.push({
+                            block: result.block,
+                            autocompleteFactory: result.autocompleteFactory ?? null,
+                            renderedBlock,
+                            rowHeight: actualHeight,
+                            svgBlock,
+                            svgBackground,
+                            isSprite: result.isSprite,
+                            spriteData: result.spriteData,
+                            isCostume: result.isCostume,
+                            costumeData: result.costumeData,
+                            isHeader: result.isHeader,
+                            headerText: result.headerText,
+                            isCustomBlock: result.isCustomBlock,
+                            customBlockData: result.customBlockData,
+                            isSound: result.isSound,
+                            soundData: result.soundData,
+                            isAction: result.isAction,
+                            actionData: result.actionData
+                        });
+
+                        y += actualHeight;
                     }
-
-                    svgBackground.classList.add('sa-mcp-preview-block-bg');
-                    svgBackground.setAttribute('x', '8');
-                    svgBackground.setAttribute('width', `${previewWidth - 16}`);
-                    svgBackground.addEventListener('mousemove', mouseMoveListener);
-                    svgBackground.addEventListener('mousedown', mouseDownListener);
-                    svgBlock.addEventListener('mousemove', mouseMoveListener);
-                    svgBlock.addEventListener('mousedown', mouseDownListener);
-                    svgBlock.classList.add('sa-mcp-preview-block');
-
-                    const bgOffset = (result.isHeader || result.isSprite || result.isCostume ||
-                        result.isSound || result.isCustomBlock || result.isAction) ? 0 : actualHeight / 10;
-                    svgBackground.setAttribute('transform', `translate(0, ${(y + bgOffset) * previewScale})`);
-                    svgBackground.setAttribute('height', `${actualHeight * previewScale}px`);
-
-                    queryPreviews.push({
-                        block: result.block,
-                        autocompleteFactory: result.autocompleteFactory ?? null,
-                        renderedBlock,
-                        svgBlock,
-                        svgBackground,
-                        isSprite: result.isSprite,
-                        spriteData: result.spriteData,
-                        isCostume: result.isCostume,
-                        costumeData: result.costumeData,
-                        isHeader: result.isHeader,
-                        headerText: result.headerText,
-                        isCustomBlock: result.isCustomBlock,
-                        customBlockData: result.customBlockData,
-                        isSound: result.isSound,
-                        soundData: result.soundData,
-                        isAction: result.isAction,
-                        actionData: result.actionData
-                    });
-
-                    y += actualHeight;
+                } finally {
+                    endPreviewBatch();
                 }
 
                 if (isNaN(y) || !isFinite(y)) {
@@ -607,22 +614,14 @@ export default function NativeSpotlight ({vm, locale, activeTabIndex, isPlayerOn
                             blockX += ((previewWidth / previewScale) - blockX - preview.renderedBlock.width) *
                                 previewScale * cursorPosRel;
                         }
-                        blockY = (y + 30) * previewScale;
+                        blockY = (y + preview.renderedBlock.top) * previewScale;
                     }
 
                     preview.svgBlock.setAttribute(
                         'transform', `translate(${blockX}, ${blockY}) scale(${previewScale})`
                     );
 
-                    if (preview.isHeader) {
-                        y += 40;
-                    } else if (preview.isSprite || preview.isCostume || preview.isSound ||
-                        preview.isCustomBlock || preview.isAction) {
-                        y += 60;
-                    } else if (preview.block) {
-                        const blockHeight = getBlockHeight(preview.block);
-                        y += (blockHeight && !isNaN(blockHeight)) ? blockHeight : 40;
-                    }
+                    y += preview.rowHeight;
                 }
 
                 popupInputSuggestion.scrollLeft = popupInput.scrollLeft;

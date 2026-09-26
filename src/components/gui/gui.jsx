@@ -51,7 +51,7 @@ import AddonHooks from '../../addons/hooks.js';
 import NativeFindBar from '../find-bar/find-bar.jsx';
 import NativeSpotlight from '../../containers/spotlight.jsx';
 
-import {STAGE_SIZE_MODES, FIXED_WIDTH, UNCONSTRAINED_NON_STAGE_WIDTH} from '../../lib/constants/layout-constants';
+import {STAGE_SIZE_MODES, STAGE_DISPLAY_SIZES, FIXED_WIDTH, UNCONSTRAINED_NON_STAGE_WIDTH} from '../../lib/constants/layout-constants';
 import {resolveStageSize} from '../../lib/utils/screen';
 import {getFindBarApi} from '../../lib/find-bar/api';
 import {setFractchModeOpener} from '../../lib/git/fractch-mode';
@@ -121,7 +121,11 @@ const fullscreenBackgroundColor = getFullscreenBackgroundColor();
 const AUTO_SMALL_STAGE_INNER_WIDTH = Math.round(FIXED_WIDTH);
 const MIN_EDITOR_PANE_WIDTH = 598;
 const MIN_TARGET_PANE_HEIGHT = 180;
-const HIDE_STAGE_DRAG_SLOP = 80;
+// 面板隐藏的拖拽容差。值越大，面板在隐藏前可缩得越小。
+// 移除 getStageDimensions 的 scale 下限后，舞台可安全缩到 1px，
+// 面板不再需要为容纳固定尺寸舞台而保留较大宽度。
+// 120px ≈ 短视口布局的最小面板宽度，也是拖拽面板的最小宽度。
+const HIDE_STAGE_DRAG_SLOP = 138;
 const NARROW_LAYOUT_WIDTH = 900;
 const STAGE_RESIZER_WIDTH = 6;
 const MIN_STAGE_PANEL_WIDTH = (FIXED_WIDTH * 0.5) + 18;
@@ -336,11 +340,14 @@ const GUIComponent = props => {
             const computedStyle = window.getComputedStyle(el);
             const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
             const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
-            const borderExtra = getStageBorderExtraWidth(el);
 
+            // stageContainerWidth 的语义 = 面板内容区宽度 = 舞台总宽（含
+            // 舞台 1px 边框）。不再扣除 borderExtra：getStageDimensions
+            // 内部会再减 2（舞台边框），若这里也减，舞台会比面板内容区
+            // 窄 2px，导致缩放后错位。
             const innerWidth = Math.max(
                 0,
-                rect.width - paddingLeft - paddingRight - borderExtra
+                rect.width - paddingLeft - paddingRight
             );
 
             setStageContainerWidth(prev => {
@@ -350,7 +357,7 @@ const GUIComponent = props => {
                 return innerWidth;
             });
         });
-    }, [getStageBorderExtraWidth, enableStageResize]);
+    }, [enableStageResize]);
 
     const lastResizeWidthRef = useRef(null);
     useEffect(() => {
@@ -380,15 +387,13 @@ const GUIComponent = props => {
         const el = stageAndTargetWrapperRef.current;
         let paddingLeft = 8;
         let paddingRight = 8;
-        let borderExtra = 2;
         if (el) {
             const computedStyle = window.getComputedStyle(el);
             paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
             paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
-            borderExtra = getStageBorderExtraWidth(el);
         }
 
-        let outerWidth = contentWidth + 2 + paddingLeft + paddingRight + borderExtra;
+        let outerWidth = contentWidth + 2 + paddingLeft + paddingRight;
 
         const editorEl = editorWrapperRef.current;
         const containerEl = editorEl ? editorEl.parentElement : null;
@@ -402,17 +407,9 @@ const GUIComponent = props => {
 
         setStagePanelWidth(outerWidth);
         setStageContainerWidth(contentWidth + 2);
-    }, [getStageBorderExtraWidth]);
+    }, []);
 
     useLayoutEffect(() => {
-        if (!enableStageResize) return;
-        if (prevStageSizeModeRef.current === null) {
-            prevStageSizeModeRef.current = props.stageSizeRequestId;
-            return;
-        }
-        if (prevStageSizeModeRef.current === props.stageSizeRequestId) return;
-        prevStageSizeModeRef.current = props.stageSizeRequestId;
-
         if (props.isFullScreen) return;
         if (syncingModeRef.current) {
             syncingModeRef.current = false;
@@ -422,12 +419,26 @@ const GUIComponent = props => {
         if (props.stageSizeMode === STAGE_SIZE_MODES.hidden) {
             return;
         }
-        if (props.stageSizeMode === STAGE_SIZE_MODES.small) {
-            setStageWidth(FIXED_WIDTH * 0.5);
-        } else if (props.stageSizeMode === STAGE_SIZE_MODES.large) {
-            setStageWidth(FIXED_WIDTH);
+        if (enableStageResize) {
+            if (props.stageSizeMode === STAGE_SIZE_MODES.small) {
+                setStageWidth(FIXED_WIDTH * 0.5);
+            } else if (props.stageSizeMode === STAGE_SIZE_MODES.large) {
+                setStageWidth(FIXED_WIDTH);
+            } else if (props.stageSizeMode === STAGE_SIZE_MODES.full) {
+                // 完整舞台模式：将面板宽度重置为完整舞台宽度，
+                // 使舞台以其自然尺寸显示，不再被 fit-scale 缩放。
+                setStageWidth(
+                    (props.customStageSize && props.customStageSize.width) || FIXED_WIDTH
+                );
+            }
         } else {
-            setStageWidth(null);
+            if (props.stageSizeMode === STAGE_SIZE_MODES.small) {
+                setStageWidth(FIXED_WIDTH * 0.5);
+            } else if (props.stageSizeMode === STAGE_SIZE_MODES.large) {
+                setStageWidth(FIXED_WIDTH);
+            } else {
+                setStageWidth(null);
+            }
         }
     }, [props.stageSizeMode, props.stageSizeRequestId, props.isFullScreen, setStageWidth, enableStageResize]);
 
@@ -448,8 +459,15 @@ const GUIComponent = props => {
         const isSmall = stageContainerWidth < smallThreshold;
 
         if (isSmall && props.stageSizeMode !== STAGE_SIZE_MODES.small) {
-            syncingModeRef.current = true;
-            props.onSetStageSize(STAGE_SIZE_MODES.small);
+            // 拖拽调整大小模式下，不要自动降级到 small 固定宽度：
+            // 保持当前 stageSizeMode（通常是 full/large），让
+            // getStageDimensions 的 fit-scale 按 stageContainerWidth
+            // 平滑缩放舞台。否则舞台只会在 240/480 两个离散值之间
+            // 跳变，出现"面板动了但舞台缩放不动"的问题。
+            // 下方的 small -> full 恢复分支必须保留：拖拽把面板隐藏后
+            // 再拖出来时 onMove 会把模式强制设为 small，若这里不再
+            // 恢复，面板变宽后舞台会一直卡在 240。
+            return;
         } else if (!isSmall && props.stageSizeMode === STAGE_SIZE_MODES.small) {
             syncingModeRef.current = true;
             props.onSetStageSize(STAGE_SIZE_MODES.full);
@@ -508,9 +526,14 @@ const GUIComponent = props => {
             };
             updateStageCanvasMaxHeight();
 
+            // 面板隐藏阈值与拖拽的 hideThreshold（handleStagePanelResizePointerDown）
+            // 保持一致：MIN_STAGE_PANEL_WIDTH(258) - HIDE_STAGE_DRAG_SLOP(80) = 178。
+            // 原来直接用 258 会导致窗口/容器稍窄（面板可用宽度 < 258）时面板
+            // 直接隐藏，而不是继续缩小跟随——"舞台面板在小的时候不缩放"。
+            // 舞台由 getStageDimensions 双向 fit-scale 缩放，可安全缩到更小。
             const minStagePanelWidth = isShortLayout ?
                 SHORT_LAYOUT_MIN_STAGE_PANEL_WIDTH :
-                MIN_STAGE_PANEL_WIDTH;
+                MIN_STAGE_PANEL_WIDTH - HIDE_STAGE_DRAG_SLOP;
 
             if (available < minStagePanelWidth) {
                 if (!isStageHiddenRef.current) {
@@ -546,9 +569,11 @@ const GUIComponent = props => {
             const computedStyle = window.getComputedStyle(stageEl);
             const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
             const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
-            const borderExtra = getStageBorderExtraWidth(stageEl);
 
-            setStageWidth(Math.max(0, target - paddingLeft - paddingRight - borderExtra - 2));
+            // contentWidth = 舞台内容宽度。setStageWidth 内部会 +2（舞台边框）
+            // 作为 stageContainerWidth，因此这里传 target(面板总宽) - padding
+            // - 2。不再扣 borderExtra，与 measureStageContainerWidth 语义一致。
+            setStageWidth(Math.max(0, target - paddingLeft - paddingRight - 2));
         };
 
         fit();
@@ -559,7 +584,7 @@ const GUIComponent = props => {
             observer.disconnect();
             window.removeEventListener('resize', fit);
         };
-    }, [props.isFullScreen, props.onSetStageSize, setStageWidth, getStageBorderExtraWidth]);
+    }, [props.isFullScreen, props.onSetStageSize, setStageWidth]);
 
     useEffect(() => {
         measureStageContainerWidth();
@@ -634,7 +659,9 @@ const GUIComponent = props => {
         const editorRect = editorEl ? editorEl.getBoundingClientRect() : null;
         const startX = (typeof e.clientX === 'number') ? e.clientX : 0;
         const startWidth = startRect.width;
-        const startInnerWidth = Math.max(0, startWidth - paddingLeft - paddingRight - borderExtra);
+        // 语义与 measureStageContainerWidth 保持一致：
+        // stageContainerWidth = 面板内容区宽度（含舞台边框），不减 borderExtra。
+        const startInnerWidth = Math.max(0, startWidth - paddingLeft - paddingRight);
 
         setStageContainerWidth(Math.round(startInnerWidth));
 
@@ -648,7 +675,15 @@ const GUIComponent = props => {
             }
         }
 
-        const minWidth = Math.max(0, (FIXED_WIDTH * 0.5) + paddingLeft + paddingRight + borderExtra);
+        // 面板"正常最小宽度"：容纳 small 舞台（240px）+ 左右 padding + 舞台边框。
+        // 用于 maxWidth 的下限保护，但不再作为拖拽的 clamp 下限——
+        // 否则面板在 [hideThreshold, minPanelWidth] 区间拖动时被卡住，
+        // 出现"舞台缩放小于一个值的时候舞台面板不跟着缩放"。
+        const minPanelWidth = Math.max(0, (FIXED_WIDTH * 0.5) + paddingLeft + paddingRight + borderExtra);
+        // 拖拽到比正常最小宽度再窄 HIDE_STAGE_DRAG_SLOP 时才隐藏面板。
+        // 在 [hideThreshold, maxWidth] 区间内面板全程跟随拖动，舞台由
+        // getStageDimensions 的双向 fit-scale 同步缩放。
+        const hideThreshold = Math.max(0, minPanelWidth - HIDE_STAGE_DRAG_SLOP);
 
         const containerEl = editorEl ? editorEl.parentElement : null;
         const containerRect = containerEl ? containerEl.getBoundingClientRect() : null;
@@ -659,7 +694,7 @@ const GUIComponent = props => {
             e.currentTarget.getBoundingClientRect() : null;
         const resizerWidth = (resizerRect && Number.isFinite(resizerRect.width)) ? resizerRect.width : 6;
 
-        const maxWidthByEditor = Math.max(minWidth, containerWidth - MIN_EDITOR_PANE_WIDTH - resizerWidth);
+        const maxWidthByEditor = Math.max(minPanelWidth, containerWidth - MIN_EDITOR_PANE_WIDTH - resizerWidth);
 
         let stageWrapperEl = el.querySelector('[class*="stage-wrapper_stage-wrapper"]');
         if (!stageWrapperEl) {
@@ -689,7 +724,7 @@ const GUIComponent = props => {
             (4 / 3);
         const maxInnerWidthByHeight = (maxStageCanvasHeight * widthPerHeight) + 2;
         const maxWidthByHeight = Math.max(
-            minWidth,
+            minPanelWidth,
             maxInnerWidthByHeight + paddingLeft + paddingRight + borderExtra
         );
 
@@ -710,7 +745,7 @@ const GUIComponent = props => {
                 const rawWidth = startWidth + (dx * directionFactor);
 
                 if (typeof props.onSetStageSize === 'function') {
-                    if (rawWidth < minWidth - HIDE_STAGE_DRAG_SLOP) {
+                    if (rawWidth < hideThreshold) {
                         if (!isStageHiddenRef.current) {
                             isStageHiddenRef.current = true;
                             syncingModeRef.current = true;
@@ -726,8 +761,14 @@ const GUIComponent = props => {
                     }
                 }
 
-                const nextWidth = Math.min(maxWidth, Math.max(minWidth, rawWidth));
-                const nextInnerWidth = Math.max(0, nextWidth - paddingLeft - paddingRight - borderExtra);
+                // clamp 下限用 hideThreshold：面板在 [hideThreshold, maxWidth]
+                // 全程跟随拖动（舞台双向 fit 同步缩放），只有拖过隐藏阈值
+                // 才触发隐藏。原逻辑 clamp 到 minPanelWidth，导致舞台缩到
+                // 240 后面板不再跟随。
+                const nextWidth = Math.min(maxWidth, Math.max(hideThreshold, rawWidth));
+                // 语义与 measureStageContainerWidth 保持一致：
+                // stageContainerWidth = 面板内容区宽度（含舞台边框）。
+                const nextInnerWidth = Math.max(0, nextWidth - paddingLeft - paddingRight);
                 preferredPanelWidthRef.current = nextWidth;
 
                 setStagePanelWidth(nextWidth);
@@ -1032,6 +1073,15 @@ const GUIComponent = props => {
             stageSizeMode === STAGE_SIZE_MODES.hidden ? STAGE_SIZE_MODES.small : stageSizeMode,
             isUnconstrained
         );
+
+        // 当拖拽缩放面板时，stageSize 保持 large/full 不变（避免舞台离散跳变），
+        // 但角色选择区的 SpriteInfo 需要使用简略布局来防止控件溢出。
+        // 当面板内容宽度小于完整舞台宽度时，强制使用 small 布局。
+        const spriteLayoutSize = enableStageResize && 
+            typeof stageContainerWidth === 'number' && 
+            stageContainerWidth < FIXED_WIDTH ? 
+            STAGE_DISPLAY_SIZES.small : 
+            stageSize;
 
         return (
             <React.Fragment>
@@ -1357,7 +1407,7 @@ const GUIComponent = props => {
                             {isStageHidden ? null : (
                                 <Box className={styles.targetWrapper}>
                                     <TargetPane
-                                        stageSize={stageSize}
+                                        stageSize={spriteLayoutSize}
                                         vm={vm}
                                     />
                                 </Box>

@@ -100,13 +100,20 @@ const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageConta
         stageContainerWidth > 0 &&
         stageDimensions.width > 0) {
         const availableContentWidth = Math.max(0, stageContainerWidth - 2);
-        // Only scale if we need to fit, and don't go below a minimum scale to prevent infinite enlargement
-        // Prevent infinite loop when browser zoom is very small (< 40%)
-        if (stageDimensions.width > availableContentWidth && stageDimensions.scale > 0.05) {
+        // 双向缩放：舞台始终填满面板内容区（拖拽调整大小模式）。
+        // 之前只缩不放（width > availableContentWidth 才缩），导致面板
+        // 变宽时舞台封顶在 480 不再跟随（"舞台主体不跟着缩放"），
+        // 面板变窄时两者又有 2px 级脱钩。
+        // 舞台始终跟随面板缩放，不设 scale 下限保护。
+        // 面板拖拽已通过 hideThreshold 防止无限缩小。
+        if (Math.abs(stageDimensions.width - availableContentWidth) > 0.5) {
             const fitScale = availableContentWidth / stageDimensions.width;
             stageDimensions.scale *= fitScale;
             stageDimensions.width *= fitScale;
             stageDimensions.height *= fitScale;
+            // 确保舞台尺寸不低于 1px
+            stageDimensions.width = Math.max(1, stageDimensions.width);
+            stageDimensions.height = Math.max(1, stageDimensions.height);
         }
     }
 
@@ -117,9 +124,9 @@ const getStageDimensions = (stageSize, customStageSize, isFullScreen, stageConta
         Number.isFinite(stageMaxHeight) &&
         stageMaxHeight > 0 &&
         stageDimensions.height > 0 &&
-        stageDimensions.height > stageMaxHeight &&
-        stageDimensions.scale > 0.05) {
-        // Prevent infinite loop when browser zoom is very small (< 40%)
+        stageDimensions.height > stageMaxHeight) {
+        // Stretch to fit the available height, without scale threshold.
+        // Math.max(1) below prevents sub-1px sizes.
         const fitScale = stageMaxHeight / stageDimensions.height;
         stageDimensions.scale *= fitScale;
         stageDimensions.width *= fitScale;

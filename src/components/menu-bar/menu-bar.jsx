@@ -48,7 +48,6 @@ import CloudVariablesToggler from '../../containers/tw-cloud-toggler.jsx';
 import TWSaveStatus from './tw-save-status.jsx';
 import TWNews from './tw-news.jsx';
 import CollaborationContainer from '../../containers/collaboration-container.jsx';
-import RestorePointAPI from '../../lib/api/restore-points';
 
 import TWDesktopSettings from './tw-desktop-settings.jsx';
 import RoturAccount from './mw-rotur-account.jsx';
@@ -120,6 +119,9 @@ import {setProjectUnchanged} from '../../reducers/project-changed';
 import {showStandardAlert, showAlertWithTimeout, closeAlertWithId} from '../../reducers/alerts';
 import collectMetadata from '../../lib/collect-metadata';
 import LazyScratchBlocks from '../../lib/tw-lazy-scratch-blocks';
+import buildHttpAuth from '../../lib/git/auth.js';
+import translateGitError from '../../lib/git/errors.js';
+import {hasChanges as gitHasChanges} from '../../lib/git/state/selectors.js';
 import {mediaRecorderSupported} from '../../addons/environment.js';
 import addonEnglish from '../../addons/addons-l10n/en.json';
 import addonChinese from '../../addons/addons-l10n/zh-cn.json';
@@ -156,7 +158,7 @@ import '!!style-loader!css-loader!./block-count.css';
 
 import ChevronDown from './ChevronDown.jsx';
 
-import bilupLogo from './bilup-logo.svg';
+import BilupLogo from './bilup-logo.jsx';
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
 import prehistoricLogo from './prehistoric-logo.svg';
@@ -164,7 +166,7 @@ import oldtimeyLogo from './oldtimey-logo.svg';
 
 import {
     FilePen, PencilRuler, TriangleAlert, Info, Shuffle, Zap, Gauge,
-    FilePlusCorner, Upload, RefreshCcw, ClockPlus, Package, FileInput,
+    FilePlusCorner, Upload, RefreshCcw, ClockPlus, Package,
     Save, ArchiveRestore, UserPen, Cloud, PackagePlus, Puzzle,
     Bookmark, GitBranch, FileCog, Bug, Database, Undo, Redo, Handshake, Wrench, Send,
     Download, AppWindow, Computer, Shield, Code, Code2, TerminalSquare, ChartColumn, ListTodo,
@@ -198,11 +200,6 @@ const twMessages = defineMessages({
         id: 'tw.menuBar.bilupLogoAlt',
         defaultMessage: 'Bilup',
         description: 'Alt text for the Bilup logo'
-    },
-    bilupWordmark: {
-        id: 'tw.menuBar.bilupWordmark',
-        defaultMessage: 'Bilup',
-        description: 'Bilup brand wordmark text in the menu bar'
     },
     moreMenu: {
         id: 'tw.menuBar.moreMenu',
@@ -340,6 +337,7 @@ class MenuBar extends React.Component {
             canUndo: true,
             canRedo: true,
             gitRepoExists: false,
+            gitHasChanges: false,
             gitRemotes: [],
             menuCollapsed: false,
             moreMenuOpen: false,
@@ -606,7 +604,9 @@ class MenuBar extends React.Component {
         this.props.onRequestCloseFile();
     }
     handleClickSave() {
-        this.props.onClickSave();
+        if (this.props.handleSaveProject) {
+            this.props.handleSaveProject();
+        }
         this.props.onRequestCloseFile();
     }
     handleClickSaveAsCopy() {
@@ -707,21 +707,28 @@ class MenuBar extends React.Component {
     }
 
     async refreshGitMenuState () {
-        // Keep this cheap (no project re-serialization): existence + remotes only.
-        // "Has changes" is derived from the redux projectChanged flag in render.
+        // Cheap on purpose: `getRepoChanges` is hash-cached, so a project that
+        // did not change since the last serialization is not rebuilt. The VM is
+        // still passed in, because the working tree is only kept current while
+        // the git window is mounted — edits made with the window closed would
+        // otherwise be invisible here.
         try {
-            const {repoExists, getRemotes} = await import('../../lib/git/browser-git');
-            if (!(await repoExists())) {
-                this.setState({gitRepoExists: false, gitRemotes: []});
-                return;
-            }
-            const remotes = await getRemotes(this.props.vm).catch(() => []);
+            const {default: gitOps} = await import('../../lib/git/ops/index.js');
+            await gitOps.refreshRepository({vm: this.props.vm});
+            const state = gitOps.getState();
+            const {repo, remotes} = state;
             this.setState({
-                gitRepoExists: true,
+                gitRepoExists: Boolean(repo.initialized),
+                // The File menu has no staging area (it commits everything), so
+                // its Commit item is gated on "the repository has anything to
+                // commit" — the *git* signal the window uses — instead of the
+                // GUI's `projectChanged` flag. The old check offered Commit while
+                // git was clean and the window had its button greyed out (A2).
+                gitHasChanges: gitHasChanges(state),
                 gitRemotes: Array.isArray(remotes) ? remotes : []
             });
         } catch (e) {
-            this.setState({gitRepoExists: false, gitRemotes: []});
+            this.setState({gitRepoExists: false, gitHasChanges: false, gitRemotes: []});
         }
     }
 
@@ -733,17 +740,34 @@ class MenuBar extends React.Component {
             token = '';
         }
         const {getDefaultAuthor} = await import('../../lib/git/browser-git');
-        const username = (getDefaultAuthor().name || '').trim();
-        if (!token) return null;
-        return () => (username ? {username, password: token} : {username: token, password: token});
+        // Shared auth rule (lib/git/auth.js): anonymous when no token is stored,
+        // otherwise author name as username or 'x-access-token' (GitHub PAT style).
+        return buildHttpAuth({token, username: getDefaultAuthor().name});
     }
 
+    // Every File → Git action goes through the shared ops layer, so it takes the
+    // same single-flight lock as the git window (the two used to be able to
+    // write the same OPFS repository at the same time) and reports into the
+    // same store.
+    //
+    // A3: a failure surfaces as the app-wide bottom-right toast marked ❌️ —
+    // exactly what the git window does — instead of a blocking browser alert.
+    // The two surfaces used to disagree about how to report the same error.
+    showGitError (e) {
+        const message = translateGitError(e && e.message ? e.message : String(e));
+        if (this.props.showToast) {
+            this.props.showToast(message, 'error', 'bottom-right');
+        } else {
+            // eslint-disable-next-line no-alert
+            window.alert(message);
+        }
+    }
     async handleClickGitPush (remote) {
         this.props.onRequestCloseFile();
         this.props.onShowGitStatus('gitPushing');
         try {
-            const {push: gitPush} = await import('../../lib/git/browser-git');
-            await gitPush({
+            const {default: gitOps} = await import('../../lib/git/ops/index.js');
+            await gitOps.pushBranch({
                 vm: this.props.vm,
                 remote,
                 setUpstream: true,
@@ -753,8 +777,7 @@ class MenuBar extends React.Component {
         } catch (e) {
             console.error(e);
             this.props.onCloseGitStatus('gitPushing');
-            // eslint-disable-next-line no-alert
-            window.alert(`Push failed: ${e && e.message ? e.message : e}`);
+            this.showGitError(e);
         }
     }
 
@@ -773,32 +796,27 @@ class MenuBar extends React.Component {
         }
         this.props.onShowGitStatus('gitPulling');
         try {
-            await RestorePointAPI.createSafetyRestorePoint(this.props.vm, this.props.projectTitle);
-            const [
-                {pull: gitPull, getFs: getGitFs, REPO_DIR: GIT_REPO_DIR},
-                {buildSb3FromFractchTree}
-            ] = await Promise.all([
-                import('../../lib/git/browser-git'),
-                import('../../lib/git/fractch-tree')
-            ]);
-            await gitPull({
+            const {default: gitOps} = await import('../../lib/git/ops/index.js');
+            const {getDefaultAuthor} = await import('../../lib/git/browser-git');
+            // pullBranch raises its own safety restore point, and rebuilds +
+            // reloads the open project ONLY when the working tree actually
+            // moved. When the remote had nothing new it resolves with kind
+            // 'ahead'/'up-to-date' — the old code called quit() + loadProject()
+            // anyway, rebuilding the project for no reason and throwing away
+            // the undo stack (the "drift" bug). Nothing to do here but report
+            // success.
+            await gitOps.pullBranch({
                 vm: this.props.vm,
                 remote,
-                onAuth: await this.gitAuth()
+                author: getDefaultAuthor(),
+                onAuth: await this.gitAuth(),
+                restorePointLabel: this.props.projectTitle
             });
-            // The working tree changed; rebuild the project and reload it.
-            const fs = getGitFs();
-            const bytes = await buildSb3FromFractchTree({fs: fs.promises, dir: GIT_REPO_DIR});
-            const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-            this.props.vm.quit();
-            await this.props.vm.loadProject(buffer, {skipGitImport: true});
-            this.props.vm.renderer.draw();
             this.props.onGitStatusDone('gitPullSuccess');
         } catch (e) {
             console.error(e);
             this.props.onCloseGitStatus('gitPulling');
-            // eslint-disable-next-line no-alert
-            window.alert(`Pull failed: ${e && e.message ? e.message : e}`);
+            this.showGitError(e);
         }
     }
 
@@ -820,22 +838,22 @@ class MenuBar extends React.Component {
             }
             this.props.onShowGitStatus('gitCommitting');
             try {
-                const {commitProject, getDefaultAuthor} = await import('../../lib/git/browser-git');
-                await commitProject({
+                const {default: gitOps} = await import('../../lib/git/ops/index.js');
+                const {getDefaultAuthor} = await import('../../lib/git/browser-git');
+                await gitOps.commit({
                     vm: this.props.vm,
                     message: message.trim(),
-                    author: getDefaultAuthor()
+                    author: getDefaultAuthor(),
+                    // The File menu has no staging area, so it keeps the historic
+                    // "commit everything" behaviour (decision D2 lives in the
+                    // git window, which stages explicitly).
+                    all: true
                 });
                 this.props.onGitStatusDone('gitCommitSuccess');
             } catch (e) {
                 console.error(e);
                 this.props.onCloseGitStatus('gitCommitting');
-                // eslint-disable-next-line no-alert
-                window.alert(this.props.intl.formatMessage({
-                    defaultMessage: 'Commit failed: ',
-                    description: 'Alert prefix when a git commit from the File menu fails',
-                    id: 'mw.menuBar.gitCommit.failed'
-                }) + (e && e.message ? e.message : e));
+                this.showGitError(e);
             }
         }, 0);
     }
@@ -1605,15 +1623,10 @@ class MenuBar extends React.Component {
                         title={this.props.intl.formatMessage(twMessages.bilupHome)}
                         data-mw-item="__home"
                     >
-                        <img
-                            src={bilupLogo}
-                            alt={this.props.intl.formatMessage(twMessages.bilupLogoAlt)}
+                        <BilupLogo
                             className={styles.homeLogo}
-                            style={{transform: 'scale(0.8)'}}
+                            alt={this.props.intl.formatMessage(twMessages.bilupLogoAlt)}
                         />
-                        <span className={styles.homeWordmark}>
-                            {this.props.intl.formatMessage(twMessages.bilupWordmark)}
-                        </span>
                     </a>
                     {this.state.menuCollapsed && (
                         <div
@@ -1812,41 +1825,6 @@ class MenuBar extends React.Component {
                                                                 id="gui.menuBar.saveToComputer"
                                                             />
                                                         </MenuItem>
-                                                        {extended.available && (
-                                                            <React.Fragment>
-                                                                {extended.name !== null && (
-                                                                    <MenuItem
-                                                                        // eslint-disable-next-line max-len
-                                                                        onClick={this.getSaveToComputerHandler(extended.saveToLastFile)}
-                                                                        shortcut={formatShortcutDisplay(this.getShortcut('save'))}
-                                                                    >
-                                                                        <FileInput />
-                                                                        <FormattedMessage
-                                                                            defaultMessage="Save to {file}"
-                                                                            // eslint-disable-next-line max-len
-                                                                            description="Menu bar item to save project to an existing file on the user's computer"
-                                                                            id="tw.saveTo"
-                                                                            values={{
-                                                                                file: extended.name
-                                                                            }}
-                                                                        />
-                                                                    </MenuItem>
-                                                                )}
-                                                                {/* eslint-disable-next-line max-len */}
-                                                                <MenuItem
-                                                                    onClick={this.getSaveToComputerHandler(extended.saveAsNew)}
-                                                                    shortcut={formatShortcutDisplay(this.getShortcut('saveAs'))}
-                                                                >
-                                                                    <Save />
-                                                                    <FormattedMessage
-                                                                        defaultMessage="Save as..."
-                                                                        // eslint-disable-next-line max-len
-                                                                        description="Menu bar item to select a new file to save the project as"
-                                                                        id="tw.saveAs"
-                                                                    />
-                                                                </MenuItem>
-                                                            </React.Fragment>
-                                                        )}
                                                     </React.Fragment>
                                                 );
                                             }}
@@ -1869,11 +1847,11 @@ class MenuBar extends React.Component {
                                         </MenuSection>
                                     )}
                                     {(
-                                        (this.state.gitRepoExists && this.props.projectChanged) ||
+                                        (this.state.gitRepoExists && this.state.gitHasChanges) ||
                                         (this.state.gitRepoExists && this.state.gitRemotes.length > 0)
                                     ) && (
                                         <MenuSection>
-                                            {this.state.gitRepoExists && this.props.projectChanged && (
+                                            {this.state.gitRepoExists && this.state.gitHasChanges && (
                                                 <MenuItem onClick={this.handleClickGitCommit}>
                                                     <GitBranch />
                                                     <FormattedMessage

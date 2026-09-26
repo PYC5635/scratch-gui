@@ -99,8 +99,22 @@ jobs:
           git checkout -b develop-builds origin/develop
         fi
 
-        # Sync code with develop (auto-resolve conflicts in favor of develop)
-        git merge origin/develop --no-edit -X theirs
+        # Sync source with develop: develop is the single source of truth here.
+        #
+        # Do NOT go back to `git merge origin/develop -X theirs`. A three-way
+        # merge only picks per hunk, so it can never remove code that exists
+        # only on develop-builds. Whenever develop refactors or deletes a
+        # feature (e.g. the Git/version-history rewrite into lib/git/ops), the
+        # stale develop-builds code survives while the imports it needed are
+        # dropped by the merge, yielding "half-new half-old" files that compile
+        # but crash at runtime (ReferenceError inside menu-bar.jsx -> the
+        # renderer shows "Desktop React Error" instead of the editor, i.e. the
+        # built app cannot open the editor at all).
+        #
+        # Overwriting every path that develop has guarantees the shipped source
+        # matches what was built and tested on develop. Files that only exist
+        # on develop-builds are left behind, but nothing references them.
+        git checkout origin/develop -- .
 
         # Replace directories
         rm -rf static/microbit src/generated build

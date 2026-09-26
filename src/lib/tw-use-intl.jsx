@@ -1,6 +1,7 @@
-import React, {createContext, useContext} from 'react';
+import React, {createContext, useContext, useEffect} from 'react';
 import PropTypes from 'prop-types';
 import {injectIntl} from 'react-intl';
+import {setFormatMessage, setIntl} from './git/i18n.js';
 
 /*
  * This project uses react-intl 2.9.0, which does not provide a `useIntl()` hook
@@ -15,15 +16,25 @@ import {injectIntl} from 'react-intl';
 const IntlBridgeContext = createContext(null);
 
 // Reads `intl` from the legacy context (via injectIntl) and provides it through
-// the modern context so `useIntl()` can consume it.
-const IntlBridge = injectIntl(({intl, children}) => (
-    <IntlBridgeContext.Provider value={intl}>{children}</IntlBridgeContext.Provider>
-));
+// the modern context so `useIntl()` can consume it. It also wires the active
+// formatter into the non-React git i18n bridge so lib/git progress messages
+// surface in the current locale.
+const IntlBridgeInner = ({intl, children}) => {
+    useEffect(() => {
+        setIntl(intl);
+        setFormatMessage(intl.formatMessage.bind(intl));
+    }, [intl]);
+    return (
+        <IntlBridgeContext.Provider value={intl}>{children}</IntlBridgeContext.Provider>
+    );
+};
 
-IntlBridge.propTypes = {
+IntlBridgeInner.propTypes = {
     intl: PropTypes.object,
     children: PropTypes.node
 };
+
+const IntlBridge = injectIntl(IntlBridgeInner);
 
 const fallbackIntl = {
     formatMessage: (descriptor, values) => {

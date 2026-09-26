@@ -212,11 +212,12 @@ const StageHeaderComponent = function (props) {
         header = (
             <Box
                 className={styles.stageHeaderWrapper}
-                // + 2 px because the stage will have 2 pixels of border around it
+                // stageContainerWidth 已包含舞台 2px 边框（面板内容区宽度）；
+                // 而 stageDimensions.width 是舞台内容宽度，需 +2 才是含边框总宽。
                 style={{
                     minWidth: stageSizeMode === STAGE_SIZE_MODES.hidden ?
                         'auto' :
-                        `${(useContainerWidth ? stageContainerWidth : stageDimensions.width) + 2}px`
+                        `${(useContainerWidth ? stageContainerWidth : stageDimensions.width + 2)}px`
                 }}
             >
                 <Box className={styles.stageMenuWrapper}>

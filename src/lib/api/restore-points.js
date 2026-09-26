@@ -595,41 +595,86 @@ const exportRestorePoint = async id => {
 };
 
 /**
+ * Collect all asset md5exts from a project JSON by scanning targets' costumes and sounds.
+ * @param {object} projectJSON Parsed project JSON
+ * @returns {string[]} Array of md5ext strings (e.g. "abc123def456.png")
+ */
+const collectAssetMd5exts = projectJSON => {
+    const md5exts = new Set();
+    const targets = projectJSON.targets || [];
+    for (const target of targets) {
+        const costumes = target.costumes || [];
+        for (const costume of costumes) {
+            // The sb3 serialized JSON uses 'md5ext' as the key,
+            // while the runtime object uses 'md5'.
+            const md5 = costume.md5 || costume.md5ext;
+            if (md5) {
+                md5exts.add(md5);
+            }
+        }
+        const sounds = target.sounds || [];
+        for (const sound of sounds) {
+            const md5 = sound.md5 || sound.md5ext;
+            if (md5) {
+                md5exts.add(md5);
+            }
+        }
+    }
+    // Collect font assets from customFonts
+    const customFonts = projectJSON.customFonts || [];
+    for (const font of customFonts) {
+        if (!font.system && typeof font.md5ext === 'string') {
+            md5exts.add(font.md5ext);
+        }
+    }
+    return Array.from(md5exts);
+};
+
+/**
+ * Load all assets from IndexedDB in a single transaction.
+ * @param {IDBDatabase} db IndexedDB database
+ * @param {string[]} md5exts Asset md5exts to fetch
+ * @returns {Promise<Map<string, Uint8Array>>} Map of md5ext to asset data
+ */
+const loadAllAssetsFromDB = (db, md5exts) => new Promise((resolve, reject) => {
+    if (md5exts.length === 0) {
+        resolve(new Map());
+        return;
+    }
+
+    const transaction = db.transaction([ASSET_STORE], 'readonly');
+    const assetStore = transaction.objectStore(ASSET_STORE);
+    const assetMap = new Map();
+    let completed = 0;
+    let hasError = false;
+
+    for (const md5ext of md5exts) {
+        const request = assetStore.get(md5ext);
+        request.onsuccess = () => {
+            if (request.result) {
+                assetMap.set(md5ext, request.result);
+            }
+            completed++;
+            if (completed === md5exts.length && !hasError) {
+                resolve(assetMap);
+            }
+        };
+        request.onerror = () => {
+            if (!hasError) {
+                hasError = true;
+                reject(new Error(`Failed to load restore point asset: ${md5ext}`));
+            }
+        };
+    }
+});
+
+/**
  * @param {VirtualMachine} vm scratch-vm instance
  * @param {number} id the restore point's ID
  * @returns {Promise<ArrayBuffer>} Resolves with sb3 file
  */
 const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolveProject, rejectProject) => {
     const storage = vm.runtime.storage;
-
-    // In-memory helper is 100, web helper is -100, we want to be in the middle somewhere
-    const PRIORITY = 50;
-    const storageHelper = {
-        load: (assetType, assetId, dataFormat) => new Promise((resolveFetch, rejectFetch) => {
-            const transaction = db.transaction([ASSET_STORE], 'readonly');
-            transaction.onerror = event => {
-                rejectFetch(new Error(`Loading restore point asset: ${event.target.error}`));
-            };
-
-            const md5ext = `${assetId}.${dataFormat}`;
-            const assetStore = transaction.objectStore(ASSET_STORE);
-            const request = assetStore.get(md5ext);
-            request.onsuccess = () => {
-                if (request.result) {
-                    const asset = storage.createAsset(assetType, dataFormat, request.result, assetId, false);
-                    resolveFetch(asset);
-                } else {
-                    rejectFetch(new Error(`Restore point asset ${md5ext} does not exist`));
-                }
-            };
-        })
-    };
-    storage.addHelper(storageHelper, PRIORITY);
-
-    const cleanup = () => {
-        // No clean API for removing storage helpers yet
-        storage._helpers = storage._helpers.filter(i => i.helper !== storageHelper);
-    };
 
     const loadProjectJSON = () => {
         const transaction = db.transaction([PROJECT_STORE], 'readonly');
@@ -640,8 +685,59 @@ const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolvePro
         const projectStore = transaction.objectStore(PROJECT_STORE);
         const request = projectStore.get(id);
         request.onsuccess = () => {
-            if (request.result) {
-                vm.loadProject(request.result)
+            if (!request.result) {
+                rejectProject(new Error(`Restore point project ${id} does not exist`));
+                return;
+            }
+
+            const projectJSON = request.result;
+            let parsedProject;
+
+            // Parse the project JSON to discover asset IDs, then load all assets
+            // in a single IndexedDB transaction instead of one transaction per asset.
+            // This dramatically reduces load time for projects with many assets.
+            try {
+                if (typeof projectJSON === 'string') {
+                    parsedProject = JSON.parse(projectJSON);
+                } else if (projectJSON instanceof ArrayBuffer || ArrayBuffer.isView(projectJSON)) {
+                    // projectJSON is stored as a Uint8Array (from TextEncoder.encode),
+                    // so it needs to be decoded to string before parsing.
+                    const decoder = new TextDecoder();
+                    parsedProject = JSON.parse(decoder.decode(projectJSON));
+                } else {
+                    parsedProject = projectJSON;
+                }
+            } catch (e) {
+                rejectProject(new Error('Failed to parse restore point project JSON'));
+                return;
+            }
+
+            const md5exts = collectAssetMd5exts(parsedProject);
+
+            loadAllAssetsFromDB(db, md5exts).then(assetMap => {
+                const PRIORITY = 50;
+                const storageHelper = {
+                    load: (assetType, assetId, dataFormat) => {
+                        const md5ext = `${assetId}.${dataFormat}`;
+                        const data = assetMap.get(md5ext);
+                        if (data) {
+                            return Promise.resolve(
+                                storage.createAsset(assetType, dataFormat, data, assetId, false)
+                            );
+                        }
+                        // Asset not found in the preloaded map; fall through to
+                        // lower-priority helpers (e.g. web store).
+                        return null;
+                    }
+                };
+                storage.addHelper(storageHelper, PRIORITY);
+
+                const cleanup = () => {
+                    storage._helpers = storage._helpers.filter(i => i.helper !== storageHelper);
+                };
+
+                vm.quit();
+                vm.loadProject(projectJSON)
                     .then(() => {
                         cleanup();
                         resolveProject();
@@ -650,14 +746,10 @@ const loadRestorePoint = (vm, id) => openDB().then(db => new Promise((resolvePro
                         cleanup();
                         rejectProject(error);
                     });
-            } else {
-                cleanup();
-                rejectProject(new Error(`Restore point project ${id} does not exist`));
-            }
+            });
         };
     };
 
-    vm.quit();
     loadProjectJSON();
 }));
 

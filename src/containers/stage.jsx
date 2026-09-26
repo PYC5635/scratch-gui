@@ -111,7 +111,8 @@ class Stage extends React.Component {
             this.state.question !== nextState.question ||
             this.props.micIndicator !== nextProps.micIndicator ||
             this.props.isStarted !== nextProps.isStarted ||
-            this.props.customStageSize !== nextProps.customStageSize;
+            this.props.customStageSize.width !== nextProps.customStageSize.width ||
+            this.props.customStageSize.height !== nextProps.customStageSize.height;
     }
     componentDidUpdate (prevProps) {
         if (this.props.isColorPicking && !prevProps.isColorPicking) {
@@ -121,6 +122,20 @@ class Stage extends React.Component {
         }
         this.updateRect();
         this.renderer.resize(this.rect.width, this.rect.height);
+        // Update projection matrix and VM stage size when custom stage size changes
+        if (this.props.customStageSize.width !== prevProps.customStageSize.width ||
+            this.props.customStageSize.height !== prevProps.customStageSize.height) {
+            this.renderer.setStageSize(
+                -this.props.customStageSize.width / 2,
+                this.props.customStageSize.width / 2,
+                -this.props.customStageSize.height / 2,
+                this.props.customStageSize.height / 2
+            );
+            this.props.vm.setStageSize(
+                this.props.customStageSize.width,
+                this.props.customStageSize.height
+            );
+        }
     }
     componentWillUnmount () {
         this.detachMouseEvents(this.canvas);

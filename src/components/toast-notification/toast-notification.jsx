@@ -4,8 +4,18 @@ import React from 'react';
 import classNames from 'classnames';
 import styles from './toast-notification.css';
 
+// One glyph per level, so the corner toast reads at a glance: ❌ marks a
+// failure (the git layer's only channel for errors — see A3), which is why the
+// icon lives next to the message rather than being baked into its text.
+const ICONS = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+};
+
 const ToastNotificationComponent = props => {
-    const {message, type = 'info', visible, onClose} = props;
+    const {message, type = 'info', position = 'top-right', visible, onClose} = props;
     const intl = props.intl;
 
     const [closing, setClosing] = React.useState(false);
@@ -41,11 +51,16 @@ const ToastNotificationComponent = props => {
             className={classNames(
                 styles.toast,
                 styles[type],
+                position === 'bottom-right' ? styles.bottomRight : styles.topRight,
                 closing ? styles.closing : null
             )}
             role="alert"
             aria-live="polite"
         >
+            <span
+                className={styles.icon}
+                aria-hidden="true"
+            >{ICONS[type] || ICONS.info}</span>
             <span className={styles.message}>
                 {message}
             </span>
@@ -67,6 +82,7 @@ ToastNotificationComponent.propTypes = {
     intl: intlShape,
     message: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
     type: PropTypes.oneOf(['success', 'error', 'info', 'warning']),
+    position: PropTypes.oneOf(['top-right', 'bottom-right']),
     visible: PropTypes.bool,
     onClose: PropTypes.func.isRequired
 };

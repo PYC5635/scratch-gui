@@ -13,10 +13,9 @@ const Footer = () => (
                 <img
                     className={styles.logo}
                     src={logo}
-                    alt=""
+                    alt="Bilup"
                 />
                 <div>
-                    <span className={styles.wordmark}>Bilup</span>
                     <p className={styles.tagline}>
                         <FormattedMessage
                             defaultMessage="Elevate your creation."

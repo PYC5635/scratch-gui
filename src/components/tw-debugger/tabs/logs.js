@@ -129,7 +129,7 @@ const createLogsTab = controller => {
     for (const severity of SEVERITIES) {
         const toggle = document.createElement('button');
         toggle.className = `sa-debugger-severity sa-debugger-severity-${severity} sa-debugger-severity-active`;
-        toggle.textContent = severity;
+        toggle.textContent = msg(`debugger/severity-${severity}`, severity);
         toggle.addEventListener('click', () => {
             filters.severity[severity] = !filters.severity[severity];
             toggle.classList.toggle('sa-debugger-severity-active', filters.severity[severity]);
@@ -191,7 +191,7 @@ const createLogsTab = controller => {
         onClick: () => {
             const file = controller.rows
                 .map(({text, targetInfo, type}) =>
-                    `${targetInfo ? targetInfo.name : msg('debugger/unknown-sprite', 'Unknown sprite')}: ${text} (${type})\n`)
+                    `${targetInfo ? targetInfo.name : msg('debugger/unknown-sprite', 'Unknown sprite')}: ${text} (${msg(`debugger/severity-${type}`, type)})\n`)
                 .join('');
             downloadText('logs.txt', file);
         }

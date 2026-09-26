@@ -4,9 +4,9 @@ import {validateEnvelope, makeCtrl, KIND, CTRL} from './protocol.js';
 import {APP_NAME} from '../constants/brand.js';
 
 const DEFAULT_PEER_CONFIG = {
-    host: 'collab.bilup.org',
+    // Matches upstream MistWarp's collaboration PeerServer.
+    host: 'collab_warp.mistium.com',
     port: 443,
-    key: 'bilup',
     path: '/',
     secure: true,
     config: {

@@ -53,6 +53,7 @@ function Notification ({id, message, type, onDismiss, duration}) {
 
     return (
         <div
+            className="mw-glass-notification"
             style={{
                 padding: '12px 20px',
                 borderRadius: '12px',

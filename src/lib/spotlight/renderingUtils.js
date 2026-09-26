@@ -1,6 +1,6 @@
 // Rendering and block preview utilities
 
-import {renderBlock, getBlockHeight} from './BlockRenderer.js';
+import {renderPreviewBlock} from './previewRenderer.js';
 import {
     createSpritePreviewItem,
     createCostumePreviewItem,
@@ -18,7 +18,8 @@ import {
  * @param {number} previewScale Scale factor
  * @param {any} Blockly Blockly instance
  * @param {any} vm VM instance
- * @returns {{renderedBlock: any, height: number}} Rendered block data and height
+ * @returns {{renderedBlock: any, height: number}} Rendered block data and the height of the
+ *   whole menu entry, in unscaled block units.
  */
 const renderMenuItem = (result, svgBlock, previewWidth, previewScale, Blockly, vm) => {
     let height;
@@ -60,8 +61,10 @@ const renderMenuItem = (result, svgBlock, previewWidth, previewScale, Blockly, v
             renderedBlock = {width: previewWidth / previewScale, height: height};
         }
     } else if (result.block) {
-        height = getBlockHeight(result.block);
-        renderedBlock = renderBlock(result.block, svgBlock);
+        renderedBlock = renderPreviewBlock(result.block, svgBlock, Blockly);
+        if (renderedBlock) {
+            height = renderedBlock.rowHeight;
+        }
     }
     
     if (!height || isNaN(height)) {

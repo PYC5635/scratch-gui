@@ -50,6 +50,7 @@ import LoadScratchBlocksHOC from '../lib/components/tw-load-scratch-blocks-hoc.j
 import {offsetToPosition} from '../lib/backpack/code-payload.js';
 import {gentlyRequestPersistentStorage} from '../lib/utils/storage-request.js';
 import CollaborationService from '../lib/collaboration/index.js';
+import LazyScratchBlocks from '../lib/tw-lazy-scratch-blocks';
 
 // TW: Strings we add to scratch-blocks are localized here
 const messages = defineMessages({
@@ -1253,9 +1254,13 @@ class Blocks extends React.Component {
         // go through the XML DOM. Fall back to the full XML path otherwise.
         const hasDescs = !!data.blocks && !!data.blocks.blocks;
         const blockCount = hasDescs ? Object.keys(data.blocks.blocks).length : 0;
+        // Block lazy loading needs the deferred loader on every project, however
+        // small, otherwise there is nothing for it to unload.
+        const minDeferredBlocks = LazyScratchBlocks.isScriptLazyLoadingEnabled() ?
+            0 : DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS;
         const useDeferredLoad = !!this.ScratchBlocks.Xml.clearWorkspaceAndLoadFromXmlDeferred &&
-            (blockCount >= DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS ||
-                Object.keys(this.workspace.blockDB_ || {}).length >= DEFERRED_WORKSPACE_LOAD_MIN_BLOCKS);
+            (blockCount >= minDeferredBlocks ||
+                Object.keys(this.workspace.blockDB_ || {}).length >= minDeferredBlocks);
         // Re-apply the workspace layout once the (possibly asynchronous) load
         // finishes. The container may have been resized (stage zoom, tab switch,
         // window resize) while the blocks were loading, which would otherwise

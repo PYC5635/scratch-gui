@@ -11,6 +11,7 @@ import {
     writeWorktreeFile
 } from './browser-git';
 import { formatStatusRows } from './status-format';
+import { currentUser, setShellUser } from './shell-user';
 
 const bytesEqual = (a, b) => {
     if (!a || !b || a.length !== b.length) return false;
@@ -209,14 +210,10 @@ const osName = () => {
     return 'unknown';
 };
 
-// The rotur handle wins over whatever username the VM was given for the cloud/username block.
-let shellUser = { local: null, rotur: null };
-
-const setShellUser = patch => {
-    shellUser = { ...shellUser, ...patch };
-};
-
-const currentUser = () => shellUser.rotur || shellUser.local || 'player';
+// The shell user state (and its setter) live in ./shell-user.js so that
+// importers which only want to update the prompt username — rotur-session.jsx,
+// which sits in the initial bundle — don't pull just-bash and browser-git in.
+// setShellUser is re-exported below to keep the existing import sites working.
 
 const gitHelp = `Supported git commands:
   status, add, rm, commit, log, branch, checkout, diff --name-only,

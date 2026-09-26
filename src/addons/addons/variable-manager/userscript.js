@@ -277,8 +277,8 @@ export default async function ({addon, console, msg}) {
     const searchInput = el('input', {
         class: 'mw-vm-search',
         type: 'text',
-        placeholder: `${msg('search')}…`,
-        'aria-label': msg('search')
+        placeholder: msg('search'),
+        'aria-label': msg('search-aria')
     });
     const clearButton = el('button', {
         class: 'mw-vm-search-clear',
@@ -508,7 +508,7 @@ export default async function ({addon, console, msg}) {
         else show();
     };
 
-    window.__mistwarpVariableManagerToggle = toggle;
+    window.__bilupVariableManagerToggle = toggle;
 
     // --- Settings reactions ---------------------------------------------
     const removeSettingsListener = onSettingChanged(event => {

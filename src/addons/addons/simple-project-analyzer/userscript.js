@@ -718,7 +718,7 @@ export default function ({ addon, msg, console }) {
       // 分析代码块
       this.analyzeBlocks(analysis, projectData, extensionNameMap);
 
-      // 分析精灵和舞台
+      // 分析角色和舞台
       this.analyzeSprites(analysis, projectData);
 
       // 分析有效积木和函数定义
@@ -869,7 +869,7 @@ export default function ({ addon, msg, console }) {
       return extensionBlocks;
     }
 
-    // 分析精灵和舞台
+    // 分析角色和舞台
     analyzeSprites(analysis, projectData) {
       const targets = projectData.targets || [];
       const sprites = targets.filter(t => !t.isStage);
@@ -1250,7 +1250,7 @@ export default function ({ addon, msg, console }) {
               </div>
               <div class="sa-analyze-stat">
                 <div class="sa-analyze-stat-value">-</div>
-                <div class="sa-analyze-stat-label">${msg('stat-sprites', '精灵数量')}</div>
+                <div class="sa-analyze-stat-label">${msg('stat-sprites', '角色数量')}</div>
               </div>
               <div class="sa-analyze-stat">
                 <div class="sa-analyze-stat-value">-</div>
@@ -1380,7 +1380,7 @@ export default function ({ addon, msg, console }) {
         </div>
         <div class="sa-analyze-stat">
           <div class="sa-analyze-stat-value">${analysis.sprites}</div>
-          <div class="sa-analyze-stat-label">${msg('stat-sprites', '精灵数量')}</div>
+          <div class="sa-analyze-stat-label">${msg('stat-sprites', '角色数量')}</div>
         </div>
         <div class="sa-analyze-stat">
           <div class="sa-analyze-stat-value">${analysis.costumeCount}</div>
@@ -1909,7 +1909,7 @@ export default function ({ addon, msg, console }) {
         { label: msg('total-blocks', '总积木数'), value: analysis.totalBlocks },
         { label: msg('effective-blocks', '有效积木'), value: analysis.effectiveBlocks },
         { label: msg('function-definitions', '函数定义'), value: analysis.functionDefinitions },
-        { label: msg('stat-sprites', '精灵数量'), value: analysis.sprites },
+        { label: msg('stat-sprites', '角色数量'), value: analysis.sprites },
         { label: msg('stat-costumes', '造型数量'), value: analysis.costumeCount },
         { label: msg('stat-sounds', '声音数量'), value: analysis.soundCount },
         { label: msg('stat-variables', '变量数量'), value: analysis.variableCount },
