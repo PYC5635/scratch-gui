@@ -318,7 +318,7 @@ const normalizeVirtualCodeForCompare = (value: string) =>
 
 const getLineCount = (content: string) => (content ? content.split("\n").length : 1);
 
-const buildScratchAgentDoc = () => `# Bilup Nova Virtual Files
+const buildScratchAgentDoc = () => `# PineWarp Nova Virtual Files
 
 You edit Scratch by patching virtual JavaScript files.
 
@@ -4634,7 +4634,7 @@ export class AITools {
     try {
       await extensionManager.refreshBlocks?.();
     } catch (error) {
-      console.warn("[Bilup Nova] Failed to refresh extension blocks", error);
+      console.warn("[PineWarp Nova] Failed to refresh extension blocks", error);
     }
     this.vm.emitWorkspaceUpdate?.();
 

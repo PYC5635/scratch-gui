@@ -89,7 +89,7 @@ export const scratchToolSchemas = [
     function: {
       name: "searchExtensions",
       description:
-        "Search built-in and known remote Scratch/TurboWarp/Mist/SharkPool/Bilup extensions by ID, name, keyword, source, or URL stem. Use before installing extension blocks that are not already loaded.",
+        "Search built-in and known remote Scratch/TurboWarp/Mist/SharkPool/PineWarp extensions by ID, name, keyword, source, or URL stem. Use before installing extension blocks that are not already loaded.",
       parameters: {
         type: "object",
         properties: {

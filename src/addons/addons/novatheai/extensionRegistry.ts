@@ -83,7 +83,7 @@ const safeFetchJson = async <T>(url: string, fallback: T): Promise<T> => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.json();
   } catch (error) {
-    console.warn("[Bilup Nova] Failed to fetch extension registry", url, error);
+    console.warn("[PineWarp Nova] Failed to fetch extension registry", url, error);
     return fallback;
   }
 };
@@ -278,7 +278,7 @@ export const resolveKnownExtension = async (options: {
       item: {
         extensionId: extensionId || getURLStem(extensionURL) || "external_extension",
         name: extensionId || getURLStem(extensionURL) || extensionURL,
-        description: "External extension URL supplied directly to Bilup Nova.",
+        description: "External extension URL supplied directly to PineWarp Nova.",
         source: "external" as ExtensionSource,
         extensionURL,
         tags: ["external"],
