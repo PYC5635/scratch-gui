@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BilupLogo = ({className, alt}) => (
+const PineWarpLogo = ({className, alt}) => (
     <svg
         className={className}
         role="img"
@@ -26,4 +26,4 @@ const BilupLogo = ({className, alt}) => (
     </svg>
 );
 
-export default BilupLogo;
+export default PineWarpLogo;

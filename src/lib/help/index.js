@@ -29,7 +29,7 @@ const HELP_ENTRIES = [
         keywords: ['file', 'edit', 'tools', 'top bar'],
         short: 'The menu bar holds the File, Edit, Tools, Bookmarks, and Settings menus. Everything from saving to opening the debugger starts here.',
         howTo: [
-            'File holds New, Save to Bilup, Save to your computer, Package, and Restore points.',
+            'File holds New, Save to PineWarp, Save to your computer, Package, and Restore points.',
             'Tools holds the Git panel, Terminal, Live Collaboration, Debugger, and Variable Manager.',
             'Edit holds Undo, Redo, Addons, and the tutorial.'
         ],
@@ -135,7 +135,7 @@ const HELP_ENTRIES = [
         howTo: [
             'Click Make a Block in the My Blocks category and add label text and inputs.',
             'Tick "Run without screen refresh" to run the whole block in one frame.',
-            'Bilup also supports return values so a custom block can report a result.'
+            'PineWarp also supports return values so a custom block can report a result.'
         ],
         docsPath: '/blocks/my-blocks'
     },
@@ -183,7 +183,7 @@ const HELP_ENTRIES = [
         title: 'Themes and appearance',
         category: 'Editor',
         keywords: ['dark mode', 'accent', 'custom theme', 'colors'],
-        short: 'Bilup lets you restyle the editor and the blocks. The editor Settings choose the block color scheme, while the overall light or dark theme and accent are set in your account settings on the community site.',
+        short: 'PineWarp lets you restyle the editor and the blocks. The editor Settings choose the block color scheme, while the overall light or dark theme and accent are set in your account settings on the community site.',
         howTo: [
             'Choose a block color scheme (such as High Contrast) in the editor Theme settings.',
             'Set the overall light or dark theme and accent color in your account settings.',
@@ -235,7 +235,7 @@ const HELP_ENTRIES = [
         title: 'Version control (Git)',
         category: 'Editor',
         keywords: ['git', 'commit', 'push', 'pull', 'diff', 'history'],
-        short: 'Bilup can track a project as a git repository, so you get a full history with commits, pushes, pulls, diffs, and merge handling.',
+        short: 'PineWarp can track a project as a git repository, so you get a full history with commits, pushes, pulls, diffs, and merge handling.',
         howTo: [
             'Open the Git panel from the Tools menu.',
             'Commit changes with a message, then push to share them.',
@@ -300,7 +300,7 @@ const HELP_ENTRIES = [
         title: 'Keyboard shortcuts',
         category: 'Editor',
         keywords: ['hotkeys', 'keybindings'],
-        short: 'Bilup has keyboard shortcuts for common actions, and a shortcut manager where you can view and change them.',
+        short: 'PineWarp has keyboard shortcuts for common actions, and a shortcut manager where you can view and change them.',
         howTo: [
             'Save with Ctrl/Cmd plus S and open a project with Ctrl/Cmd plus O.',
             'Open the shortcut manager from Settings to see the full list.',
@@ -316,7 +316,7 @@ const HELP_ENTRIES = [
         short: 'Motion blocks move and rotate sprites: move, turn, go to a position, glide, and point in a direction.',
         howTo: [
             'Motion blocks only affect sprites, not the stage.',
-            'Bilup adds point-towards-x/y for pointing at an exact coordinate.',
+            'PineWarp adds point-towards-x/y for pointing at an exact coordinate.',
             'Combine with a forever loop to create continuous movement.'
         ],
         docsPath: '/blocks/motion'
@@ -369,7 +369,7 @@ const HELP_ENTRIES = [
         howTo: [
             'Use repeat, forever, and if to structure logic.',
             'Clones let one sprite spawn copies of itself at runtime.',
-            'Bilup adds while, for each, switch/case, and all at once.'
+            'PineWarp adds while, for each, switch/case, and all at once.'
         ],
         docsPath: '/blocks/control'
     },
@@ -395,7 +395,7 @@ const HELP_ENTRIES = [
         howTo: [
             'Nest operators to build larger expressions.',
             'Use join, letter of, and length for text handling.',
-            'Bilup adds replace, trim, clamp, min, max, pi, and more.'
+            'PineWarp adds replace, trim, clamp, min, max, pi, and more.'
         ],
         docsPath: '/blocks/operators'
     },
@@ -417,7 +417,7 @@ const HELP_ENTRIES = [
         title: 'My Blocks',
         category: 'Blocks',
         keywords: ['custom blocks', 'define', 'procedures'],
-        short: 'My Blocks are the custom blocks you define. They can take inputs, run without screen refresh, and in Bilup report a return value.',
+        short: 'My Blocks are the custom blocks you define. They can take inputs, run without screen refresh, and in PineWarp report a return value.',
         howTo: [
             'Define a block, then call it like any other block.',
             'Read inputs inside the definition with the argument reporters.',
@@ -427,13 +427,13 @@ const HELP_ENTRIES = [
     },
     {
         id: 'blocks-mistwarp-extras',
-        title: 'Bilup extra blocks',
+        title: 'PineWarp extra blocks',
         category: 'Blocks',
         keywords: ['turbowarp', 'extra', 'added blocks'],
-        short: 'Bilup and TurboWarp add blocks across several categories that vanilla Scratch does not have, such as while loops, switch/case, and extra text operators.',
+        short: 'PineWarp and TurboWarp add blocks across several categories that vanilla Scratch does not have, such as while loops, switch/case, and extra text operators.',
         howTo: [
             'Extra blocks appear inline in their normal categories.',
-            'They save into standard sb3 projects and run anywhere Bilup runs.',
+            'They save into standard sb3 projects and run anywhere PineWarp runs.',
             'See the reference for the full list and how each behaves.'
         ],
         docsPath: '/blocks/mistwarp-extras'
@@ -453,10 +453,10 @@ const HELP_ENTRIES = [
     },
     {
         id: 'ext-mistwarp-blocks',
-        title: 'Bilup Blocks',
+        title: 'PineWarp Blocks',
         category: 'Extensions',
         keywords: ['tw', 'last key', 'mouse button'],
-        short: 'The Bilup Blocks extension adds utility blocks such as the last key pressed and whether a specific mouse button is down.',
+        short: 'The PineWarp Blocks extension adds utility blocks such as the last key pressed and whether a specific mouse button is down.',
         howTo: [
             'Add it from the extension library.',
             'Use last key pressed to react to any key without naming it.',
@@ -664,7 +664,7 @@ const HELP_ENTRIES = [
         title: 'JavaScript and the compiler',
         category: 'Advanced',
         keywords: ['performance', 'compile', 'window.vm'],
-        short: 'Bilup compiles blocks into JavaScript for speed. Advanced users can also access the running project through window.vm.',
+        short: 'PineWarp compiles blocks into JavaScript for speed. Advanced users can also access the running project through window.vm.',
         howTo: [
             'The compiler runs automatically; disable it in Settings to compare behavior.',
             'Open the browser console and use window.vm to inspect the running project.',
@@ -690,7 +690,7 @@ const HELP_ENTRIES = [
         title: 'Embedding projects',
         category: 'Advanced',
         keywords: ['iframe', 'website', 'embed', 'postmessage'],
-        short: 'You can embed a Bilup project in another web page and, optionally, communicate with it from the surrounding page.',
+        short: 'You can embed a PineWarp project in another web page and, optionally, communicate with it from the surrounding page.',
         howTo: [
             'Embed the player in an iframe on your site.',
             'Adjust size and controls with URL parameters.',

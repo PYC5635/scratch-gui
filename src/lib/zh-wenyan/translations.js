@@ -23,7 +23,7 @@ module.exports = {
     'gui.menuBar.saveAndLoad': '存載',
     'gui.menuBar.saveNow': '即儲存',
     'gui.menuBar.packager': '打包器',
-    'gui.menuBar.aboutRemixWarp': '論 PineEditor',
+    'gui.menuBar.aboutRemixWarp': '論 PineWarp',
     'gui.menuBar.githubRepository': 'GitHub 倉庫',
     'gui.menuBar.settings': '設置',
     'gui.menuBar.preferences': '偏好',

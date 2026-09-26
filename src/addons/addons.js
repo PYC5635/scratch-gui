@@ -78,7 +78,7 @@ const addons = [
     'remove-extension-button',
     'project-size-display',
     'merge-operators',
-    // Bilup 本地插件源（位于 bilup-addons/ 目录，由 pull.js 一并处理）
+    // PineWarp 本地插件源（位于 bilup-addons/ 目录，由 pull.js 一并处理）
     'bilup-sample'
 ];
 

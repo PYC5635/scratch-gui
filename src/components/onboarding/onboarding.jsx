@@ -14,7 +14,7 @@ const messages = defineMessages({
         id: 'onboarding.windowTitle'
     },
     step1Title: {
-        defaultMessage: 'Welcome to PineEditor!',
+        defaultMessage: 'Welcome to PineWarp!',
         description: 'Title of the first onboarding step',
         id: 'onboarding.step1.title'
     },
@@ -79,7 +79,7 @@ const messages = defineMessages({
         id: 'onboarding.step7.title'
     },
     step7Content: {
-        defaultMessage: 'PineEditor includes powerful AI tools to help you code faster and smarter. Access AI Chat for coding assistance.',
+        defaultMessage: 'PineWarp includes powerful AI tools to help you code faster and smarter. Access AI Chat for coding assistance.',
         description: 'Content of the seventh onboarding step',
         id: 'onboarding.step7.content'
     },
@@ -89,7 +89,7 @@ const messages = defineMessages({
         id: 'onboarding.step8.title'
     },
     step8Content: {
-        defaultMessage: 'Convert your projects to work with different Scratch-based editors. Save to Scratch, Turbowarp, 02Engine, AstraEditor, or PineEditor formats.',
+        defaultMessage: 'Convert your projects to work with different Scratch-based editors. Save to Scratch, Turbowarp, 02Engine, AstraEditor, or PineWarp formats.',
         description: 'Content of the eighth onboarding step',
         id: 'onboarding.step8.content'
     },

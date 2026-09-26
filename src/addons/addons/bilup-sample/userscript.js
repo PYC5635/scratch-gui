@@ -19,5 +19,5 @@ export default async function ({addon, console}) {
         order: 1
     });
 
-    console.log(`[Bilup Sample] ${message}`);
+    console.log(`[PineWarp Sample] ${message}`);
 }

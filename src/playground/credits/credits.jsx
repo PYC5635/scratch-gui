@@ -200,7 +200,7 @@ const Credits = () => {
                 <UserList users={UserData.addonDevelopers} />
             </section>
             {/* <section>
-                <h2>PineEditor Extension Gallery</h2>
+                <h2>PineWarp Extension Gallery</h2>
                 <UserList users={UserData.extensionDevelopers} />
             </section> */}
             <section>
@@ -221,8 +221,8 @@ const Credits = () => {
                 </p>
                 <p>
                     {language === 'en' 
-                        ? `Special thanks to 02Engine, AstraEditor, and PineEditor for their open-source code, which made compatibility conversion for ${APP_NAME} possible. We have maintained compatibility with their theme colors. Thank you very much for their contributions.` 
-                        : `特别感谢02Engine和AstraEditor、Bilup的开源代码，它们为${APP_NAME}的兼容性转换提供了可能。我们兼容了他们的主题色。非常感谢他们的贡献。`}
+                        ? `Special thanks to 02Engine, AstraEditor, and PineWarp for their open-source code, which made compatibility conversion for ${APP_NAME} possible. We have maintained compatibility with their theme colors. Thank you very much for their contributions.` 
+                        : `特别感谢02Engine和AstraEditor、PineWarp的开源代码，它们为${APP_NAME}的兼容性转换提供了可能。我们兼容了他们的主题色。非常感谢他们的贡献。`}
                 </p>
             </section>
             <section>

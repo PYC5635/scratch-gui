@@ -28,7 +28,7 @@ const messages = defineMessages({
     profile: {id: 'mw.rotur.accountMenu.profile', defaultMessage: 'Profile'},
     leaderboard: {id: 'mw.rotur.accountMenu.leaderboard', defaultMessage: 'Leaderboard'},
     settings: {id: 'mw.rotur.accountMenu.settings', defaultMessage: 'Settings'},
-    infoButton: {id: 'mw.rotur.accountMenu.infoButton', defaultMessage: 'About PineEditor'},
+    infoButton: {id: 'mw.rotur.accountMenu.infoButton', defaultMessage: 'About PineWarp'},
     switchAccount: {id: 'mw.rotur.accountMenu.switchAccount', defaultMessage: 'Switch account'},
     signOut: {id: 'mw.rotur.accountMenu.signOut', defaultMessage: 'Sign out'}
 });

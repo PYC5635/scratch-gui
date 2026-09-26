@@ -41,10 +41,10 @@ const messages = defineMessages({
         description: 'Filter option for all platforms',
         id: 'bl.warptheme.allPlatforms'
     },
-    PineEditor: {
-        defaultMessage: 'PineEditor',
-        description: 'Platform filter for PineEditor',
-        id: 'bl.warptheme.PineEditor'
+    PineWarp: {
+        defaultMessage: 'PineWarp',
+        description: 'Platform filter for PineWarp',
+        id: 'bl.warptheme.PineWarp'
     },
     allColors: {
         defaultMessage: 'All Colors',
@@ -140,7 +140,7 @@ const COLORS = [
 
 const PLATFORMS = [
     {id: 'all', label: 'All Platforms'},
-    {id: 'PineEditor', label: 'PineEditor'},
+    {id: 'PineWarp', label: 'PineWarp'},
 ];
 
 const hexToRgb = hex => {
@@ -584,7 +584,7 @@ const WarpthemeModal = props => {
                                     value={p.id}
                                 >
                                     {p.id === 'all' ? props.intl.formatMessage(messages.allPlatforms) :
-                                        props.intl.formatMessage(messages.PineEditor)}
+                                        props.intl.formatMessage(messages.PineWarp)}
                                 </option>
                             ))}
                         </select>

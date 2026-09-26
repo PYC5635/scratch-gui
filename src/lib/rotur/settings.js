@@ -1,16 +1,16 @@
 /**
- * Persistent Bilup Accounts integration settings.
+ * Persistent PineWarp Accounts integration settings.
  * Presence text is fixed; users can toggle RPC and the edit-duration timer
  * (native start_time — never written into title/status strings).
  */
 
 const STORAGE_KEY = 'mw:rotur-settings';
-const APP_NAME = 'Bilup';
+const APP_NAME = 'PineWarp';
 
 const DEFAULTS = {
     presenceEnabled: true,
     includeEditDuration: true,
-    // How project extensions may show activity on your Bilup Accounts profile:
+    // How project extensions may show activity on your PineWarp Accounts profile:
     // 'ask' (prompt per project), 'all' (always allow), 'off' (never).
     activitySharing: 'ask'
 };

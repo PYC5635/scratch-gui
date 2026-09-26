@@ -13,9 +13,9 @@ const agreementAccepted = async () => {
     }
 };
 
-// Ctrl+S / save button. Own project already on Bilup -> upload the current
+// Ctrl+S / save button. Own project already on PineWarp -> upload the current
 // version silently. Someone else's project -> the window (remix makes a copy).
-// Not on Bilup yet -> download an sb3. The window only reappears for an
+// Not on PineWarp yet -> download an sb3. The window only reappears for an
 // update when a new upload agreement needs accepting, or the silent upload fails.
 const smartSave = async ({vm, title, onSaved = () => {}}) => {
     const platform = communityEnabled ? getRememberedPlatformProjectState() : null;

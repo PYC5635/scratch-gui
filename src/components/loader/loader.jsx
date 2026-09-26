@@ -369,8 +369,8 @@ class LoaderComponent extends React.Component {
                         >
                             <Github size={14} />
                             <FormattedMessage
-                                defaultMessage="Follow Bilup on GitHub"
-                                description="Link on the loading screen to the Bilup GitHub organisation"
+                                defaultMessage="Follow PineWarp on GitHub"
+                                description="Link on the loading screen to the PineWarp GitHub organisation"
                                 id="mw.loader.github"
                             />
                         </a>

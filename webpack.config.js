@@ -59,7 +59,7 @@ const base = {
     resolve: {
         symlinks: false,
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
-        // scratch-* are file: symlinks into D:\PineEditor\_sdeps. With
+        // scratch-* are file: symlinks into D:\PineWarp\_sdeps. With
         // symlinks:false webpack resolves them at their REAL path (_sdeps),
         // where their deps (@bilup/..., @turbowarp/...) are NOT installed in
         // the adjacent node_modules. Fall back to _sdeps/node_modules so those

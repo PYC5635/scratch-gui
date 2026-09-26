@@ -19,7 +19,7 @@ export const onRequest = async context => {
         response = await fetch(target, {
             redirect: 'follow',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; BilupProjectProxy/1.0)'
+                'User-Agent': 'Mozilla/5.0 (compatible; PineWarpProjectProxy/1.0)'
             }
         });
     } catch (e) {

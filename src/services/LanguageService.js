@@ -614,7 +614,7 @@ class LanguageService {
             };
         });
 
-        // PineEditor 内置文言文语言包（zh-wenyan）
+        // PineWarp 内置文言文语言包（zh-wenyan）
         if (editorMessages['zh-wenyan']) {
             available['zh-wenyan'] = {
                 name: '文言文',

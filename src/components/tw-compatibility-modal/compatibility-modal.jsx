@@ -56,7 +56,7 @@ const platforms = [
     {id: 'TurboWarp', name: 'TurboWarp', url: 'https://turbowarp.org', extension: '.sb3'},
     {id: '02Engine', name: '02Engine', url: 'https://02engine.02studio.xyz/', extension: '.sb3'},
     {id: 'AstraEditor', name: 'AstraEditor', url: 'https://editors.astras.top/', extension: '.sb3'},
-    {id: 'Bilup', name: 'Bilup', url: 'https://com.bilup.org/', extension: '.sb3'},
+    {id: 'PineWarp', name: 'PineWarp', url: 'https://com.bilup.org/', extension: '.sb3'},
     {id: 'Gandi', name: 'Gandi', url: 'https://getgandi.com/', extension: '.sb3'}
 ];
 

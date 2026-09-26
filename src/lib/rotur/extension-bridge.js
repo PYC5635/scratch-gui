@@ -57,7 +57,7 @@ const commitGrant = async (meta, scopes) => {
 };
 
 // Per-project decisions on whether a project may show activity on the user's
-// Bilup Accounts profile: {[projectKey]: boolean}. Global default lives in settings
+// PineWarp Accounts profile: {[projectKey]: boolean}. Global default lives in settings
 // (activitySharing: 'ask' | 'all' | 'off').
 const ACTIVITY_GRANTS_KEY = 'mw:rotur-activity-grants';
 
@@ -105,13 +105,13 @@ const isActivityMethod = method => (
 );
 
 // Dispatch a dotted method path (e.g. "me.transfer", "posts.feed",
-// "socket.setStatus") on the shared Bilup Accounts client. The token lives inside the
+// "socket.setStatus") on the shared PineWarp Accounts client. The token lives inside the
 // client and is never returned. socket.* methods lazily connect the status
 // websocket first.
 const callRotur = async (method, args) => {
     const rotur = getRotur();
     if (!rotur.loggedIn) {
-        throw new Error('Log in to Bilup Accounts to use this block');
+        throw new Error('Log in to PineWarp Accounts to use this block');
     }
     const parts = method.split('.');
     if (parts[0] === 'socket') {
@@ -120,7 +120,7 @@ const callRotur = async (method, args) => {
         }
         const fn = rotur.socket && rotur.socket[parts[1]];
         if (typeof fn !== 'function') {
-            throw new Error(`Unknown Bilup Accounts socket method: ${method}`);
+            throw new Error(`Unknown PineWarp Accounts socket method: ${method}`);
         }
         return fn.apply(rotur.socket, args);
     }
@@ -131,7 +131,7 @@ const callRotur = async (method, args) => {
         fn = fn && fn[part];
     }
     if (typeof fn !== 'function') {
-        throw new Error(`Unknown Bilup Accounts method: ${method}`);
+        throw new Error(`Unknown PineWarp Accounts method: ${method}`);
     }
     return fn.apply(ctx, args || []);
 };

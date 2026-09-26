@@ -7,7 +7,7 @@ import styles from './info-window.css';
 const messages = defineMessages({
     heading: {
         id: 'mw.info.heading',
-        defaultMessage: 'About PineEditor'
+        defaultMessage: 'About PineWarp'
     },
     warningText: {
         id: 'mw.info.warningText',
@@ -20,12 +20,12 @@ const messages = defineMessages({
     paragraph1: {
         id: 'mw.info.paragraph1',
         defaultMessage:
-            'Sign-in and other auxiliary features are synced from github.com/bilup. For any bugs related to these features and their accessories, please first reproduce them on https://com.bilup.org/editor and confirm it is indeed a PineEditor-only bug before submitting a report to us.'
+            'Sign-in and other auxiliary features are synced from github.com/bilup. For any bugs related to these features and their accessories, please first reproduce them on https://com.bilup.org/editor and confirm it is indeed a PineWarp-only bug before submitting a report to us.'
     },
     paragraph2: {
         id: 'mw.info.paragraph2',
         defaultMessage:
-            'All usage and feedback of these features and accessories are provided by the source code at github.com/bilup (except for this notice). For any operation that asks you to do things including but not limited to information collection, payment, etc., PineEditor will not store or save anything (everything you pay on it goes directly to the PineEditor team\'s wallet).'
+            'All usage and feedback of these features and accessories are provided by the source code at github.com/bilup (except for this notice). For any operation that asks you to do things including but not limited to information collection, payment, etc., PineWarp will not store or save anything (everything you pay on it goes directly to the PineWarp team\'s wallet).'
     },
     usageSectionTitle: {
         id: 'mw.info.usageSectionTitle',
@@ -33,12 +33,12 @@ const messages = defineMessages({
     },
     usageParagraph1: {
         id: 'mw.info.usageParagraph1',
-        defaultMessage: 'PineEditor may differ from PineEditor when using this feature or its accessories.'
+        defaultMessage: 'PineWarp may differ from PineWarp when using this feature or its accessories.'
     },
     usageParagraph2: {
         id: 'mw.info.usageParagraph2',
         defaultMessage:
-            'In the editor, signing in to your account and viewing the "My Stuff" and "Notifications" pages use two separate sign-in mechanisms, which do not exist on PineEditor, so you need to sign in twice (please do not be surprised).'
+            'In the editor, signing in to your account and viewing the "My Stuff" and "Notifications" pages use two separate sign-in mechanisms, which do not exist on PineWarp, so you need to sign in twice (please do not be surprised).'
     },
     usageParagraph3: {
         id: 'mw.info.usageParagraph3',
