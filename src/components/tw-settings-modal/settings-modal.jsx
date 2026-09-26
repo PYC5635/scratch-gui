@@ -1,4 +1,4 @@
-﻿import {defineMessages, FormattedMessage, intlShape, injectIntl} from 'react-intl';
+import {defineMessages, FormattedMessage, intlShape, injectIntl} from 'react-intl';
 import PropTypes from 'prop-types';
 import React from 'react';
 import classNames from 'classnames';
@@ -453,6 +453,20 @@ const settingDefinitions = {
             id: 'mw.settingsModal.windowAnimationHelp'
         }
     },
+    scriptLazyLoading: {
+        label: {
+            defaultMessage: 'Block Lazy Loading',
+            description: 'Only render blocks near the visible area of the editor',
+            id: 'mw.settingsModal.scriptLazyLoading'
+        },
+        help: {
+            defaultMessage: 'Only renders blocks on screen and in the area around it ' +
+                '(the ring outside the screen is three times its area). Blocks beyond that ' +
+                'stop being rendered to save performance, and render again when you scroll back.',
+            description: 'Block Lazy Loading setting help',
+            id: 'mw.settingsModal.scriptLazyLoadingHelp'
+        }
+    },
     squareStageCorners: {
         label: {
             defaultMessage: 'Square Stage Corners',
@@ -616,6 +630,7 @@ const CaseSensitiveLists = createBooleanSetting('CaseSensitiveLists', settingDef
 const RealLayerIndexes = createBooleanSetting('RealLayerIndexes', settingDefinitions.realLayerIndexes);
 const EnableStageResize = createBooleanSetting('EnableStageResize', settingDefinitions.enableStageResize);
 const WindowAnimation = createBooleanSetting('WindowAnimation', settingDefinitions.windowAnimation);
+const ScriptLazyLoading = createBooleanSetting('ScriptLazyLoading', settingDefinitions.scriptLazyLoading);
 const SquareStageCorners = createBooleanSetting('SquareStageCorners', settingDefinitions.squareStageCorners);
 const HideDeleteButton = createBooleanSetting('HideDeleteButton', settingDefinitions.hideDeleteButton);
 const HideExtensionButton = createBooleanSetting('HideExtensionButton', settingDefinitions.hideExtensionButton);
@@ -1292,6 +1307,17 @@ const pageConfigurations = {
                         props: props => ({
                             value: props.windowAnimation,
                             onChange: props.onWindowAnimationChange
+                        })
+                    }
+                ]
+            },
+            {
+                settings: [
+                    {
+                        component: ScriptLazyLoading,
+                        props: props => ({
+                            value: props.scriptLazyLoading,
+                            onChange: props.onScriptLazyLoadingChange
                         })
                     }
                 ]
@@ -2381,7 +2407,9 @@ SettingsModalComponent.propTypes = {
     cloudVariableServer: PropTypes.string,
     onCloudVariableServerChange: PropTypes.func,
     windowAnimation: PropTypes.bool,
-    onWindowAnimationChange: PropTypes.func
+    onWindowAnimationChange: PropTypes.func,
+    scriptLazyLoading: PropTypes.bool,
+    onScriptLazyLoadingChange: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);

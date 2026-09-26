@@ -339,6 +339,38 @@ const TARGETS = [
             ${inside} [class*="tile"] {
             background-color: ${glass} !important;
         }
+        /* ---- [W] 去叠色：上色只作用于"最外层"的卡片本体，内部子部件不再重复上色 ----
+           为什么必须要这一步：CSS Module 编译出的类名是 文件名_local_哈希，
+           于是宽匹配 [class*="card"] 会把同一组件里**所有以 card 开头的 local**
+           一起命中。tw-extension-library 的 DOM 是
+             .card > .card-select > .card-text > .card-name
+           四层各铺一遍 55% 玻璃，叠起来是 1 - 0.45^4 ≈ 96% 的黑 ——
+           用户 2026-09-25 截图里"卡片说明区变成黑框"就是这么来的：
+           不是漏改，而是改重了。素材库卡片的 .library-item-name 同理（两层）。
+           规则：命中上色族、且自身还嵌在另一个命中元素里的 → 撤销上色。
+           写法要点（很重要，动这里之前先读懂）：
+             · 祖先与白名单都包在 :where() 里把特异性归零，整条规则的特异性因此
+               与上色规则**完全相同**（都是 (0,2,0)），只靠书写顺序取胜。
+               于是所有写在更后面的、针对具体部件的规则（[I] 的 ct-panel、
+               [U-2c] 的扩展库内嵌图标、[G] 的 ct-snapshot / style-option 等）
+               依然按原样生效，本组不会误伤它们。
+               反之，若给本组加高特异性（例如把祖先写成裸露的 :is()），
+               就会压过后面那些规则 —— 别这么做。
+             · 白名单 = 自身源样式就铺了实底的"子部件"。它们不是叠色，
+               而是自己就是一块表面（图占位底、已加载徽标、内嵌图标底），
+               撤掉底会比叠色更难看。
+             · 只写 background-color，不写 background 简写：
+               简写会把子部件的内联渐变（如自定义主题色卡的预览）一起清掉。
+             · 加新上色族时的扫描办法：列出 src 下所有 css 中"选择器含该关键字
+               且声明了不透明 background/background-color"的 local，
+               与上色族的类名取交集 —— 交集里除了族根，就是需要进白名单的子部件。 */
+        ${insideDescendant}:where([class*="card"], [class*="panel"], [class*="tile"])
+            :is([class*="card"], [class*="panel"], [class*="tile"]):where(
+                :not([class*="card-icon"]):not([class*="card-loaded-check"]):not([class*="card-inset-icon"]):
+                :not([class*="left-card"]):not([class*="ct-card-swatch"]):not([class*="chart-card"]):
+                :not([class*="memory-info-card"]) ) {
+            background-color: transparent !important;
+        }
         /* custom-procedures 的 .container 使用单独的 background 属性，用 background 简写覆盖 */
         ${inside} [class*="custom-procedures_container"] {
             background: transparent !important;
@@ -382,6 +414,22 @@ const TARGETS = [
         ${inside} [class*="rotur-login-modal_feature-coming"],
         ${inside} [class*="telemetry-modal_radio-buttons"] label {
             background-color: ${glass} !important;
+        }
+        /* ---- [W] 去叠色（素材库卡片同族）—— 与上面 card/panel/tile 同一原理：
+           .library-item 的子部件 .library-item-image-container-wrapper /
+           -image-container / -name 也含 "library-item_library-item" 子串，
+           于是卡片本体与 .library-item-name 各铺一层 55% 黑，
+           表现为"说明条比卡片明显更暗"。这里同样只保留最外层。
+           白名单两项都是自身就有实底的子部件：
+             .library-item-image（图片占位底）
+             .library-item-inset-image-container（内嵌图标底，[U-2c] 另有专门规则）
+           其余族（git-modal 的 remoteItem/chip、rotur 的 feature 等）经扫描确认
+           没有"同族子部件 + 本身有实底"的情况，故不铺开，避免误伤。 */
+        ${insideDescendant}:where([class*="library-item_library-item"])
+            :is([class*="library-item_library-item"]):where(
+                :not([class*="library-item-image"])
+                :not([class*="library-item-inset-image"]) ) {
+            background-color: transparent !important;
         }
         /* [G] 设置窗口里的大块行/编辑区（菜单栏编排行、主题快照、自定义主题编辑器、
            字体行、样式/对齐选择卡、分段/切换轨道）— 玻璃化而非实底 */
@@ -1232,7 +1280,99 @@ const TARGETS = [
         /* git-modal 的 .chip 选中态源样式铺 $looks-secondary（已由 [U-1] 的
            git-modal_chipActive 覆盖），这里只需保证非选中态是玻璃，不重复。
            .select / .input / .inputSmall 是原生表单控件，已被 [H] 的
-           input/select 规则覆盖（它们是 <select>/<input> 本身）。 */`;
+           input/select 规则覆盖（它们是 <select>/<input> 本身）。 */
+
+/* [X] 调试器窗口（src/components/tw-debugger）—— 此前**唯一一个零覆盖**的插件窗口。
+       ⚠ 它和别的窗口不一样：CSS 是用 style-loader + css-loader 加载的（见 debugger.jsx
+       的 import，前缀两个感叹号禁用其它 loader），**没有开 modules**，JSX 里也写的是
+       裸字符串 className，所以运行时类名就是字面的
+       mw-debugger-* / sa-debugger-*，没有"组件名_"前缀。因此这里只能用**字面类名**精确匹配。
+       千万不要图省事改写成 [class*="mw-debugger-tab"] —— 那会同时命中
+       mw-debugger-tab / mw-debugger-tabs / mw-debugger-tab-active / mw-debugger-tab-icon
+       四个类，正是"状态类过度命中基类"那类隐蔽故障（之前已经踩过两次）。
+       排查方式：逐行对过 debugger.css 全部 620 行 + tabs 下四个 JS 的 createElement。
+         · 已被既有组覆盖、无需重复：.mw-debugger-body / .sa-debugger-logs-content /
+           .sa-performance-tab-content / .sa-memory-tab-content（命中 [body] / [content]
+           关键字 → 已透明）；.sa-debugger-chart-card / .sa-memory-info-card（命中 [card]）；
+           .sa-debugger-search（input type=text，已被 [H] 铺 cardGlass）。
+         · 刻意保留：.sa-debugger-log-icon（14px 语义色圆点：warn 黄 / error 红 / log 灰 /
+           thread 蓝）、.mw-debugger-paused-dot（8px 状态点）、
+           .sa-debugger-block-preview（积木颜色预览，必须还原真实积木色）、
+           .sa-debugger-severity（只改 border-color 的分段按钮）、
+           .sa-debugger-log[data-type=warn|error]（本身带 alpha 的语义底）、
+           以及 meter.css 的 .mask（opacity .75 的仪表遮罩，动它会破坏读数）。
+       ---- [X-1] 区域根：整面重铺窗口底色（截图里那三条纯黑）→ 透明，露出窗口玻璃 ---- */
+        .sa-debugger-window .mw-debugger-tabs,
+        .sa-debugger-window .mw-debugger-toolbar,
+        .sa-debugger-window .sa-debugger-log-outer {
+            background-color: transparent !important;
+            background: transparent !important;
+        }
+        /* [X-2a] 选中的 tab —— 用满档玻璃，保证"当前在哪一页"看得出来 */
+        .sa-debugger-window .mw-debugger-tab-active {
+            background-color: ${glass} !important;
+            background: ${glass} !important;
+        }
+        /* [X-2b] 中性 chrome / 内容单元：它们是控件或行，不是区域板，
+           给一层淡玻璃保留单元可辨性（档位同 [V-B] / [V-C]） */
+        .sa-debugger-window .mw-debugger-toolbar-btn,
+        .sa-debugger-window .sa-debugger-sprite-select,
+        .sa-debugger-window .sa-debugger-log-link,
+        .sa-debugger-window .sa-debugger-thread-id,
+        .sa-debugger-window .sa-memory-variable-row,
+        .sa-debugger-window .sa-memory-variables-empty {
+            background-color: ${cardGlass} !important;
+            background: ${cardGlass} !important;
+        }
+        /* [X-3] hover：照旧**不换 token**，只提一档。
+           两点收窄：
+             · 选中的 tab 排除在外（否则 hover 会把"选中"提得更淡，反而看不出选中）
+             · warn / error 行排除在外 —— 源 CSS 里 [data-type] 的语义底写在 :hover 之后、
+               特异性相同，本来就把 hover 盖掉了；不排除的话我们这条会把黄/红底冲掉。 */
+        .sa-debugger-window .mw-debugger-tab:not(.mw-debugger-tab-active):hover,
+        .sa-debugger-window .sa-debugger-log:not([data-type="warn"]):not([data-type="error"]):hover {
+            background-color: ${cardGlass} !important;
+            background: ${cardGlass} !important;
+        }
+        /* [X-4] 品牌色：① "恢复运行"按钮（暂停时才出现，源色 $pen-primary）
+                        ② 日志行的跳转链接 hover（源色 $looks-secondary + 白字）
+           ① 必须写成双类 .mw-debugger-toolbar-btn.mw-debugger-resume：
+           它同时带 mw-debugger-toolbar-btn，与 [X-2b] 同特异性，靠双类抬高才能稳赢。 */
+        .sa-debugger-window .mw-debugger-toolbar-btn.mw-debugger-resume {
+            background-color: ${brandGlass('--pen-primary', '#0fbd8c', brandA)} !important;
+            background: ${brandGlass('--pen-primary', '#0fbd8c', brandA)} !important;
+            border-color: transparent !important;
+            color: white !important;
+        }
+        .sa-debugger-window .mw-debugger-toolbar-btn.mw-debugger-resume:hover {
+            background-color: ${brandGlass('--pen-primary', '#0fbd8c', brandAHover)} !important;
+            background: ${brandGlass('--pen-primary', '#0fbd8c', brandAHover)} !important;
+        }
+        .sa-debugger-window .sa-debugger-log-link:hover {
+            background-color: ${brandGlass('--looks-secondary', '#4c97ff', brandAHover)} !important;
+            background: ${brandGlass('--looks-secondary', '#4c97ff', brandAHover)} !important;
+            color: white !important;
+        }
+        /* ---- [X-5] 同型逃逸：另外两个"中性实色、类名不含任何关键字"的窗口成员 ----
+           与调试器是同一类问题（窗口里整块铺 --ui-primary / --ui-tertiary，类名里既没有
+           body/content 也没有 card/panel），顺带一并处理。这两个是 CSS Module，
+           类名带"组件名_"前缀，所以用 [class*=] 匹配。
+           ⚠ 必须用 insideDescendant 而不是 inside：inside 是逗号列表，直接拼只会把选择器
+           接到最后一个分支（.addon-window-content）上，而这两个都挂在 React modal
+           （.modal-content）之下 —— 用 inside 会得到永假/错配的规则、静默失效。
+             record-modal（录音窗口） .meter-container / .waveform-container → 仪表底板
+             mw-git-diff-viewer（Git 窗口里的差异查看器）
+                                      .viewer（列表根）/ .fileHeader（文件行头） */
+        ${insideDescendant}[class*="record-modal_meter-container"],
+        ${insideDescendant}[class*="record-modal_waveform-container"],
+        ${insideDescendant}[class*="diff-viewer_fileHeader"] {
+            background-color: ${cardGlass} !important;
+            background: ${cardGlass} !important;
+        }
+        ${insideDescendant}[class*="diff-viewer_viewer"] {
+            background-color: transparent !important;
+            background: transparent !important;
+        }`;
         }
     },
     // 弹窗通知 — CSS Module 类名: alert_alert_xxxxx

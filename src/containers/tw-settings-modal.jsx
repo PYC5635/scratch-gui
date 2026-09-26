@@ -17,6 +17,8 @@ import {getStyleSetting, getStyleSettings, setStyleSetting} from '../lib/mw-styl
 import {applyTheme} from '../lib/themes/themePersistance';
 import {getHideOperatorArrows, setHideOperatorArrows} from '../lib/mw-operator-arrows';
 import {getVanillaPalette, setVanillaPalette} from '../lib/mw-vanilla-palette';
+import LazyScratchBlocks from '../lib/tw-lazy-scratch-blocks';
+import AddonHooks from '../addons/hooks.js';
 import WindowManager from '../addons/window-system/window-manager';
 
 const messages = defineMessages({
@@ -76,6 +78,7 @@ class UsernameModal extends React.Component {
             storeThemeInProject: safeGetItem('mw:store-theme-in-project') === 'true',
             enableStageResize: safeGetItem('mw:enable-stage-resize') !== 'false',
             windowAnimation: safeGetItem('mw:window-animation') !== 'false',
+            scriptLazyLoading: LazyScratchBlocks.isScriptLazyLoadingEnabled(),
             hideOperatorArrows: getHideOperatorArrows(),
             vanillaPalette: getVanillaPalette(),
             squareStageCorners: getAppearanceSetting('square-stage-corners'),
@@ -109,6 +112,7 @@ class UsernameModal extends React.Component {
             'handleEnableStageResizeChange',
             'handleCloudVariableServerChange',
             'handleWindowAnimationChange',
+            'handleScriptLazyLoadingChange',
             'handleHideOperatorArrowsChange',
             'handleVanillaPaletteChange',
             'handleSquareStageCornersChange',
@@ -319,6 +323,19 @@ handleWindowAnimationChange (e) {
         WindowManager.setAnimationsEnabled(enabled);
     }
 
+    handleScriptLazyLoadingChange (e) {
+        const enabled = e.target.checked;
+        this.setState({scriptLazyLoading: enabled});
+        LazyScratchBlocks.setScriptLazyLoading(enabled);
+        if (!enabled) {
+            // Bring back anything that was unloaded while the setting was on.
+            const workspace = AddonHooks.blocklyWorkspace;
+            if (workspace && typeof workspace.materializeAllScripts === 'function') {
+                workspace.materializeAllScripts();
+            }
+        }
+    }
+
     handleHideOperatorArrowsChange (e) {
         this.setState({hideOperatorArrows: e.target.checked});
         setHideOperatorArrows(e.target.checked);
@@ -412,6 +429,8 @@ handleWindowAnimationChange (e) {
                 onEnableStageResizeChange={this.handleEnableStageResizeChange}
                 onCloudVariableServerChange={this.handleCloudVariableServerChange}
                 onWindowAnimationChange={this.handleWindowAnimationChange}
+                scriptLazyLoading={this.state.scriptLazyLoading}
+                onScriptLazyLoadingChange={this.handleScriptLazyLoadingChange}
                 onHideOperatorArrowsChange={this.handleHideOperatorArrowsChange}
                 hideOperatorArrows={this.state.hideOperatorArrows}
                 onVanillaPaletteChange={this.handleVanillaPaletteChange}

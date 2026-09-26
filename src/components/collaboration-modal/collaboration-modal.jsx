@@ -34,9 +34,9 @@ class CollaborationModal extends Component {
             showJoinRequest: false,
             showSettings: false,
             peerConfig: {
-                host: 'collab.bilup.org',
+                host: 'collab_warp.mistium.com',
                 port: 443,
-                key: 'bilup',
+                key: '',
                 path: '/',
                 secure: true
             }

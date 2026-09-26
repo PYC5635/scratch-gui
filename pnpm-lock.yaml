@@ -1023,16 +1023,16 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@bilup/scratch-l10n@https://codeload.github.com/Bilup/scratch-l10n/tar.gz/6bcaee81f6bb5d094d88e73fa2dd1c1a44fb329c':
-    resolution: {gitHosted: true, integrity: sha512-pkrvyuK7uKoFGKfmdfTmHtvIuIeFfp5GTsUMMsrhqHCdNrKxdZ6py+mjtsbJsBfgz372ARu24QGqAUIvrupQ9g==, tarball: https://codeload.github.com/Bilup/scratch-l10n/tar.gz/6bcaee81f6bb5d094d88e73fa2dd1c1a44fb329c}
+    resolution: {integrity: sha512-pkrvyuK7uKoFGKfmdfTmHtvIuIeFfp5GTsUMMsrhqHCdNrKxdZ6py+mjtsbJsBfgz372ARu24QGqAUIvrupQ9g==, tarball: https://codeload.github.com/Bilup/scratch-l10n/tar.gz/6bcaee81f6bb5d094d88e73fa2dd1c1a44fb329c}
     version: 3.1001.0
     hasBin: true
 
   '@bilup/scratch-storage@https://codeload.github.com/Bilup/scratch-storage/tar.gz/54e6f928b22aa075ce09908aac6c287a654a62a6':
-    resolution: {gitHosted: true, integrity: sha512-+eMY3mnZ3HejDOH158fWHdaoiZ5eH9HOFyMpES2DsoyV5hQZtG7ko2aWF43xNOuhLZ41OqtaK6v7eCc1/ni/nw==, tarball: https://codeload.github.com/Bilup/scratch-storage/tar.gz/54e6f928b22aa075ce09908aac6c287a654a62a6}
+    resolution: {integrity: sha512-+eMY3mnZ3HejDOH158fWHdaoiZ5eH9HOFyMpES2DsoyV5hQZtG7ko2aWF43xNOuhLZ41OqtaK6v7eCc1/ni/nw==, tarball: https://codeload.github.com/Bilup/scratch-storage/tar.gz/54e6f928b22aa075ce09908aac6c287a654a62a6}
     version: 0.0.0
 
   '@bilup/scratch-svg-renderer@https://codeload.github.com/Bilup/scratch-svg-renderer/tar.gz/cb48d4ab124c86cd355f500a4abdb41b3a560af8':
-    resolution: {gitHosted: true, integrity: sha512-khcLDbCZkPx5vunq21ykO3r1GRhwC6vxEBA9fYMggdUay5AcoNXFllZYljfRAZoQ0Ih6j379xt+7A/Z3D3S2OA==, tarball: https://codeload.github.com/Bilup/scratch-svg-renderer/tar.gz/cb48d4ab124c86cd355f500a4abdb41b3a560af8}
+    resolution: {integrity: sha512-khcLDbCZkPx5vunq21ykO3r1GRhwC6vxEBA9fYMggdUay5AcoNXFllZYljfRAZoQ0Ih6j379xt+7A/Z3D3S2OA==, tarball: https://codeload.github.com/Bilup/scratch-svg-renderer/tar.gz/cb48d4ab124c86cd355f500a4abdb41b3a560af8}
     version: 1.1.0
     peerDependencies:
       scratch-render-fonts: github:Bilup/scratch-render-fonts#main
@@ -1413,7 +1413,7 @@ packages:
     engines: {node: '>= 0.6'}
 
   accounts-sdk@https://codeload.github.com/Bilup/accounts-sdk/tar.gz/aea9b83ab44bd807768d7ef008faa81a5965b8c3:
-    resolution: {gitHosted: true, integrity: sha512-NiWjoJfQcX5ucE/P0lUb8XssBwMApOiWIhzhV0JKtgkMb6Mwe2FUZcYrtU14mJzrZtp8qlxgAEKQ0pcEnFGNqw==, tarball: https://codeload.github.com/Bilup/accounts-sdk/tar.gz/aea9b83ab44bd807768d7ef008faa81a5965b8c3}
+    resolution: {integrity: sha512-NiWjoJfQcX5ucE/P0lUb8XssBwMApOiWIhzhV0JKtgkMb6Mwe2FUZcYrtU14mJzrZtp8qlxgAEKQ0pcEnFGNqw==, tarball: https://codeload.github.com/Bilup/accounts-sdk/tar.gz/aea9b83ab44bd807768d7ef008faa81a5965b8c3}
     version: 1.0.0
 
   ace-builds@1.44.0:
@@ -6041,15 +6041,15 @@ packages:
     engines: {node: '>= 10.13.0'}
 
   scratch-audio@https://codeload.github.com/Bilup/scratch-audio/tar.gz/4a4e4b225280eb4541d6997aa22f678a35ab1ae6:
-    resolution: {gitHosted: true, integrity: sha512-ej62ABpjfP5RuTrV6D+Mwq8bAQyofkVlmxFILQVUKd3gI9s00gJ/6L4uoJ4sKooesZaBQ80hziOPYdIwHPFkRQ==, tarball: https://codeload.github.com/Bilup/scratch-audio/tar.gz/4a4e4b225280eb4541d6997aa22f678a35ab1ae6}
+    resolution: {integrity: sha512-ej62ABpjfP5RuTrV6D+Mwq8bAQyofkVlmxFILQVUKd3gI9s00gJ/6L4uoJ4sKooesZaBQ80hziOPYdIwHPFkRQ==, tarball: https://codeload.github.com/Bilup/scratch-audio/tar.gz/4a4e4b225280eb4541d6997aa22f678a35ab1ae6}
     version: 0.1.0
 
   scratch-blocks@https://codeload.github.com/Bilup/new-scratch-blocks/tar.gz/82e5c456252889787303b5dcc96d6f9cb694dce3:
-    resolution: {gitHosted: true, integrity: sha512-RSB3lSbsr2txt65kL7cwH4x0MaInZzK4VSgAMP2Zx3mX857hwZ+rU+NL1ywFn7Up7hc5WFBwa08qdj4Q6ByEUg==, tarball: https://codeload.github.com/Bilup/new-scratch-blocks/tar.gz/82e5c456252889787303b5dcc96d6f9cb694dce3}
+    resolution: {integrity: sha512-RSB3lSbsr2txt65kL7cwH4x0MaInZzK4VSgAMP2Zx3mX857hwZ+rU+NL1ywFn7Up7hc5WFBwa08qdj4Q6ByEUg==, tarball: https://codeload.github.com/Bilup/new-scratch-blocks/tar.gz/82e5c456252889787303b5dcc96d6f9cb694dce3}
     version: 0.1.0
 
   scratch-paint@https://codeload.github.com/Bilup/scratch-paint/tar.gz/50e5b577562f0e0049eb89c435085396555124d8:
-    resolution: {gitHosted: true, integrity: sha512-RxEKoFjFUV0UMQNk9bzDusRjaieGtm0b8elw+qjCplXtZm9vEAkOAxn5YSMJ7enQGFa4VNTj6MQqpDxNSSyOoA==, tarball: https://codeload.github.com/Bilup/scratch-paint/tar.gz/50e5b577562f0e0049eb89c435085396555124d8}
+    resolution: {integrity: sha512-RxEKoFjFUV0UMQNk9bzDusRjaieGtm0b8elw+qjCplXtZm9vEAkOAxn5YSMJ7enQGFa4VNTj6MQqpDxNSSyOoA==, tarball: https://codeload.github.com/Bilup/scratch-paint/tar.gz/50e5b577562f0e0049eb89c435085396555124d8}
     version: 0.2.0
     peerDependencies:
       react: ^16.14.0
@@ -6065,16 +6065,16 @@ packages:
       scratch-render-fonts: github:Bilup/scratch-render-fonts#main
 
   scratch-parser@https://codeload.github.com/Bilup/scratch-parser/tar.gz/87a26f096e719e2204f96bfb859e10a709449e59:
-    resolution: {gitHosted: true, integrity: sha512-OqDmdJrXXnU/vfZUPzwfxwnekyMRTxT3lehD4tNBM80/DrRVDkDxyHyodpO6zhBGztg1alE1ALX85/Xf+XF+lQ==, tarball: https://codeload.github.com/Bilup/scratch-parser/tar.gz/87a26f096e719e2204f96bfb859e10a709449e59}
+    resolution: {integrity: sha512-OqDmdJrXXnU/vfZUPzwfxwnekyMRTxT3lehD4tNBM80/DrRVDkDxyHyodpO6zhBGztg1alE1ALX85/Xf+XF+lQ==, tarball: https://codeload.github.com/Bilup/scratch-parser/tar.gz/87a26f096e719e2204f96bfb859e10a709449e59}
     version: 0.0.0-development
     engines: {node: '>=8.0'}
 
   scratch-render-fonts@https://codeload.github.com/Bilup/scratch-render-fonts/tar.gz/d09642667e6b3ca7cf9420cd92350ce177694ad5:
-    resolution: {gitHosted: true, integrity: sha512-ds0H8IMUofF2uxSwSE5m1EIO5Pzq20Cw/ObynyJyLKvqVpb7tkWwqXiphEQ+sgKd9N+Xm3AYFMYy8iBbyB5dCw==, tarball: https://codeload.github.com/Bilup/scratch-render-fonts/tar.gz/d09642667e6b3ca7cf9420cd92350ce177694ad5}
+    resolution: {tarball: https://codeload.github.com/Bilup/scratch-render-fonts/tar.gz/d09642667e6b3ca7cf9420cd92350ce177694ad5}
     version: 1.0.0
 
   scratch-render@https://codeload.github.com/Bilup/scratch-render/tar.gz/c1ce2fbdda52d5470ebe855c6c168a51b0720048:
-    resolution: {gitHosted: true, integrity: sha512-8zO9qyZenk1VwFJyopT9sxncZc+r+4LVBVsw3+g72TKvcLTRPjlXvrClgpz+Yh+pRrh8Gcs6ESbOkDueZAuNTQ==, tarball: https://codeload.github.com/Bilup/scratch-render/tar.gz/c1ce2fbdda52d5470ebe855c6c168a51b0720048}
+    resolution: {integrity: sha512-8zO9qyZenk1VwFJyopT9sxncZc+r+4LVBVsw3+g72TKvcLTRPjlXvrClgpz+Yh+pRrh8Gcs6ESbOkDueZAuNTQ==, tarball: https://codeload.github.com/Bilup/scratch-render/tar.gz/c1ce2fbdda52d5470ebe855c6c168a51b0720048}
     version: 0.1.0
 
   scratch-sb1-converter@0.2.7:
@@ -6087,7 +6087,7 @@ packages:
     resolution: {integrity: sha512-r0lvpgQjPMjbhI2wROrgoXzBhCvWJdkbAqJMfl2CdNqrwBpUXqLvNNtI3VtNLPJAcp9VfxEylkU9lVZ0gvU46Q==}
 
   scratch-vm@https://codeload.github.com/Bilup/scratch-vm/tar.gz/dc861dc31f65dd226d4073e153d7ab07c573b87c:
-    resolution: {gitHosted: true, integrity: sha512-mSkEJ+sAdj9zplr+FFUkSlnGumELDnc1snjyK7RZyKXmQVnYE57MUA+fUhXi7OMnM7jd34UshJ8G0IfQKSws3A==, tarball: https://codeload.github.com/Bilup/scratch-vm/tar.gz/dc861dc31f65dd226d4073e153d7ab07c573b87c}
+    resolution: {integrity: sha512-mSkEJ+sAdj9zplr+FFUkSlnGumELDnc1snjyK7RZyKXmQVnYE57MUA+fUhXi7OMnM7jd34UshJ8G0IfQKSws3A==, tarball: https://codeload.github.com/Bilup/scratch-vm/tar.gz/dc861dc31f65dd226d4073e153d7ab07c573b87c}
     version: 2.1.46
     peerDependencies:
       '@bilup/scratch-svg-renderer': github:Bilup/scratch-svg-renderer#develop-builds
