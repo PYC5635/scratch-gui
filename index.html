@@ -1,20 +1,94 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Bilup is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations."/><meta property="og:title" content="Bilup"/><meta property="og:description" content="Bilup is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations."/><meta property="og:type" content="website"/><meta property="og:image" content="/images/apple-touch-icon.png"/><meta property="og:url" content="https://editor.bilup.org/"/><meta property="og:site_name" content="Bilup"/><meta name="twitter:card" content="summary"/><title>Bilup</title><style>body[data-splash-theme="dark"] {
-        background: #111;
-      }
-
-      noscript {
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google" value="notranslate"><meta name="description" content="PineWarp is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations."/><meta property="og:title" content="PineWarp - Enhance Your Scratch Experience"/><meta property="og:description" content="PineWarp is a powerful Scratch mod that enhances your Scratch experience with advanced features and optimizations."/><meta property="og:type" content="website"/><meta property="og:image" content="/images/apple-touch-icon.png"/><meta property="og:url" content="https://com.bilup.org/"/><title>PineWarp - Enhance Your Scratch Experience</title><link rel="apple-touch-icon" href="/images/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><style>.splash-screen {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       }
-
-      html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
+      .splash-screen[hidden] {
+        display: none;
       }
+      .splash-screen[data-theme="dark"] {
+        background-color: #333;
+        color: white;
+      }
+      .splash-screen > * {
+        max-width: 80%;
+      }
+      .splash-spinner:after {
+        content: " ";
+        display: block;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 6px solid;
+        border-color: currentColor transparent currentColor transparent;
+        animation: splash-spinner 1.2s linear infinite;
+      }
+      @keyframes splash-spinner {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .splash-error-title {
+        font-weight: bold;
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .splash-error-title a {
+        color: #75C1C4;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .splash-error-title a:hover {
+        color: #5AB8BC;
+      }
+      .splash-errors {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        max-width: 800px;
+        width: 90%;
+        max-height: 40vh;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: left;
+        word-break: break-all;
+      }
+      .splash-error-list {
+        white-space: pre-wrap;
+        color: #e53935;
+      }
+      .splash-reset {
+        color: #75C1C4;
+        background: rgba(117, 193, 196, 0.1);
+        padding: 0.5rem 1rem;
+        margin-top: 1rem;
+        border: 1px solid #75C1C4;
+        border-radius: 4px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .splash-reset:hover {
+        background: rgba(117, 193, 196, 0.2);
+        color: #5AB8BC;
+      }
+      .splash-reset:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }</style></head><body><noscript><div class="splash-screen"><div><h1>PineWarp requires JavaScript</h1><p>Consider using <a href="https://desktop.turbowarp.org/">TurboWarp Desktop</a> if you are afraid of remote JavaScript.</p></div></div></noscript><div class="splash-screen spash-waiting-for-js" hidden><div class="splash-spinner"></div><div class="splash-error-title" hidden>Something went wrong. <a href="https://github.com/PineWarp/scratch-gui/issues" target="_blank" rel="noreferrer">Please report</a> with the information below.</div><div class="splash-errors" hidden></div><button class="splash-reset" hidden>with the information below.</button></div><div class="splash-errors" hidden></div><button class="splash-reset" hidden>Click here to reset caches (can fix some errors)</button><script>(function () {
+        'use strict';
 
-      #app {
-        height: 100%;
-      }</style></head><body><noscript><h1>This page requires JavaScript</h1></noscript><script>(function() {
         var theme = '';
         var accent = '#75C1C4';
 
@@ -30,9 +104,8 @@
         } else if (themeSetting) {
           try {
             var parsed = JSON.parse(themeSetting);
-            if (parsed.gui === 'dark' || parsed.gui === 'light') {
-              theme = parsed.gui;
-            }
+            theme = parsed.gui || 'light';
+            accent = parsed.accent || accent;
           } catch (e) {
             // ignore
           }
@@ -42,5 +115,51 @@
           theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
 
-        document.body.setAttribute('data-splash-theme', theme);
-      })();</script><div id="app"></div><script>window.MW_EDITOR_CHUNKS=["/js/gleba/git-libs.07e2dbce9775c31d524d.js","/js/gleba/scratch-engine.7fae6c0228b5f0ab2c4c.js","/js/gleba/scratch-paint.f9aec5c89be827d12918.js","/js/gleba/vendors~addon-settings~community~editor~embed~fullscreen~player.fda43ef8886ac3a90f6b.js","/js/gleba/vendors~community~editor~embed~fullscreen~player.3d9f10258952fe8cc8dd.js","/js/gleba/vendors~editor~embed~fullscreen~player.6af076c124ec99aa16bd.js","/js/gleba/addon-settings~community~editor~embed~fullscreen~player.c1750dcac2787d90deae.js","/js/gleba/community~editor~embed~fullscreen~player.facd17a079b2f75af333.js","/js/gleba/addon-settings~editor~embed~fullscreen~player.70fa5501c717a1b04d16.js","/js/gleba/editor~embed~fullscreen~player.f89be088c9c981c21d93.js","/js/gleba/editor~fullscreen~player.784fe5007351465cc23c.js","/js/gleba/editor.eb0796950cbc7072c457.js"];</script><script src="/js/gleba/git-libs.07e2dbce9775c31d524d.js"></script><script src="/js/gleba/vendors~addon-settings~community~editor~embed~fullscreen~player.fda43ef8886ac3a90f6b.js"></script><script src="/js/gleba/vendors~community~editor~embed~fullscreen~player.3d9f10258952fe8cc8dd.js"></script><script src="/js/gleba/addon-settings~community~editor~embed~fullscreen~player.c1750dcac2787d90deae.js"></script><script src="/js/gleba/community~editor~embed~fullscreen~player.facd17a079b2f75af333.js"></script><script src="/js/gleba/community.a3ff9d5a06ebc0094599.js"></script></body></html>
+        var splash = document.querySelector('.spash-waiting-for-js');
+        splash.setAttribute('data-theme', theme);
+        splash.style.color = accent;
+        splash.hidden = false;
+
+        var splashErrorTitle = document.querySelector('.splash-error-title');
+        var splashError = document.querySelector('.splash-errors');
+        var splashReset = document.querySelector('.splash-reset');
+
+        var totalErrors = 0;
+        window.onerror = function (event, source, line, col, err) {
+          if (++totalErrors > 5) return; // dont bother logging more
+          splashErrorTitle.hidden = splashError.hidden = splashReset.hidden = false;
+          var el = document.createElement('div');
+          el.textContent = 'Error (splash) in ' + source + ' (' + line + ':' + col + '): ' + err;
+          splashError.appendChild(el);
+        };
+
+        splashReset.onclick = function () {
+          splashReset.disabled = true;
+          function hardRefresh() {
+            var search = location.search.replace(/[?&]nocache=[\d.]+(?=$|&)/, '');
+            // This is a functional cookie used so that we respond with Clear-Site-Data just once. No tracking.
+            // Can't use nocache parameter to trigger this because people might accidentally bookmark that, and
+            // then we would be clearing their cache on every visit.
+            document.cookie = 'tw_clear_cache_once=1; max-age=60; path=/; samesite=strict; secure';
+            location.replace(location.pathname + search + (search ? '&' : '?') + 'nocache=' + Math.floor(Math.random() * 10000000));
+          }
+          if ('serviceWorker' in navigator) {
+            setTimeout(hardRefresh, 5000);
+            navigator.serviceWorker.getRegistration("/")
+              .then(function(registration) {
+                if (registration) {
+                  return registration.unregister();
+                }
+              })
+              .then(hardRefresh)
+              .catch(hardRefresh);
+          } else {
+            hardRefresh();
+          }
+        };
+
+        window.SplashEnd = () => {
+          splash.hidden = true;
+          window.onerror = null;
+        };
+      })();</script><div id="app"></div><script src="/js/gleba/0.2905182738b649d0e1e7.js"></script><script src="/js/gleba/vendors~addon-settings~credits~editor~embed~fullscreen~player.f50222bd23a246d07871.js"></script><script src="/js/gleba/3.ca2bbc9e508f4347dfb4.js"></script><script src="/js/gleba/vendors~editor~embed~fullscreen~player.01e51930389504077217.js"></script><script src="/js/gleba/editor.675e052837176cb1d3d4.js"></script></body></html>
