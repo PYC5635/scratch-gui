@@ -158,7 +158,7 @@ import '!!style-loader!css-loader!./block-count.css';
 
 import ChevronDown from './ChevronDown.jsx';
 
-import PineWarpLogo from './bilup-logo.jsx';
+import PineWarpLogo from './pinewarp-logo.jsx';
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
 import prehistoricLogo from './prehistoric-logo.svg';

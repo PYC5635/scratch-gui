@@ -1,13 +1,13 @@
 {
   "name": "scratch-gui",
   "version": "1.2.0",
-  "description": "Graphical User Interface for creating and running Scratch 3.0 projects (Bilup version)",
-  "author": "Bilup",
+  "description": "Graphical User Interface for creating and running Scratch 3.0 projects (PineWarp version)",
+  "author": "PineWarp",
   "license": "GPL-3.0",
-  "homepage": "https://github.com/Bilup/scratch-gui#readme",
+  "homepage": "https://github.com/PineWarp/scratch-gui#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Bilup/scratch-gui.git"
+    "url": "https://github.com/PineWarp/scratch-gui.git"
   },
   "main": "./dist/scratch-gui.js",
   "scripts": {
