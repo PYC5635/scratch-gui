@@ -4,8 +4,8 @@ import {getItem as getStorageItem} from './utils/safe-storage.js';
 const API = 'https://theme.bilup.org/api';
 const TOKEN_KEY = 'mw:warptheme-token';
 const TOKEN_MANAGER = 'https://accounts.bilup.org/token-manager';
-// Must match the key the BilupTheme backend uses for generate_validator.
-const VALIDATOR_KEY = 'BilupTheme';
+// Must match the key the PineWarpTheme backend uses for generate_validator.
+const VALIDATOR_KEY = 'PineWarpTheme';
 const VALIDATOR_SCOPE = 'validators:generate';
 
 const needsValidatorPermission = (status, data = {}) => (
@@ -42,7 +42,7 @@ const request = async (path, token, options = {}) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.ok === false) {
-        const error = new Error(data.error || `BilupTheme request failed (${response.status})`);
+        const error = new Error(data.error || `PineWarpTheme request failed (${response.status})`);
         error.status = response.status;
         error.data = data;
         throw error;
@@ -69,9 +69,9 @@ const openSession = async expectedUsername => {
     }
 
     const rotur = getRotur();
-    if (!rotur.loggedIn || !rotur.token) throw new Error('Sign in with Bilup Accounts first.');
+    if (!rotur.loggedIn || !rotur.token) throw new Error('Sign in with PineWarp Accounts first.');
 
-    // The BilupTheme backend (Bilup/BilupTheme) signs you in with a Bilup
+    // The PineWarpTheme backend (PineWarp/PineWarpTheme) signs you in with a PineWarp
     // Accounts token: it exchanges the token for a validator, verifies it, and
     // creates a session. The session id is returned and used as a bearer token
     // for the rest of the API (the backend must return it as `token`).
@@ -90,7 +90,7 @@ const openSession = async expectedUsername => {
     } catch (error) {
         if (needsValidatorPermission(error && error.status, error && error.data)) {
             const permissionError = new Error(
-                'Your Bilup Accounts token needs the validators:generate permission before it can access BilupTheme.'
+                'Your PineWarp Accounts token needs the validators:generate permission before it can access PineWarpTheme.'
             );
             try {
                 await ensureScopes([VALIDATOR_SCOPE]);
@@ -109,7 +109,7 @@ const openSession = async expectedUsername => {
         body: JSON.stringify({token: rotur.token})
     });
     if (!auth || !auth.token) {
-        const error = new Error((auth && auth.error) || 'Bilup Accounts could not authorize BilupTheme.');
+        const error = new Error((auth && auth.error) || 'PineWarp Accounts could not authorize PineWarpTheme.');
         if (needsValidatorPermission(502, auth || {})) {
             error.code = 'validator-permission';
         }
@@ -151,7 +151,7 @@ const exportCurrentTheme = theme => {
     const accent = (theme && theme.accent) || (exported && exported.accent);
     return {
         ...(exported || {}),
-        name: (exported && exported.name) || (theme && theme.name) || 'My Bilup Theme',
+        name: (exported && exported.name) || (theme && theme.name) || 'My PineWarp Theme',
         description: (exported && exported.description) || (theme && theme.description) || '',
         accent: accent && (typeof accent === 'string' ||
             (typeof accent === 'object' && Array.isArray(accent.colors))) ?

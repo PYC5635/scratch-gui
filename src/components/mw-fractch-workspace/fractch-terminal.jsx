@@ -161,7 +161,7 @@ const FractchTerminal = ({className, onWorktreeChanged, style, themeId, vm}) => 
             });
             resizeObserver.observe(element.current);
 
-            xterm.writeln('\x1b[1mBilup Fractch shell\x1b[0m - type help or git help');
+            xterm.writeln('\x1b[1mPineWarp Fractch shell\x1b[0m - type help or git help');
             prompt();
 
             dispose = () => {

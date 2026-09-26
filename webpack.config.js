@@ -126,7 +126,7 @@ const base = {
                 }
                 const lib = target.startsWith('https:') ? https : http;
                 const proxyReq = lib.get(new URL(target), {
-                    headers: {'User-Agent': 'Mozilla/5.0 (compatible; BilupDevProxy/1.0)'}
+                    headers: {'User-Agent': 'Mozilla/5.0 (compatible; PineWarpDevProxy/1.0)'}
                 }, upstream => {
                     res.status(upstream.statusCode || 200);
                     const contentType = upstream.headers['content-type'];

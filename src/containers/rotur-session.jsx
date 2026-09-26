@@ -42,8 +42,8 @@ import describeActivity from '../lib/collaboration/describe-activity.js';
 import {setProjectAuthor} from '../lib/mw-project-metadata.js';
 
 /**
- * Headless container: restores Bilup Accounts session, exposes login/logout, and
- * keeps Bilup Accounts activity in sync with the project title.
+ * Headless container: restores PineWarp Accounts session, exposes login/logout, and
+ * keeps PineWarp Accounts activity in sync with the project title.
  */
 class RoturSession extends React.Component {
     constructor (props) {
@@ -252,7 +252,7 @@ class RoturSession extends React.Component {
     }
 
     /**
-     * What to publish as our Bilup Accounts presence right now.
+     * What to publish as our PineWarp Accounts presence right now.
      * @returns {object} The activity context.
      */
     currentActivityContext () {

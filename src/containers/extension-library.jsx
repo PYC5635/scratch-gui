@@ -781,10 +781,10 @@ class ExtensionLibrary extends React.PureComponent {
             ['scratch', 'Scratch'],
             ['tw', 'TurboWarp'],
             ['mistium', 'Mistium'],
-            ['rotur', 'Bilup Accounts'],
+            ['rotur', 'PineWarp Accounts'],
             ['sharkpool', 'SharkPool'],
             ['ae', 'AstraEditor'],
-            ['bilup', 'Bilup'],
+            ['bilup', 'PineWarp'],
             ...this.state.customSources.map(source => [source.id, source.name])
         ];
         // 可删除（自定义）的标签 id 集合，用于侧边栏渲染删除按钮

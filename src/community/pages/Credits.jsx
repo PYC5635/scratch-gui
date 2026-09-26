@@ -161,7 +161,7 @@ const Credits = () => (
         <section className={styles.section}>
             <h2 className={styles.sectionTitle}>
                 <FormattedMessage
-                    defaultMessage="Bilup Extension Gallery"
+                    defaultMessage="PineWarp Extension Gallery"
                     description="Credits section title"
                     id="mw.community.credits.extensionGallery"
                 />

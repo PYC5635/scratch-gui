@@ -81,7 +81,7 @@ const UsernameModalComponent = props => (
                         <FormattedMessage
                             // eslint-disable-next-line max-len
                             defaultMessage="You are signed in as {handle}. A name set here overrides {handle} inside projects — in the username block and in cloud variables."
-                            description="Text in change username modal when signed into Bilup Accounts"
+                            description="Text in change username modal when signed into PineWarp Accounts"
                             id="tw.usernameModal.roturHelp"
                             values={{
                                 handle: `@${props.roturUsername}`
@@ -131,7 +131,7 @@ const UsernameModalComponent = props => (
                     {props.roturUsername ? (
                         <FormattedMessage
                             defaultMessage="Use {handle}"
-                            description="Button in username modal to go back to the Bilup Accounts username"
+                            description="Button in username modal to go back to the PineWarp Accounts username"
                             id="tw.usernameModal.useRoturName"
                             values={{handle: `@${props.roturUsername}`}}
                         />

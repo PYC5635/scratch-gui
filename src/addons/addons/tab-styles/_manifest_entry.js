@@ -65,7 +65,7 @@ const manifest = {
       "type": "select",
       "potentialValues": [
         {
-            "name": "Bilup",
+            "name": "PineWarp",
             "id": "bilup"
         },
         {
@@ -77,7 +77,7 @@ const manifest = {
             "id": "scratchbox"
         }
       ],
-      "default": "Bilup"
+      "default": "PineWarp"
     },
     {
       "dynamic": true,

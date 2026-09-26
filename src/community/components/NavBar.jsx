@@ -171,7 +171,7 @@ const NavBar = () => {
                     <img
                         className={styles.logo}
                         src={logo}
-                        alt="Bilup"
+                        alt="PineWarp"
                     />
                 </Link>
 

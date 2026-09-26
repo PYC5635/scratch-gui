@@ -124,8 +124,8 @@ const UnconnectedThemePage = ({theme, onChangeTheme}) => (
         </PageHeader>
         <div className={styles.setting}>
             <FormattedMessage
-                defaultMessage="Theme and accent colors apply across all of Bilup and live in your Bilup settings."
-                description="Explains that global theming moved to the Bilup site settings"
+                defaultMessage="Theme and accent colors apply across all of PineWarp and live in your PineWarp settings."
+                description="Explains that global theming moved to the PineWarp site settings"
                 id="mw.settings.themeMoved"
             />
         </div>
@@ -136,7 +136,7 @@ const UnconnectedThemePage = ({theme, onChangeTheme}) => (
                 onClick={() => window.open('/settings', '_blank')}
             >
                 <FormattedMessage
-                    defaultMessage="Edit my Bilup settings"
+                    defaultMessage="Edit my PineWarp settings"
                     id="mw.settings.editCommunitySettings"
                 />
                 {' '}

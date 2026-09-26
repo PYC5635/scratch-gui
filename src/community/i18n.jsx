@@ -27,7 +27,7 @@ const messages = {
         'home.lead': 'MistWarp añade ramas, historial y contribuciones a la programación visual sin obligarte a aprender Git primero.',
         'home.start': 'Empezar a crear',
         'home.explore': 'Explorar proyectos',
-        'home.signin': 'Iniciar sesión con Bilup Accounts',
+        'home.signin': 'Iniciar sesión con PineWarp Accounts',
         'home.github': 'Seguir en GitHub',
         'status.title': 'Estado del servicio',
         'status.lead': 'Las comprobaciones se ejecutan fuera del despliegue principal de MistWarp cada cinco minutos.',

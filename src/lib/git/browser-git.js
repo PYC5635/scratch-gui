@@ -1849,7 +1849,7 @@ const importRepoFromSb3 = async input => {
         // bound to the project that was saved/loaded. Loading a project without
         // an embedded repo (e.g. an external .sb3) therefore clears any stale
         // repo from a previous session, otherwise the panel would show the old
-        // project's history. Note: locally saved Bilup projects always embed the
+        // project's history. Note: locally saved PineWarp projects always embed the
         // repo (see embedRepoIntoSb3Blob), so reopening your own file restores it.
         console.info('[git] loaded project has no embedded repo; clearing stale repo');
         try {

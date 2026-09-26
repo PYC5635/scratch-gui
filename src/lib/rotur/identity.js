@@ -173,7 +173,7 @@ onBanned(message => {
     } catch (_) {
         // ignore
     }
-    setState({status: 'idle', user: null, banMessage: message || 'This account is banned from Bilup.'});
+    setState({status: 'idle', user: null, banMessage: message || 'This account is banned from PineWarp.'});
 });
 
 if (typeof window !== 'undefined') {
