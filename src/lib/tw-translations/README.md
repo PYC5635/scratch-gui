@@ -1,1 +1,1 @@
-generated-translations.json is managed by https://github.com/Bilup/scratch-l10n
+generated-translations.json is managed by https://github.com/PineWarp/scratch-l10n

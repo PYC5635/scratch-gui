@@ -6,7 +6,6 @@ import {Search, Compass, Plus, FolderOpen, Bell, LogIn, ShieldCheck, Wallet} fro
 import {useUser} from '../UserContext.jsx';
 import api, {editorUrl} from '../api';
 import {fetchNotifications} from '../../lib/rotur/client.js';
-import logo from '../assets/bilup-logo.svg';
 import Avatar from './Avatar.jsx';
 import setFaviconBadge from '../faviconBadge';
 import ProjectThumbnail from './ProjectThumbnail.jsx';
@@ -168,11 +167,13 @@ const NavBar = () => {
                     to="/"
                     className={styles.brand}
                 >
-                    <img
+                    <span
                         className={styles.logo}
-                        src={logo}
-                        alt="PineWarp"
-                    />
+                        role="img"
+                        aria-label="PineWarp"
+                    >
+                        🍍
+                    </span>
                 </Link>
 
                 <nav className={styles.links}>
