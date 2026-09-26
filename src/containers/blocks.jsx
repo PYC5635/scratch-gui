@@ -19,6 +19,7 @@ import DropAreaHOC from '../lib/components/drop-area-hoc.jsx';
 import DragConstants from '../lib/constants/drag-constants';
 import SettingsStore from '../addons/settings-store-singleton';
 import {getVanillaPalette, VANILLA_PALETTE_CHANGED} from '../lib/mw-vanilla-palette';
+import {LZH_BLOCKS, CLASSICAL_LOCALE} from '../lib/pine-editor-i18n.js';
 import defineDynamicBlock from '../lib/utils/define-dynamic-block';
 import {Theme} from '../lib/themes';
 import {injectExtensionBlockTheme, injectExtensionCategoryTheme} from '../lib/themes/blockHelpers';
@@ -207,6 +208,13 @@ class Blocks extends React.Component {
                 const xml = this.ScratchBlocks.Xml.domToText(mutation);
                 this.props.vm.updateGlobalProcedure(procCode, xml);
             };
+        // PineWarp: 注册官方文言文(lzh)积木消息表，使 ScratchMsgs.setLocale('lzh') 能翻译所有积木。
+        if (LZH_BLOCKS && !this.ScratchBlocks.ScratchMsgs.locales[CLASSICAL_LOCALE]) {
+            this.ScratchBlocks.ScratchMsgs.locales[CLASSICAL_LOCALE] = LZH_BLOCKS;
+        }
+        if (LZH_BLOCKS && !this.ScratchBlocks.ScratchMsgs.locales['zh-wenyan']) {
+            this.ScratchBlocks.ScratchMsgs.locales['zh-wenyan'] = LZH_BLOCKS;
+        }
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
 
         const Msg = this.ScratchBlocks.Msg;

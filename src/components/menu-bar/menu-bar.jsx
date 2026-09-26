@@ -2262,8 +2262,24 @@ class MenuBar extends React.Component {
                                         />
                                     </MenuItem>
                                 </MenuSection>
-                                {window.__pinewarpDebuggerToggle || window.__pinewarpVariableManagerToggle ? (
+                                {window.__pinewarpDebuggerToggle || window.__pinewarpVariableManagerToggle ||
+                                    window.__pinewarpPerfToggle ? (
                                     <MenuSection>
+                                        {window.__pinewarpPerfToggle && (
+                                            <MenuItem
+                                                onClick={() => {
+                                                    window.__pinewarpPerfToggle();
+                                                    this.props.onRequestCloseTools();
+                                                }}
+                                            >
+                                                <Gauge />
+                                                <FormattedMessage
+                                                    defaultMessage="Performance"
+                                                    description="Menu bar item to toggle the performance analysis panel"
+                                                    id="pine.menuBar.perfPanel"
+                                                />
+                                            </MenuItem>
+                                        )}
                                         {window.__pinewarpDebuggerToggle && (
                                             <MenuItem
                                                 onClick={() => {

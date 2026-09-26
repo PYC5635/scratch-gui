@@ -1,0 +1,143 @@
+.panel {
+    position: fixed;
+    right: 12px;
+    top: 12px;
+    width: 380px;
+    max-height: 82vh;
+    overflow: auto;
+    z-index: 100000;
+    background: #1f2329;
+    color: #e6e6e6;
+    border: 1px solid #3a3f4b;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+    padding: 12px 14px;
+    font: 12px/1.5 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.title {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+}
+
+.controls {
+    display: flex;
+    gap: 6px;
+}
+
+.btn {
+    background: #2b303a;
+    color: #e6e6e6;
+    border: 1px solid #4a5060;
+    border-radius: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.btn:hover {
+    background: #3a3f4b;
+}
+
+.close {
+    border-color: #a33;
+    color: #ff8a8a;
+}
+
+.metrics {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.metric {
+    flex: 1;
+    text-align: center;
+    background: #262b33;
+    border-radius: 8px;
+    padding: 6px 2px;
+}
+
+.metricValue {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #7dd3a8;
+}
+
+.metricLabel {
+    display: block;
+    font-size: 10px;
+    color: #9aa3af;
+}
+
+.gpuBar {
+    height: 8px;
+    background: #2b303a;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.gpuFill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.gpuFill.low {
+    background: #7dd3a8;
+}
+
+.gpuFill.mid {
+    background: #e5b567;
+}
+
+.gpuFill.high {
+    background: #e06c75;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+}
+
+.table th,
+.table td {
+    text-align: left;
+    padding: 3px 6px;
+    border-bottom: 1px solid #2f3540;
+    font-size: 11px;
+    word-break: break-all;
+}
+
+.table th {
+    color: #9aa3af;
+    font-weight: 600;
+}
+
+.complexity {
+    margin-top: 8px;
+    padding: 8px;
+    background: #262b33;
+    border-radius: 8px;
+}
+
+.complexity strong {
+    color: #e5b567;
+}
+
+.hotBlocks {
+    margin-top: 4px;
+    color: #ff8a8a;
+    word-break: break-all;
+}

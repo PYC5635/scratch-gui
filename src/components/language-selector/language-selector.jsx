@@ -3,6 +3,7 @@ import React from 'react';
 
 import locales from '@bilup/scratch-l10n';
 import styles from './language-selector.css';
+import {PINE_EXTRAS} from '../../lib/pine-editor-i18n.js';
 
 // supported languages to exclude from the menu, but allow as a URL option
 const ignore = [];
@@ -25,6 +26,16 @@ const LanguageSelector = ({currentLocale, label, onChange}) => (
                         {locales[locale].name}
                     </option>
                 ))
+        }
+        {
+            PINE_EXTRAS.filter(x => !locales[x.locale]).map(x => (
+                <option
+                    key={x.locale}
+                    value={x.locale}
+                >
+                    {x.name}
+                </option>
+            ))
         }
     </select>
 );

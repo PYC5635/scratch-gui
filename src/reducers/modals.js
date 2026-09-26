@@ -30,6 +30,7 @@ const MODAL_DEBUGGER = 'debuggerModal';
 const MODAL_ROTUR_LOGIN = 'roturLoginModal';
 const MODAL_PROJECT_METADATA = 'projectMetadataModal';
 const MODAL_HELP = 'helpModal';
+const MODAL_PERF = 'perfModal';
 
 const initialState = {
     [MODAL_BACKDROP_LIBRARY]: false,
@@ -61,6 +62,7 @@ const initialState = {
     [MODAL_ROTUR_LOGIN]: false,
     [MODAL_PROJECT_METADATA]: false,
     [MODAL_HELP]: false,
+    [MODAL_PERF]: false,
     projectMetadataView: 'project',
     helpEntry: null
 };
@@ -187,6 +189,12 @@ const openDebuggerModal = function () {
 };
 const closeDebuggerModal = function () {
     return closeModal(MODAL_DEBUGGER);
+};
+const openPerfModal = function () {
+    return openModal(MODAL_PERF);
+};
+const closePerfModal = function () {
+    return closeModal(MODAL_PERF);
 };
 const openRoturLoginModal = function () {
     return openModal(MODAL_ROTUR_LOGIN);
@@ -316,6 +324,8 @@ export {
     openBilmeModal,
     openDebuggerModal,
     closeDebuggerModal,
+    openPerfModal,
+    closePerfModal,
     openRoturLoginModal,
     closeRoturLoginModal,
     openProjectMetadataModal,

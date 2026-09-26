@@ -2,8 +2,8 @@
 // Bump this whenever a deploy changes the asset graph. The activate handler
 // deletes every cache whose name is not one of the two below, so a bump is what
 // evicts a previously poisoned cache from returning visitors.
-const CACHE_NAME = 'pinewarp-cache-v4';
-const RUNTIME_CACHE = 'pinewarp-runtime-v2';
+const CACHE_NAME = 'pinewarp-cache-v6';
+const RUNTIME_CACHE = 'pinewarp-runtime-v3';
 
 // Assets to cache immediately. Every entry must resolve in the deploy: a single
 // 404 makes cache.addAll reject and nothing at all gets precached.

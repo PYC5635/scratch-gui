@@ -81,6 +81,7 @@ const TWFontsModal = React.lazy(() => import('../../containers/tw-fonts-modal.js
 const MWAssetsModal = React.lazy(() => import('../../containers/mw-assets-modal.jsx'));
 const MWProjectMetadataModal = React.lazy(() => import('../../containers/mw-project-metadata-modal.jsx'));
 const TWDebugger = React.lazy(() => import('../../containers/tw-debugger.jsx'));
+const TWPerfPanel = React.lazy(() => import('../../containers/tw-perf-panel.jsx'));
 const TWUsernameModal = React.lazy(() => import('../../containers/tw-username-modal.jsx'));
 const TelemetryModal = React.lazy(() => import('../telemetry-modal/telemetry-modal.jsx'));
 
@@ -1127,6 +1128,9 @@ const GUIComponent = props => {
                     >
                         <React.Suspense fallback={null}>
                             <TWDebugger />
+                        </React.Suspense>
+                        <React.Suspense fallback={null}>
+                            <TWPerfPanel />
                         </React.Suspense>
                         {telemetryModalVisible ? (
                             <React.Suspense fallback={null}>
