@@ -1,6 +1,6 @@
-const SITE_NAME = 'Bilup';
+const SITE_NAME = 'PineWarp';
 const DEFAULT_DESCRIPTION =
-    'Bilup is a powerful Scratch mod. Create, share, and explore projects on the Bilup community.';
+    'PineWarp is a powerful Scratch mod. Create, share, and explore projects on the PineWarp community.';
 
 const setMeta = (attr, key, content) => {
     let el = document.head.querySelector(`meta[${attr}="${key}"]`);

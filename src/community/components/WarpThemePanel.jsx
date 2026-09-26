@@ -76,7 +76,7 @@ const WarpThemePanel = ({onThemeChange}) => {
 
     const username = user && user.username;
 
-    // Resolve the BilupTheme account id defensively: the backend returns it at
+    // Resolve the PineWarpTheme account id defensively: the backend returns it at
     // the top level of /user, but also nests it inside user, so fall back if the
     // deployed backend omits one of the two shapes.
     const getUserId = useCallback(account => (
@@ -192,7 +192,7 @@ const WarpThemePanel = ({onThemeChange}) => {
         const saved = customThemeManager.addFromExportData(data, {
             name: selected.name,
             description: selected.description || '',
-            author: selected.authorUsername || selected.author || 'BilupTheme'
+            author: selected.authorUsername || selected.author || 'PineWarpTheme'
         });
         if (mountedRef.current) {
             setSavedIds(prev => new Set(prev).add(selected.uuid));
@@ -229,7 +229,7 @@ const WarpThemePanel = ({onThemeChange}) => {
         if (mountedRef.current) {
             setReporting(null);
             setReportReason('');
-            setNotice(t('mw.community.biluptheme.reportSent', 'Report sent. Thanks for helping keep BilupTheme safe.'));
+            setNotice(t('mw.community.biluptheme.reportSent', 'Report sent. Thanks for helping keep PineWarpTheme safe.'));
         }
     });
 
@@ -254,14 +254,14 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 <User size={26} />
-                <h3>{t('mw.community.biluptheme.signInTitle', 'Sign in to BilupTheme')}</h3>
-                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your Bilup Accounts account for uploads, reports, and ownership.')}</p>
+                <h3>{t('mw.community.biluptheme.signInTitle', 'Sign in to PineWarpTheme')}</h3>
+                <p>{t('mw.community.biluptheme.signInBody', 'The theme marketplace uses your PineWarp Accounts account for uploads, reports, and ownership.')}</p>
                 <button
                     className={styles.primaryButton}
                     onClick={login}
                     type="button"
                 >
-                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with Bilup Accounts')}
+                    <LogIn size={15} /> {t('mw.community.biluptheme.signInWithRotur', 'Sign in with PineWarp Accounts')}
                 </button>
             </div>
         );
@@ -271,9 +271,9 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 <Shield size={26} />
-                <h3>{t('mw.community.biluptheme.permissionTitle', 'BilupTheme needs one more permission')}</h3>
+                <h3>{t('mw.community.biluptheme.permissionTitle', 'PineWarpTheme needs one more permission')}</h3>
                 <p>
-                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in Bilup Accounts Token Manager and enable')}
+                    {t('mw.community.biluptheme.permissionBody1', 'Edit your current token in PineWarp Accounts Token Manager and enable')}
                     {' '}<strong>validators:generate</strong>. {t('mw.community.biluptheme.permissionBody2', 'Then return here and retry.')}
                 </p>
                 <div className={styles.gateActions}>
@@ -297,11 +297,11 @@ const WarpThemePanel = ({onThemeChange}) => {
         return (
             <div className={styles.gate}>
                 {busy ? (
-                    <p>{t('mw.community.biluptheme.connecting', 'Connecting to BilupTheme…')}</p>
+                    <p>{t('mw.community.biluptheme.connecting', 'Connecting to PineWarpTheme…')}</p>
                 ) : (
                     <React.Fragment>
                         <X size={26} />
-                        <h3>{t('mw.community.biluptheme.couldNotConnect', 'Could not connect to BilupTheme')}</h3>
+                        <h3>{t('mw.community.biluptheme.couldNotConnect', 'Could not connect to PineWarpTheme')}</h3>
                         <p>{error}</p>
                         <button
                             className={styles.primaryButton}
@@ -480,7 +480,7 @@ const WarpThemePanel = ({onThemeChange}) => {
                     onChange={e => setPlatform(e.target.value)}
                 >
                     <option value="all">{t('mw.community.biluptheme.allPlatforms', 'All platforms')}</option>
-                    <option value="bilup">Bilup</option>
+                    <option value="bilup">PineWarp</option>
                 </select>
             </div>
             {visibleThemes.length === 0 ? (

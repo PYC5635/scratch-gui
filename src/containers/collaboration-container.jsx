@@ -378,7 +378,7 @@ class CollaborationContainer extends Component {
         console.log('Username changed:', user);
 
         // If this is our own username change from another client, update local state.
-        // When signed into Bilup Accounts the two names are separate, so don't clobber the project name.
+        // When signed into PineWarp Accounts the two names are separate, so don't clobber the project name.
         if (
             !this.props.roturHandle &&
             user.id === this.getCurrentUserId() &&
@@ -812,7 +812,7 @@ const mapStateToProps = state => ({
     userActivity: state.scratchGui.collaboration.activity,
     activeTabIndex: state.scratchGui.editorTab.activeTabIndex,
     connectionError: state.scratchGui.collaboration.connectionError,
-    // Online identity is the Bilup Accounts handle when signed in; the custom name is only a fallback.
+    // Online identity is the PineWarp Accounts handle when signed in; the custom name is only a fallback.
     currentUsername: state.scratchGui.rotur.username ?
         `@${state.scratchGui.rotur.username}` :
         state.scratchGui.tw.username,

@@ -174,9 +174,9 @@ class GUI extends React.Component {
             // At this time the project view in www doesn't need to know when a project is unloaded
 
             // Log total loading time
-            if (window.BILUP_LOAD_START_TIME) {
-                const totalLoadTime = Date.now() - window.BILUP_LOAD_START_TIME;
-                console.log(`🚀 Bilup project loaded in ${totalLoadTime}ms (${(totalLoadTime / 1000).toFixed(2)}s)`);
+            if (window.PINEWARP_LOAD_START_TIME) {
+                const totalLoadTime = Date.now() - window.PINEWARP_LOAD_START_TIME;
+                console.log(`🚀 PineWarp project loaded in ${totalLoadTime}ms (${(totalLoadTime / 1000).toFixed(2)}s)`);
 
                 // Also use Performance API if available
                 if (window.performance && window.performance.mark && window.performance.measure) {

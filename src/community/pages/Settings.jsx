@@ -5,7 +5,7 @@ import {Menu, Palette, Radio, Store, SwatchBook, User, Brush} from 'lucide-react
 import {applyTheme, detectTheme} from '../../lib/themes/themePersistance.js';
 import {ThemeAccentPanel} from '../../components/tw-settings-modal/theme-accent-panel.jsx';
 import CustomThemesPage from '../../components/tw-settings-modal/custom-themes-page.jsx';
-import BilupThemePanel from '../components/WarpThemePanel.jsx';
+import PineWarpThemePanel from '../components/WarpThemePanel.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 import {useUser} from '../UserContext.jsx';
 import {
@@ -43,7 +43,7 @@ const ALL_SECTIONS = [
     {key: 'theme', labelKey: 'mw.community.settings.section.theme', labelDefault: 'Theme', icon: Palette},
     {key: 'project-themes', labelKey: 'mw.community.settings.section.project-themes', labelDefault: 'Project themes', icon: Brush},
     {key: 'custom-themes', labelKey: 'mw.community.settings.section.custom-themes', labelDefault: 'Custom themes', icon: SwatchBook},
-    {key: 'biluptheme', labelKey: 'mw.community.settings.section.biluptheme', labelDefault: 'BilupTheme', icon: Store},
+    {key: 'biluptheme', labelKey: 'mw.community.settings.section.biluptheme', labelDefault: 'PineWarpTheme', icon: Store},
     {key: 'menu-bar', labelKey: 'mw.community.settings.section.menu-bar', labelDefault: 'Menu bar', icon: Menu},
     {key: 'presence', labelKey: 'mw.community.settings.section.presence', labelDefault: 'Presence', icon: Radio},
     {key: 'identity', labelKey: 'mw.community.settings.section.identity', labelDefault: 'Identity', icon: User}
@@ -152,7 +152,7 @@ const Settings = ({isScratchDesktop: desktop = isScratchDesktop()}) => {
             <h1>{t('mw.community.settings.title', 'Settings')}</h1>
             <p className={styles.lead}>
                 {t('mw.community.settings.lead',
-                    'These settings apply across all of Bilup, including the editor and site.')}
+                    'These settings apply across all of PineWarp, including the editor and site.')}
             </p>
 
             <div className={styles.layout}>
@@ -186,8 +186,8 @@ const Settings = ({isScratchDesktop: desktop = isScratchDesktop()}) => {
 
                     {activeSection === 'biluptheme' ? (
                         <section className={styles.card}>
-                            <h2>{t('mw.community.settings.biluptheme', 'BilupTheme marketplace')}</h2>
-                            <BilupThemePanel
+                            <h2>{t('mw.community.settings.biluptheme', 'PineWarpTheme marketplace')}</h2>
+                            <PineWarpThemePanel
                                 theme={theme}
                                 onThemeChange={applyAndPersist}
                             />
@@ -234,7 +234,7 @@ const Settings = ({isScratchDesktop: desktop = isScratchDesktop()}) => {
                             {user && !presenceOk ? (
                                 <div className={styles.risk}>
                                     {t('mw.community.settings.presenceMissingPermission1',
-                                        'Your current Bilup Accounts login is missing the ')}
+                                        'Your current PineWarp Accounts login is missing the ')}
                                     <strong>{'account:profile'}</strong>
                                     {t('mw.community.settings.presenceMissingPermission2',
                                         ' permission, so your editor activity cannot be shared. Log in again to grant it.')}
@@ -274,7 +274,7 @@ const Settings = ({isScratchDesktop: desktop = isScratchDesktop()}) => {
                             <h2>{t('mw.community.settings.projectThemes', 'Project themes')}</h2>
                             <p className={styles.lead}>
                                 {t('mw.community.settings.projectThemesLead',
-                                    'Some projects come with their own Bilup theme. Choose when the player should switch to a project\'s theme automatically.')}
+                                    'Some projects come with their own PineWarp theme. Choose when the player should switch to a project\'s theme automatically.')}
                             </p>
                             <label className={styles.field}>
                                 <span>{t('mw.community.settings.applyProjectThemesFor', 'Apply project themes for')}</span>
@@ -317,7 +317,7 @@ const Settings = ({isScratchDesktop: desktop = isScratchDesktop()}) => {
                     {!user && !desktopApp ? (
                         <p className={styles.note}>
                             {t('mw.community.settings.signInNote',
-                                'Sign in to sync your settings across devices through your Bilup Accounts account.')}
+                                'Sign in to sync your settings across devices through your PineWarp Accounts account.')}
                         </p>
                     ) : null}
                 </div>

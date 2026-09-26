@@ -41,9 +41,9 @@ const openMistWarpShareWindow = ({vm, initialTitle, initialError, action = 'save
                 // ignore
             }
             const t = (id, def) => (messages && typeof messages[id] === 'string') ? messages[id] : def;
-            return action === 'remix' ? t('mw.share.windowTitleRemix', 'Remix to Bilup') :
-                action === 'update' ? t('mw.share.windowTitleUpdate', 'Update Bilup project') :
-                t('mw.share.windowTitleSave', 'Save to Bilup');
+            return action === 'remix' ? t('mw.share.windowTitleRemix', 'Remix to PineWarp') :
+                action === 'update' ? t('mw.share.windowTitleUpdate', 'Update PineWarp project') :
+                t('mw.share.windowTitleSave', 'Save to PineWarp');
         })(),
         width: 460,
         height: 380,

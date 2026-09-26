@@ -8,7 +8,7 @@ const manifest = {
   "info": [
     {
       "type": "notice",
-      "text": "This may reduce performance, and will override Bilup's original wallpaper settings.",
+      "text": "This may reduce performance, and will override PineWarp's original wallpaper settings.",
       "id": "reducePerformance"
     }
   ],

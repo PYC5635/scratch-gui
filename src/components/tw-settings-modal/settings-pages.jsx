@@ -141,7 +141,7 @@ const ProjectPage = props => (
             <p className={styles.detail}>
                 <FormattedMessage
                     // eslint-disable-next-line max-len
-                    defaultMessage="If enabled, the current Bilup theme will also be saved with the project settings."
+                    defaultMessage="If enabled, the current PineWarp theme will also be saved with the project settings."
                     id="tw.settingsModal.storeThemeInProjectHelp"
                 />
             </p>

@@ -184,7 +184,7 @@ const ActivitySection = ({user, login}) => {
                     onClick={login}
                 >
                     <FormattedMessage
-                        defaultMessage="Sign in with Bilup Accounts"
+                        defaultMessage="Sign in with PineWarp Accounts"
                         id="mw.community.home.signInRotur"
                     />
                 </button>
@@ -432,7 +432,7 @@ const Home = () => {
                     </h1>
                     <p>
                         <FormattedMessage
-                            defaultMessage="A visual coding community on the Bilup editor, with version control, forking, and pull requests behind every project."
+                            defaultMessage="A visual coding community on the PineWarp editor, with version control, forking, and pull requests behind every project."
                             id="mw.community.home.heroDescription"
                         />
                     </p>
@@ -462,7 +462,7 @@ const Home = () => {
                                 onClick={login}
                             >
                                 <FormattedMessage
-                                    defaultMessage="Sign in with Bilup Accounts"
+                                    defaultMessage="Sign in with PineWarp Accounts"
                                     id="mw.community.home.signInRotur"
                                 />
                             </button>

@@ -1,5 +1,5 @@
 /**
- * Custom theme management for Bilup
+ * Custom theme management for PineWarp
  * Handles creation, storage, and management of user-defined themes including custom gradients and accents
  */
 
@@ -1116,7 +1116,7 @@ class CustomThemeManager {
         const themes = this.getAllThemes().map(theme => theme.export());
         return {
             version: '2.0',
-            platform: 'Bilup',
+            platform: 'PineWarp',
             timestamp: Date.now(),
             themes: themes
         };
@@ -1358,7 +1358,7 @@ class CustomThemeManager {
     }
 
     /**
-     * Add a theme from BilupTheme / Bilup export JSON into the local library.
+     * Add a theme from PineWarpTheme / PineWarp export JSON into the local library.
      * Always assigns a fresh UUID so marketplace ids never collide with local ones.
      * @param {object} data export payload ({themes:[…]}) or a single theme object
      * @param {object} [meta] optional overrides {name, description, author}

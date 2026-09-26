@@ -11,13 +11,13 @@ import styles from './rotur-login-modal.css';
 
 const messages = defineMessages({
     title: {
-        defaultMessage: 'Sign in with Bilup Accounts',
-        description: 'Title of Bilup Accounts login modal',
+        defaultMessage: 'Sign in with PineWarp Accounts',
+        description: 'Title of PineWarp Accounts login modal',
         id: 'mw.roturLogin.title'
     },
     infoTitle: {
-        defaultMessage: 'Bilup Accounts in Bilup',
-        description: 'Title of Bilup Accounts info modal when signed in',
+        defaultMessage: 'PineWarp Accounts in PineWarp',
+        description: 'Title of PineWarp Accounts info modal when signed in',
         id: 'mw.roturLogin.infoTitle'
     }
 });
@@ -28,14 +28,14 @@ const FEATURES = [
         title: (
             <FormattedMessage
                 defaultMessage="Show what you're editing"
-                description="Bilup Accounts login feature title"
+                description="PineWarp Accounts login feature title"
                 id="mw.roturLogin.feature.activity.title"
             />
         ),
         description: (
             <FormattedMessage
-                defaultMessage="Share Bilup activity on your Bilup Accounts profile."
-                description="Bilup Accounts login feature description"
+                defaultMessage="Share PineWarp activity on your PineWarp Accounts profile."
+                description="PineWarp Accounts login feature description"
                 id="mw.roturLogin.feature.activity.desc"
             />
         )
@@ -45,14 +45,14 @@ const FEATURES = [
         title: (
             <FormattedMessage
                 defaultMessage="Cloud themes and settings"
-                description="Bilup Accounts login feature title"
+                description="PineWarp Accounts login feature title"
                 id="mw.roturLogin.feature.cloud.title"
             />
         ),
         description: (
             <FormattedMessage
                 defaultMessage="Sync themes and settings across devices when signed in."
-                description="Bilup Accounts login feature description"
+                description="PineWarp Accounts login feature description"
                 id="mw.roturLogin.feature.cloud.desc"
             />
         )
@@ -61,15 +61,15 @@ const FEATURES = [
         icon: GitBranch,
         title: (
             <FormattedMessage
-                defaultMessage="Bilup Git in the Git window"
-                description="Bilup Accounts login feature title"
+                defaultMessage="PineWarp Git in the Git window"
+                description="PineWarp Accounts login feature title"
                 id="mw.roturLogin.feature.git.title"
             />
         ),
         description: (
             <FormattedMessage
                 defaultMessage="Create repos on git.bilup.org, push your project, and clone others."
-                description="Bilup Accounts login feature description"
+                description="PineWarp Accounts login feature description"
                 id="mw.roturLogin.feature.git.desc"
             />
         )
@@ -82,14 +82,14 @@ const COMING_SOON = [
         title: (
             <FormattedMessage
                 defaultMessage="Friends and collab invites"
-                description="Upcoming Bilup Accounts feature title"
+                description="Upcoming PineWarp Accounts feature title"
                 id="mw.roturLogin.coming.friends.title"
             />
         ),
         description: (
             <FormattedMessage
-                defaultMessage="See online friends on Bilup and invite them to collab."
-                description="Upcoming Bilup Accounts feature description"
+                defaultMessage="See online friends on PineWarp and invite them to collab."
+                description="Upcoming PineWarp Accounts feature description"
                 id="mw.roturLogin.coming.friends.desc"
             />
         )
@@ -131,7 +131,7 @@ class RoturLoginModal extends React.Component {
         try {
             const api = getRoturSessionApi();
             if (!api || typeof api.login !== 'function') {
-                throw new Error('Bilup Accounts session is not ready yet. Try again in a moment.');
+                throw new Error('PineWarp Accounts session is not ready yet. Try again in a moment.');
             }
             await api.login();
         } catch (error) {
@@ -173,14 +173,14 @@ class RoturLoginModal extends React.Component {
                             <h2 className={styles.title}>
                                 {loggedIn ? (
                                     <FormattedMessage
-                                        defaultMessage="Bilup Accounts in Bilup"
-                                        description="Headline in Bilup Accounts info modal when signed in"
+                                        defaultMessage="PineWarp Accounts in PineWarp"
+                                        description="Headline in PineWarp Accounts info modal when signed in"
                                         id="mw.roturLogin.infoHeadline"
                                     />
                                 ) : (
                                     <FormattedMessage
-                                        defaultMessage="Connect Bilup to Bilup Accounts"
-                                        description="Headline in Bilup Accounts login modal"
+                                        defaultMessage="Connect PineWarp to PineWarp Accounts"
+                                        description="Headline in PineWarp Accounts login modal"
                                         id="mw.roturLogin.headline"
                                     />
                                 )}
@@ -190,7 +190,7 @@ class RoturLoginModal extends React.Component {
                                     <FormattedMessage
                                         // eslint-disable-next-line max-len
                                         defaultMessage="You're signed in as {username}. Here's what your account enables."
-                                        description="Subtitle in Bilup Accounts info modal when signed in"
+                                        description="Subtitle in PineWarp Accounts info modal when signed in"
                                         id="mw.roturLogin.infoSubtitle"
                                         values={{username: this.props.username}}
                                     />
@@ -198,7 +198,7 @@ class RoturLoginModal extends React.Component {
                                     <FormattedMessage
                                         // eslint-disable-next-line max-len
                                         defaultMessage="Sign in for presence, your profile picture, and cloud sync of themes and settings."
-                                        description="Subtitle in Bilup Accounts login modal"
+                                        description="Subtitle in PineWarp Accounts login modal"
                                         id="mw.roturLogin.subtitle"
                                     />
                                 )}
@@ -209,7 +209,7 @@ class RoturLoginModal extends React.Component {
                     <p className={styles.sectionLabel}>
                         <FormattedMessage
                             defaultMessage="What you unlock"
-                            description="Section label listing Bilup Accounts login benefits"
+                            description="Section label listing PineWarp Accounts login benefits"
                             id="mw.roturLogin.unlocks"
                         />
                     </p>
@@ -228,7 +228,7 @@ class RoturLoginModal extends React.Component {
                     <p className={styles.sectionLabel}>
                         <FormattedMessage
                             defaultMessage="Coming soon"
-                            description="Section label for planned Bilup Accounts features"
+                            description="Section label for planned PineWarp Accounts features"
                             id="mw.roturLogin.comingSoon"
                         />
                     </p>
@@ -258,7 +258,7 @@ class RoturLoginModal extends React.Component {
                             >
                                 <FormattedMessage
                                     defaultMessage="Close"
-                                    description="Close button on Bilup Accounts info modal"
+                                    description="Close button on PineWarp Accounts info modal"
                                     id="mw.roturLogin.close"
                                 />
                             </button>
@@ -271,7 +271,7 @@ class RoturLoginModal extends React.Component {
                                 >
                                     <FormattedMessage
                                         defaultMessage="Not now"
-                                        description="Cancel button on Bilup Accounts login modal"
+                                        description="Cancel button on PineWarp Accounts login modal"
                                         id="mw.roturLogin.notNow"
                                     />
                                 </button>
@@ -283,14 +283,14 @@ class RoturLoginModal extends React.Component {
                                 >
                                     {busy ? (
                                         <FormattedMessage
-                                            defaultMessage="Opening Bilup Accounts..."
-                                            description="Loading state for Bilup Accounts login button"
+                                            defaultMessage="Opening PineWarp Accounts..."
+                                            description="Loading state for PineWarp Accounts login button"
                                             id="mw.roturLogin.opening"
                                         />
                                     ) : (
                                         <FormattedMessage
-                                            defaultMessage="Continue with Bilup Accounts"
-                                            description="Primary button to start Bilup Accounts OAuth login"
+                                            defaultMessage="Continue with PineWarp Accounts"
+                                            description="Primary button to start PineWarp Accounts OAuth login"
                                             id="mw.roturLogin.continue"
                                         />
                                     )}
@@ -302,8 +302,8 @@ class RoturLoginModal extends React.Component {
                     <p className={styles.footnote}>
                         <FormattedMessage
                             // eslint-disable-next-line max-len
-                            defaultMessage="Secure sign-in on {link}. Your account powers presence, cloud sync, and Bilup Git."
-                            description="Privacy footnote under Bilup Accounts login"
+                            defaultMessage="Secure sign-in on {link}. Your account powers presence, cloud sync, and PineWarp Git."
+                            description="Privacy footnote under PineWarp Accounts login"
                             id="mw.roturLogin.footnote"
                             values={{
                                 link: (

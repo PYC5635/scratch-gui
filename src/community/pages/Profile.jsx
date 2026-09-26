@@ -58,7 +58,7 @@ const Profile = () => {
         rotur.profile(name, {includePosts: false})
             .then(fresh(setProfile))
             .catch(fresh(() => setError(t('mw.community.profile.notFound',
-                'This user does not exist on Bilup Accounts.'))));
+                'This user does not exist on PineWarp Accounts.'))));
         api.getUser(name)
             .then(fresh(setMwUser))
             .catch(fresh(() => setMwUser(null)));
@@ -215,8 +215,8 @@ const Profile = () => {
 
                     {!onMistWarp ? (
                         <div className={styles.notOnMistwarp}>
-                            {t('mw.community.profile.notOnBilup',
-                                'Not on Bilup yet. This is {name}\'s Bilup Accounts profile.', {
+                            {t('mw.community.profile.notOnPineWarp',
+                                'Not on PineWarp yet. This is {name}\'s PineWarp Accounts profile.', {
                                     name: profile.username || name
                                 })}
                         </div>
@@ -441,7 +441,7 @@ const Profile = () => {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    {t('mw.community.profile.bilupAccountsProfile', '跳转到Bilup Accounts主页')}
+                                    {t('mw.community.profile.bilupAccountsProfile', '跳转到PineWarp Accounts主页')}
                                 </a>
                             </div>
                             {activities.length ? (
@@ -486,7 +486,7 @@ const DonateModal = ({recipient, onClose}) => {
         try {
             await payUser(recipient, value, intl.formatMessage({
                 id: 'mw.community.profile.donationMemo',
-                defaultMessage: 'Bilup donation to {recipient}'
+                defaultMessage: 'PineWarp donation to {recipient}'
             }, {recipient}));
             setSent(value);
         } catch (e) {
@@ -573,7 +573,7 @@ const DonateModal = ({recipient, onClose}) => {
                         <p className={styles.donateText}>
                             {intl.formatMessage({
                                 id: 'mw.community.profile.donateText',
-                                defaultMessage: 'Send Bilup Accounts credits straight to {recipient}. This transfers directly from your account.'
+                                defaultMessage: 'Send PineWarp Accounts credits straight to {recipient}. This transfers directly from your account.'
                             }, {recipient})}
                         </p>
                         <input

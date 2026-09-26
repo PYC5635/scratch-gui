@@ -158,7 +158,7 @@ import '!!style-loader!css-loader!./block-count.css';
 
 import ChevronDown from './ChevronDown.jsx';
 
-import BilupLogo from './bilup-logo.jsx';
+import PineWarpLogo from './bilup-logo.jsx';
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
 import prehistoricLogo from './prehistoric-logo.svg';
@@ -193,13 +193,13 @@ const twMessages = defineMessages({
     },
     bilupHome: {
         id: 'tw.menuBar.bilupHome',
-        defaultMessage: 'Bilup home',
+        defaultMessage: 'PineWarp home',
         description: 'Title for the home link in the menu bar'
     },
     bilupLogoAlt: {
         id: 'tw.menuBar.bilupLogoAlt',
-        defaultMessage: 'Bilup',
-        description: 'Alt text for the Bilup logo'
+        defaultMessage: 'PineWarp',
+        description: 'Alt text for the PineWarp logo'
     },
     moreMenu: {
         id: 'tw.menuBar.moreMenu',
@@ -1623,7 +1623,7 @@ class MenuBar extends React.Component {
                         title={this.props.intl.formatMessage(twMessages.bilupHome)}
                         data-mw-item="__home"
                     >
-                        <BilupLogo
+                        <PineWarpLogo
                             className={styles.homeLogo}
                             alt={this.props.intl.formatMessage(twMessages.bilupLogoAlt)}
                         />
@@ -1768,14 +1768,14 @@ class MenuBar extends React.Component {
                                                     <Globe />
                                                     {mistwarpAction === 'remix' ? (
                                                         <FormattedMessage
-                                                            defaultMessage="Remix to Bilup"
-                                                            description="File menu item to remix a Bilup project"
+                                                            defaultMessage="Remix to PineWarp"
+                                                            description="File menu item to remix a PineWarp project"
                                                             id="mw.menuBar.remix"
                                                         />
                                                     ) : (
                                                         <FormattedMessage
-                                                            defaultMessage="Save to Bilup"
-                                                            description="File menu item to save the project to Bilup"
+                                                            defaultMessage="Save to PineWarp"
+                                                            description="File menu item to save the project to PineWarp"
                                                             id="mw.menuBar.share"
                                                         />
                                                     )}
@@ -1786,7 +1786,7 @@ class MenuBar extends React.Component {
                                                     <ExternalLink />
                                                     <FormattedMessage
                                                         defaultMessage="See project page"
-                                                        description="File menu item opening the Bilup project page"
+                                                        description="File menu item opening the PineWarp project page"
                                                         id="mw.menuBar.projectPage"
                                                     />
                                                 </MenuItem>

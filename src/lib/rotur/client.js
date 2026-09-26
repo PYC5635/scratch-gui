@@ -21,9 +21,9 @@ const REQUIRED_PERMISSIONS = [
 ];
 const PRESENCE_PERMISSION = 'account:profile';
 const LOGIN_PERMISSIONS = [...REQUIRED_PERMISSIONS, PRESENCE_PERMISSION];
-const ACTIVITY_ID = 'Bilup';
+const ACTIVITY_ID = 'PineWarp';
 const APP_URL = 'https://com.bilup.org/';
-const APP_IMAGE = 'https://raw.githubusercontent.com/Bilup/desktop/master/art/icon.png';
+const APP_IMAGE = 'https://raw.githubusercontent.com/PineWarp/desktop/master/art/icon.png';
 
 /** @type {Rotur|null} */
 let client = null;
@@ -112,7 +112,7 @@ const fetchCurrentUser = async () => {
         sawNetworkError = true;
     }
     if (sawNetworkError) {
-        const error = new Error('Could not reach Bilup Accounts');
+        const error = new Error('Could not reach PineWarp Accounts');
         error.transient = true;
         throw error;
     }
@@ -218,7 +218,7 @@ const buildAuthUrl = (returnTo = (typeof window === 'undefined' ? '' : window.lo
     return `https://accounts.bilup.org/auth?${params.toString()}`;
 };
 
-/** Open the Bilup Accounts login flow (popup, with iframe fallback for Electron). */
+/** Open the PineWarp Accounts login flow (popup, with iframe fallback for Electron). */
 const login = async () => {
     const rotur = getClient();
     await rotur.login({
@@ -229,7 +229,7 @@ const login = async () => {
     storeToken(rotur.token);
     const user = await fetchCurrentUser();
     if (!user) {
-        throw new Error('Logged in but could not load Bilup Accounts profile');
+        throw new Error('Logged in but could not load PineWarp Accounts profile');
     }
     writeRestoreCache(rotur.token, user);
     return user;
@@ -404,7 +404,7 @@ const subscribeNotificationRemovals = listener => {
 };
 
 /**
- * Publish Bilup editing presence.
+ * Publish PineWarp editing presence.
  * Title/status are fixed strings; edit duration uses start_time only.
  * @param {object|string} projectTitleOrCtx - Project title or activity context.
  * @param {object} [extra] - Extra activity fields.
@@ -506,7 +506,7 @@ const markNotificationsRead = async () => {
 
 // Ensure the current session token can exercise every scope in `scopes`. If the
 // token is already sufficient (or is a full-access main token) this is a no-op;
-// otherwise it re-runs the Bilup Accounts login popup requesting the union of the existing
+// otherwise it re-runs the PineWarp Accounts login popup requesting the union of the existing
 // login scopes plus the requested ones, broadening the same session in place. No
 // separate per-project sub-token is minted.
 const ensureScopes = async scopes => {
@@ -553,7 +553,7 @@ const isPaymentPermissionError = error => {
         message.includes('token');
 };
 
-// Read the current Bilup Accounts credit balance, or null if the token can't see it.
+// Read the current PineWarp Accounts credit balance, or null if the token can't see it.
 const getBalance = async () => {
     const rotur = getClient();
     if (!rotur.loggedIn) {
@@ -603,7 +603,7 @@ const getAccountSummary = async () => {
     }
 };
 
-// Transfer credits to another Bilup Accounts user. Throws an Error; if the failure is a
+// Transfer credits to another PineWarp Accounts user. Throws an Error; if the failure is a
 // missing-permission on the current (sub-)token, the error carries needsReauth.
 const payUser = async (to, amount, note) => {
     const rotur = getClient();
